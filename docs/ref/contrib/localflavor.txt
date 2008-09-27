@@ -286,6 +286,19 @@ Germany (``de``)
 
     A ``Select`` widget that uses a list of German states as its choices.
 
+.. class:: de.forms.DEPhoneNumberField
+
+    A form field that validates input as a telephone number following
+    `several standards`_ used in Austria and Germany (national and
+    international notation):
+
+        * DIN 5008 (new)
+        * DIN 5008 (old)
+        * E.123
+        * Informal
+
+.. _several standards: http://de.wikipedia.org/wiki/Rufnummer#Schreibweisen
+
 Holland (``nl``)
 ================
 

@@ -4,10 +4,12 @@ DE-specific Form helpers
 
 from django.forms import ValidationError
 from django.forms.fields import Field, RegexField, Select, EMPTY_VALUES
+from django.utils.encoding import smart_unicode
 from django.utils.translation import ugettext_lazy as _
 import re
 
 id_re = re.compile(r"^(?P<residence>\d{10})(?P<origin>\w{1,3})[-\ ]?(?P<birthday>\d{7})[-\ ]?(?P<validity>\d{7})[-\ ]?(?P<checksum>\d{1})$")
+phone_digits_re= re.compile(r"^(((\+\d{2,3})?\s\(([^0]{1}\d{1,6}\)|0\)\d{1,5})|\(\d{1,2}(\s?\d{1,2}){1,2}\))\s(\d{1,2}(\s?\d{1,2}){1,2})((-(\d{1,4}))?))|(\+\d{2,3}\s?\d{1,5}|0\d{1,6})\s?(\d\s)?\d+(-?\d{1,5})?$")
 
 class DEZipCodeField(RegexField):
     default_error_messages = {
@@ -16,6 +18,28 @@ class DEZipCodeField(RegexField):
     def __init__(self, *args, **kwargs):
         super(DEZipCodeField, self).__init__(r'^\d{5}$',
             max_length=None, min_length=None, *args, **kwargs)
+
+class DEPhoneNumberField(RegexField):
+    """
+    A form field that validates telephone numbers following several standards
+    used in Austria and Germany (national and international):
+
+        * DIN 5008 (new)
+        * DIN 5008 (old)
+        * E.123
+        * Informal convention
+    """
+    default_error_messages = {
+        'invalid': _('Enter the phone number in a supported format: DIN 5008, E.123, Microsoft/TAPI.'),
+    }
+    def __init__(self, *args, **kwargs):
+        super(DEPhoneNumberField, self).__init__(phone_digits_re, *args, **kwargs)
+
+    def clean(self, value):
+        value = super(DEPhoneNumberField, self).clean(value)
+        if value in EMPTY_VALUES:
+            return u''
+        return value
 
 class DEStateSelect(Select):
     """

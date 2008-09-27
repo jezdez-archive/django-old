@@ -13,6 +13,62 @@ Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a zip code in the format XXXXX.']
 
+# DEPhoneDIN5008Field #############################################################
+
+>>> from django.contrib.localflavor.de.forms import DEPhoneNumberField
+>>> f = DEPhoneNumberField()
+>>> f.clean('030 12345-67') # new DIN 5008
+u'030 12345-67'
+>>> f.clean('030 1234567') # new DIN 5008
+u'030 1234567'
+>>> f.clean('0301234567') # lazy DIN 5008
+u'0301234567'
+>>> f.clean('(0 30) 1 23 45-67') # old DIN 5008
+u'(0 30) 1 23 45-67'
+>>> f.clean('(0 30) 1 23 456') # old DIN 5008
+u'(0 30) 1 23 456'
+>>> f.clean('0900 5 123456') # DIN 5008 Premium rate numbers
+u'0900 5 123456'
+>>> f.clean('(030) 123 45 67') # E.123
+u'(030) 123 45 67'
+>>> f.clean('+49 (30) 1234567') # Microsoft/TAPI
+u'+49 (30) 1234567'
+>>> f.clean('+49 (0)30 12345-67') # Informal standard in Germany and Austria
+u'+49 (0)30 12345-67'
+>>> f.clean('+49 30 12345-67') # DIN 5008
+u'+49 30 12345-67'
+>>> f.clean('+49 30 1234567') # E.123
+u'+49 30 1234567'
+>>> f.clean('+49 30 12345-67') # E.123
+u'+49 30 12345-67'
+>>> f.clean('+49301234567') # Lazy E.123
+u'+49301234567'
+>>> f.clean('+49 30 12345--67')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter the phone number in a supported format: DIN 5008, E.123, Microsoft/TAPI.']
+>>> f.clean('+49 (030) 1234567')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter the phone number in a supported format: DIN 5008, E.123, Microsoft/TAPI.']
+>>> f.clean('(030) (123) 45 67')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter the phone number in a supported format: DIN 5008, E.123, Microsoft/TAPI.']
+>>> f.clean('abcdefg')
+Traceback (most recent call last):
+ValidationError: [u'Enter the phone number in a supported format: DIN 5008, E.123, Microsoft/TAPI.']
+>>> f.clean(None)
+Traceback (most recent call last):
+...
+ValidationError: [u'This field is required.']
+>>> f = DEPhoneNumberField(required=False)
+>>> f.clean(None)
+u''
+>>> f.clean('')
+u''
+
+
 # DEStateSelect #############################################################
 
 >>> from django.contrib.localflavor.de.forms import DEStateSelect
