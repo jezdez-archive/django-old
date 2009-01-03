@@ -241,6 +241,12 @@ Template filter code falls into one of two situations:
        this tricky, but keep an eye out for any problems like that when
        reviewing your code.
 
+       Marking a filter ``is_safe`` will coerce the filter's return value to
+       a string.  If your filter should return a boolean or other non-string
+       value, marking it ``is_safe`` will probably have unintended
+       consequences (such as converting a boolean False to the string
+       'False').
+
     2. Alternatively, your filter code can manually take care of any necessary
        escaping. This is necessary when you're introducing new HTML markup into
        the result. You want to mark the output as safe from further
@@ -338,7 +344,7 @@ else. In our case, let's say the tag should be used like this:
 
     <p>The time is {% current_time "%Y-%m-%d %I:%M %p" %}.</p>
 
-.. _`strftime syntax`: http://www.python.org/doc/current/lib/module-time.html#l2h-1941
+.. _`strftime syntax`: http://docs.python.org/library/time.html#time.strftime
 
 The parser for this function should grab the parameter and create a ``Node``
 object::

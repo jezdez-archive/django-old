@@ -25,9 +25,29 @@ def query_class(QueryClass, Database):
         pass
 
     class OracleQuery(QueryClass):
+        def __reduce__(self):
+            """
+            Enable pickling for this class (normal pickling handling doesn't
+            work as Python can only pickle module-level classes by default).
+            """
+            if hasattr(QueryClass, '__getstate__'):
+                assert hasattr(QueryClass, '__setstate__')
+                data = self.__getstate__()
+            else:
+                data = self.__dict__
+            return (unpickle_query_class, (QueryClass,), data)
+
         def resolve_columns(self, row, fields=()):
-            index_start = len(self.extra_select.keys())
-            values = [self.convert_values(v, None) for v in row[:index_start]]
+            # If this query has limit/offset information, then we expect the
+            # first column to be an extra "_RN" column that we need to throw
+            # away.
+            if self.high_mark is not None or self.low_mark:
+                rn_offset = 1
+            else:
+                rn_offset = 0
+            index_start = rn_offset + len(self.extra_select.keys())
+            values = [self.convert_values(v, None)
+                      for v in row[rn_offset:index_start]]
             for value, field in map(None, row[index_start:], fields):
                 values.append(self.convert_values(value, field))
             return values
@@ -97,49 +117,32 @@ def query_class(QueryClass, Database):
                 sql, params = super(OracleQuery, self).as_sql(with_limits=False,
                         with_col_aliases=with_col_aliases)
             else:
-                # `get_columns` needs to be called before `get_ordering` to
-                # populate `_select_alias`.
-                self.pre_sql_setup()
-                self.get_columns()
-                ordering = self.get_ordering()
-
-                # Oracle's ROW_NUMBER() function requires an ORDER BY clause.
-                if ordering:
-                    rn_orderby = ', '.join(ordering)
-                else:
-                    # Create a default ORDER BY since none was specified.
-                    qn = self.quote_name_unless_alias
-                    opts = self.model._meta
-                    rn_orderby = '%s.%s' % (qn(opts.db_table),
-                        qn(opts.fields[0].db_column or opts.fields[0].column))
-
-                # Ensure the base query SELECTs our special "_RN" column
-                self.extra_select['_RN'] = ('ROW_NUMBER() OVER (ORDER BY %s)'
-                                            % rn_orderby, '')
                 sql, params = super(OracleQuery, self).as_sql(with_limits=False,
                                                         with_col_aliases=True)
 
                 # Wrap the base query in an outer SELECT * with boundaries on
                 # the "_RN" column.  This is the canonical way to emulate LIMIT
                 # and OFFSET on Oracle.
-                sql = 'SELECT * FROM (%s) WHERE "_RN" > %d' % (sql, self.low_mark)
+                high_where = ''
                 if self.high_mark is not None:
-                    sql = '%s AND "_RN" <= %d' % (sql, self.high_mark)
+                    high_where = 'WHERE ROWNUM <= %d' % (self.high_mark,)
+                sql = 'SELECT * FROM (SELECT ROWNUM AS "_RN", "_SUB".* FROM (%s) "_SUB" %s) WHERE "_RN" > %d' % (sql, high_where, self.low_mark)
 
             return sql, params
 
-        def set_limits(self, low=None, high=None):
-            super(OracleQuery, self).set_limits(low, high)
-            # We need to select the row number for the LIMIT/OFFSET sql.
-            # A placeholder is added to extra_select now, because as_sql is
-            # too late to be modifying extra_select.  However, the actual sql
-            # depends on the ordering, so that is generated in as_sql.
-            self.extra_select['_RN'] = ('1', '')
-
-        def clear_limits(self):
-            super(OracleQuery, self).clear_limits()
-            if '_RN' in self.extra_select:
-                del self.extra_select['_RN']
-
     _classes[QueryClass] = OracleQuery
     return OracleQuery
+
+def unpickle_query_class(QueryClass):
+    """
+    Utility function, called by Python's unpickling machinery, that handles
+    unpickling of Oracle Query subclasses.
+    """
+    # XXX: Would be nice to not have any dependency on cx_Oracle here. Since
+    # modules can't be pickled, we need a way to know to load the right module.
+    import cx_Oracle
+
+    klass = query_class(QueryClass, cx_Oracle)
+    return klass.__new__(klass)
+unpickle_query_class.__safe_for_unpickling__ = True
+

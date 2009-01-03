@@ -1,4 +1,4 @@
-.. _topics-file-uploads:
+.. _topics-http-file-uploads:
 
 ============
 File Uploads
@@ -8,11 +8,11 @@ File Uploads
 
 .. versionadded:: 1.0
 
-Most Web sites wouldn't be complete without a way to upload files. When Django
-handles a file upload, the file data ends up placed in ``request.FILES`` (for
-more on the ``request`` object see the documentation for :ref:`request and
-response objects <ref-request-response>`). This document explains how files are
-stored on disk and in memory, and how to customize the default behavior.
+When Django handles a file upload, the file data ends up placed in
+``request.FILES`` (for more on the ``request`` object see the documentation for
+:ref:`request and response objects <ref-request-response>`). This document
+explains how files are stored on disk and in memory, and how to customize the
+default behavior.
 
 Basic file uploads
 ==================
@@ -132,7 +132,7 @@ Three settings control Django's file upload behavior:
 
     :setting:`FILE_UPLOAD_TEMP_DIR`
         The directory where uploaded files larger than
-        :setting:`FILE_UPLOAD_TEMP_DIR` will be stored.
+        :setting:`FILE_UPLOAD_MAX_MEMORY_SIZE` will be stored.
 
         Defaults to your system's standard temporary directory (i.e. ``/tmp`` on
         most Unix-like systems).
@@ -153,8 +153,8 @@ Three settings control Django's file upload behavior:
             ``0`` is very important: it indicates an octal number, which is the
             way that modes must be specified. If you try to use ``644``, you'll
             get totally incorrect behavior.
-            
-            **Always prefix the mode with a ``0``.**
+
+            **Always prefix the mode with a 0.**
 
     :setting:`FILE_UPLOAD_HANDLERS`
         The actual handlers for uploaded files. Changing this setting allows

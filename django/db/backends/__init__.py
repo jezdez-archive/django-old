@@ -143,6 +143,14 @@ class BaseDatabaseOperations(object):
         """
         return '%s'
 
+    def force_no_ordering(self):
+        """
+        Returns a list used in the "ORDER BY" clause to force no ordering at
+        all. Returning an empty list means that nothing will be included in the
+        ordering.
+        """
+        return []
+
     def fulltext_search_sql(self, field_name):
         """
         Returns the SQL WHERE clause to use in order to perform a full-text
@@ -404,7 +412,7 @@ class BaseDatabaseIntrospection(object):
                 tables.add(model._meta.db_table)
                 tables.update([f.m2m_db_table() for f in model._meta.local_many_to_many])
         if only_existing:
-            tables = [t for t in tables if t in self.table_names()]
+            tables = [t for t in tables if self.table_name_converter(t) in self.table_names()]
         return tables
 
     def installed_models(self, tables):

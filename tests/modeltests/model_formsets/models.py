@@ -27,7 +27,15 @@ class Book(models.Model):
 
     def __unicode__(self):
         return self.title
+    
+class BookWithCustomPK(models.Model):
+    my_pk = models.DecimalField(max_digits=5, decimal_places=0, primary_key=True)
+    author = models.ForeignKey(Author)
+    title = models.CharField(max_length=100)
 
+    def __unicode__(self):
+        return u'%s: %s' % (self.my_pk, self.title)
+    
 class AuthorMeeting(models.Model):
     name = models.CharField(max_length=100)
     authors = models.ManyToManyField(Author)
@@ -96,6 +104,24 @@ class Price(models.Model):
 class MexicanRestaurant(Restaurant):
     serves_tacos = models.BooleanField()
 
+# models for testing unique_together validation when a fk is involved and
+# using inlineformset_factory.
+class Repository(models.Model):
+    name = models.CharField(max_length=25)
+    
+    def __unicode__(self):
+        return self.name
+
+class Revision(models.Model):
+    repository = models.ForeignKey(Repository)
+    revision = models.CharField(max_length=40)
+    
+    class Meta:
+        unique_together = (("repository", "revision"),)
+    
+    def __unicode__(self):
+        return u"%s (%s)" % (self.revision, unicode(self.repository))
+
 # models for testing callable defaults (see bug #7975). If you define a model
 # with a callable default value, you cannot rely on the initial value in a
 # form.
@@ -106,6 +132,17 @@ class Membership(models.Model):
     person = models.ForeignKey(Person)
     date_joined = models.DateTimeField(default=datetime.datetime.now)
     karma = models.IntegerField()
+
+# models for testing a null=True fk to a parent
+class Team(models.Model):
+    name = models.CharField(max_length=100)
+
+class Player(models.Model):
+    team = models.ForeignKey(Team, null=True)
+    name = models.CharField(max_length=100)
+    
+    def __unicode__(self):
+        return self.name
 
 __test__ = {'API_TESTS': """
 
@@ -364,9 +401,9 @@ admin system's edit inline functionality works.
 >>> formset = AuthorBooksFormSet(instance=author)
 >>> for form in formset.forms:
 ...     print form.as_p()
-<p><label for="id_book_set-0-title">Title:</label> <input id="id_book_set-0-title" type="text" name="book_set-0-title" maxlength="100" /><input type="hidden" name="book_set-0-id" id="id_book_set-0-id" /></p>
-<p><label for="id_book_set-1-title">Title:</label> <input id="id_book_set-1-title" type="text" name="book_set-1-title" maxlength="100" /><input type="hidden" name="book_set-1-id" id="id_book_set-1-id" /></p>
-<p><label for="id_book_set-2-title">Title:</label> <input id="id_book_set-2-title" type="text" name="book_set-2-title" maxlength="100" /><input type="hidden" name="book_set-2-id" id="id_book_set-2-id" /></p>
+<p><label for="id_book_set-0-title">Title:</label> <input id="id_book_set-0-title" type="text" name="book_set-0-title" maxlength="100" /><input type="hidden" name="book_set-0-author" value="1" id="id_book_set-0-author" /><input type="hidden" name="book_set-0-id" id="id_book_set-0-id" /></p>
+<p><label for="id_book_set-1-title">Title:</label> <input id="id_book_set-1-title" type="text" name="book_set-1-title" maxlength="100" /><input type="hidden" name="book_set-1-author" value="1" id="id_book_set-1-author" /><input type="hidden" name="book_set-1-id" id="id_book_set-1-id" /></p>
+<p><label for="id_book_set-2-title">Title:</label> <input id="id_book_set-2-title" type="text" name="book_set-2-title" maxlength="100" /><input type="hidden" name="book_set-2-author" value="1" id="id_book_set-2-author" /><input type="hidden" name="book_set-2-id" id="id_book_set-2-id" /></p>
 
 >>> data = {
 ...     'book_set-TOTAL_FORMS': '3', # the number of forms rendered
@@ -398,9 +435,9 @@ book.
 >>> formset = AuthorBooksFormSet(instance=author)
 >>> for form in formset.forms:
 ...     print form.as_p()
-<p><label for="id_book_set-0-title">Title:</label> <input id="id_book_set-0-title" type="text" name="book_set-0-title" value="Les Fleurs du Mal" maxlength="100" /><input type="hidden" name="book_set-0-id" value="1" id="id_book_set-0-id" /></p>
-<p><label for="id_book_set-1-title">Title:</label> <input id="id_book_set-1-title" type="text" name="book_set-1-title" maxlength="100" /><input type="hidden" name="book_set-1-id" id="id_book_set-1-id" /></p>
-<p><label for="id_book_set-2-title">Title:</label> <input id="id_book_set-2-title" type="text" name="book_set-2-title" maxlength="100" /><input type="hidden" name="book_set-2-id" id="id_book_set-2-id" /></p>
+<p><label for="id_book_set-0-title">Title:</label> <input id="id_book_set-0-title" type="text" name="book_set-0-title" value="Les Fleurs du Mal" maxlength="100" /><input type="hidden" name="book_set-0-author" value="1" id="id_book_set-0-author" /><input type="hidden" name="book_set-0-id" value="1" id="id_book_set-0-id" /></p>
+<p><label for="id_book_set-1-title">Title:</label> <input id="id_book_set-1-title" type="text" name="book_set-1-title" maxlength="100" /><input type="hidden" name="book_set-1-author" value="1" id="id_book_set-1-author" /><input type="hidden" name="book_set-1-id" id="id_book_set-1-id" /></p>
+<p><label for="id_book_set-2-title">Title:</label> <input id="id_book_set-2-title" type="text" name="book_set-2-title" maxlength="100" /><input type="hidden" name="book_set-2-author" value="1" id="id_book_set-2-author" /><input type="hidden" name="book_set-2-id" id="id_book_set-2-id" /></p>
 
 >>> data = {
 ...     'book_set-TOTAL_FORMS': '3', # the number of forms rendered
@@ -443,7 +480,7 @@ This is used in the admin for save_as functionality.
 True
 
 >>> new_author = Author.objects.create(name='Charles Baudelaire')
->>> formset.instance = new_author
+>>> formset = AuthorBooksFormSet(data, instance=new_author, save_as_new=True)
 >>> [book for book in formset.save() if book.author.pk == new_author.pk]
 [<Book: Les Fleurs du Mal>, <Book: Le Spleen de Paris>]
 
@@ -452,8 +489,36 @@ Test using a custom prefix on an inline formset.
 >>> formset = AuthorBooksFormSet(prefix="test")
 >>> for form in formset.forms:
 ...     print form.as_p()
-<p><label for="id_test-0-title">Title:</label> <input id="id_test-0-title" type="text" name="test-0-title" maxlength="100" /><input type="hidden" name="test-0-id" id="id_test-0-id" /></p>
-<p><label for="id_test-1-title">Title:</label> <input id="id_test-1-title" type="text" name="test-1-title" maxlength="100" /><input type="hidden" name="test-1-id" id="id_test-1-id" /></p>
+<p><label for="id_test-0-title">Title:</label> <input id="id_test-0-title" type="text" name="test-0-title" maxlength="100" /><input type="hidden" name="test-0-author" id="id_test-0-author" /><input type="hidden" name="test-0-id" id="id_test-0-id" /></p>
+<p><label for="id_test-1-title">Title:</label> <input id="id_test-1-title" type="text" name="test-1-title" maxlength="100" /><input type="hidden" name="test-1-author" id="id_test-1-author" /><input type="hidden" name="test-1-id" id="id_test-1-id" /></p>
+
+Test inline formsets where the inline-edited object has a custom primary key that is not the fk to the parent object.
+
+>>> AuthorBooksFormSet2 = inlineformset_factory(Author, BookWithCustomPK, can_delete=False, extra=1)
+
+>>> formset = AuthorBooksFormSet2(instance=author)
+>>> for form in formset.forms:
+...     print form.as_p()
+<p><label for="id_bookwithcustompk_set-0-my_pk">My pk:</label> <input type="text" name="bookwithcustompk_set-0-my_pk" id="id_bookwithcustompk_set-0-my_pk" /></p>
+    <p><label for="id_bookwithcustompk_set-0-title">Title:</label> <input id="id_bookwithcustompk_set-0-title" type="text" name="bookwithcustompk_set-0-title" maxlength="100" /><input type="hidden" name="bookwithcustompk_set-0-author" value="1" id="id_bookwithcustompk_set-0-author" /></p>
+
+>>> data = {
+...     'bookwithcustompk_set-TOTAL_FORMS': '1', # the number of forms rendered
+...     'bookwithcustompk_set-INITIAL_FORMS': '0', # the number of forms with initial data
+...     'bookwithcustompk_set-0-my_pk': '77777',
+...     'bookwithcustompk_set-0-title': 'Les Fleurs du Mal',
+... }
+
+>>> formset = AuthorBooksFormSet2(data, instance=author)
+>>> formset.is_valid()
+True
+
+>>> formset.save()
+[<BookWithCustomPK: 77777: Les Fleurs du Mal>]
+
+>>> for book in author.bookwithcustompk_set.all():
+...     print book.title
+Les Fleurs du Mal
 
 # Test a custom primary key ###################################################
 
@@ -475,8 +540,8 @@ We need to ensure that it is displayed
 >>> formset = FormSet(instance=place)
 >>> for form in formset.forms:
 ...     print form.as_p()
-<p><label for="id_owner_set-0-name">Name:</label> <input id="id_owner_set-0-name" type="text" name="owner_set-0-name" maxlength="100" /><input type="hidden" name="owner_set-0-auto_id" id="id_owner_set-0-auto_id" /></p>
-<p><label for="id_owner_set-1-name">Name:</label> <input id="id_owner_set-1-name" type="text" name="owner_set-1-name" maxlength="100" /><input type="hidden" name="owner_set-1-auto_id" id="id_owner_set-1-auto_id" /></p>
+<p><label for="id_owner_set-0-name">Name:</label> <input id="id_owner_set-0-name" type="text" name="owner_set-0-name" maxlength="100" /><input type="hidden" name="owner_set-0-place" value="1" id="id_owner_set-0-place" /><input type="hidden" name="owner_set-0-auto_id" id="id_owner_set-0-auto_id" /></p>
+<p><label for="id_owner_set-1-name">Name:</label> <input id="id_owner_set-1-name" type="text" name="owner_set-1-name" maxlength="100" /><input type="hidden" name="owner_set-1-place" value="1" id="id_owner_set-1-place" /><input type="hidden" name="owner_set-1-auto_id" id="id_owner_set-1-auto_id" /></p>
 
 >>> data = {
 ...     'owner_set-TOTAL_FORMS': '2',
@@ -495,9 +560,9 @@ True
 >>> formset = FormSet(instance=place)
 >>> for form in formset.forms:
 ...     print form.as_p()
-<p><label for="id_owner_set-0-name">Name:</label> <input id="id_owner_set-0-name" type="text" name="owner_set-0-name" value="Joe Perry" maxlength="100" /><input type="hidden" name="owner_set-0-auto_id" value="1" id="id_owner_set-0-auto_id" /></p>
-<p><label for="id_owner_set-1-name">Name:</label> <input id="id_owner_set-1-name" type="text" name="owner_set-1-name" maxlength="100" /><input type="hidden" name="owner_set-1-auto_id" id="id_owner_set-1-auto_id" /></p>
-<p><label for="id_owner_set-2-name">Name:</label> <input id="id_owner_set-2-name" type="text" name="owner_set-2-name" maxlength="100" /><input type="hidden" name="owner_set-2-auto_id" id="id_owner_set-2-auto_id" /></p>
+<p><label for="id_owner_set-0-name">Name:</label> <input id="id_owner_set-0-name" type="text" name="owner_set-0-name" value="Joe Perry" maxlength="100" /><input type="hidden" name="owner_set-0-place" value="1" id="id_owner_set-0-place" /><input type="hidden" name="owner_set-0-auto_id" value="1" id="id_owner_set-0-auto_id" /></p>
+<p><label for="id_owner_set-1-name">Name:</label> <input id="id_owner_set-1-name" type="text" name="owner_set-1-name" maxlength="100" /><input type="hidden" name="owner_set-1-place" value="1" id="id_owner_set-1-place" /><input type="hidden" name="owner_set-1-auto_id" id="id_owner_set-1-auto_id" /></p>
+<p><label for="id_owner_set-2-name">Name:</label> <input id="id_owner_set-2-name" type="text" name="owner_set-2-name" maxlength="100" /><input type="hidden" name="owner_set-2-place" value="1" id="id_owner_set-2-place" /><input type="hidden" name="owner_set-2-auto_id" id="id_owner_set-2-auto_id" /></p>
 
 >>> data = {
 ...     'owner_set-TOTAL_FORMS': '3',
@@ -534,7 +599,7 @@ True
 >>> formset = FormSet(instance=owner)
 >>> for form in formset.forms:
 ...     print form.as_p()
-<p><label for="id_ownerprofile-0-age">Age:</label> <input type="text" name="ownerprofile-0-age" id="id_ownerprofile-0-age" /><input type="hidden" name="ownerprofile-0-owner" id="id_ownerprofile-0-owner" /></p>
+<p><label for="id_ownerprofile-0-age">Age:</label> <input type="text" name="ownerprofile-0-age" id="id_ownerprofile-0-age" /><input type="hidden" name="ownerprofile-0-owner" value="1" id="id_ownerprofile-0-owner" /></p>
 
 >>> data = {
 ...     'ownerprofile-TOTAL_FORMS': '1',
@@ -572,7 +637,7 @@ True
 >>> for form in formset.forms:
 ...     print form.as_p()
 <p><label for="id_location_set-0-lat">Lat:</label> <input id="id_location_set-0-lat" type="text" name="location_set-0-lat" maxlength="100" /></p>
-<p><label for="id_location_set-0-lon">Lon:</label> <input id="id_location_set-0-lon" type="text" name="location_set-0-lon" maxlength="100" /><input type="hidden" name="location_set-0-id" id="id_location_set-0-id" /></p>
+<p><label for="id_location_set-0-lon">Lon:</label> <input id="id_location_set-0-lon" type="text" name="location_set-0-lon" maxlength="100" /><input type="hidden" name="location_set-0-place" value="1" id="id_location_set-0-place" /><input type="hidden" name="location_set-0-id" id="id_location_set-0-id" /></p>
 
 # Foreign keys in parents ########################################
 
@@ -635,6 +700,53 @@ False
 >>> formset.errors
 [{'__all__': [u'Price with this Price and Quantity already exists.']}]
 
+# unique_together with inlineformset_factory
+# Also see bug #8882.
+
+>>> repository = Repository.objects.create(name=u'Test Repo')
+>>> FormSet = inlineformset_factory(Repository, Revision, extra=1)
+>>> data = {
+...     'revision_set-TOTAL_FORMS': '1',
+...     'revision_set-INITIAL_FORMS': '0',
+...     'revision_set-0-repository': repository.pk,
+...     'revision_set-0-revision': '146239817507f148d448db38840db7c3cbf47c76',
+...     'revision_set-0-DELETE': '',
+... }
+>>> formset = FormSet(data, instance=repository)
+>>> formset.is_valid()
+True
+>>> formset.save()
+[<Revision: 146239817507f148d448db38840db7c3cbf47c76 (Test Repo)>]
+
+# attempt to save the same revision against against the same repo.
+>>> data = {
+...     'revision_set-TOTAL_FORMS': '1',
+...     'revision_set-INITIAL_FORMS': '0',
+...     'revision_set-0-repository': repository.pk,
+...     'revision_set-0-revision': '146239817507f148d448db38840db7c3cbf47c76',
+...     'revision_set-0-DELETE': '',
+... }
+>>> formset = FormSet(data, instance=repository)
+>>> formset.is_valid()
+False
+>>> formset.errors
+[{'__all__': [u'Revision with this Repository and Revision already exists.']}]
+
+# unique_together with inlineformset_factory with overridden form fields
+# Also see #9494
+
+>>> FormSet = inlineformset_factory(Repository, Revision, fields=('revision',), extra=1)
+>>> data = {
+...     'revision_set-TOTAL_FORMS': '1',
+...     'revision_set-INITIAL_FORMS': '0',
+...     'revision_set-0-repository': repository.pk,
+...     'revision_set-0-revision': '146239817507f148d448db38840db7c3cbf47c76',
+...     'revision_set-0-DELETE': '',
+... }
+>>> formset = FormSet(data, instance=repository)
+>>> formset.is_valid()
+False
+
 # Use of callable defaults (see bug #7975).
 
 >>> person = Person.objects.create(name='Ringo')
@@ -649,7 +761,7 @@ False
 >>> now = form.fields['date_joined'].initial
 >>> print form.as_p()
 <p><label for="id_membership_set-0-date_joined">Date joined:</label> <input type="text" name="membership_set-0-date_joined" value="..." id="id_membership_set-0-date_joined" /><input type="hidden" name="initial-membership_set-0-date_joined" value="..." id="id_membership_set-0-date_joined" /></p>
-<p><label for="id_membership_set-0-karma">Karma:</label> <input type="text" name="membership_set-0-karma" id="id_membership_set-0-karma" /><input type="hidden" name="membership_set-0-id" id="id_membership_set-0-id" /></p>
+<p><label for="id_membership_set-0-karma">Karma:</label> <input type="text" name="membership_set-0-karma" id="id_membership_set-0-karma" /><input type="hidden" name="membership_set-0-person" value="1" id="id_membership_set-0-person" /><input type="hidden" name="membership_set-0-id" id="id_membership_set-0-id" /></p>
 
 # test for validation with callable defaults. Validations rely on hidden fields
 
@@ -700,5 +812,20 @@ False
 >>> formset = FormSet(data, instance=person)
 >>> formset.is_valid()
 True
+
+# inlineformset_factory tests with fk having null=True. see #9462.
+# create some data that will exbit the issue
+>>> team = Team.objects.create(name=u"Red Vipers")
+>>> Player(name="Timmy").save()
+>>> Player(name="Bobby", team=team).save()
+
+>>> PlayerInlineFormSet = inlineformset_factory(Team, Player)
+>>> formset = PlayerInlineFormSet()
+>>> formset.get_queryset()
+[]
+
+>>> formset = PlayerInlineFormSet(instance=team)
+>>> formset.get_queryset()
+[<Player: Bobby>]
 
 """}

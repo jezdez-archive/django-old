@@ -1,4 +1,5 @@
 import urllib
+from urlparse import urlparse, urlunparse
 import sys
 import os
 try:
@@ -158,6 +159,7 @@ class Client(object):
         self.defaults = defaults
         self.cookies = SimpleCookie()
         self.exc_info = None
+        self.errors = StringIO()
 
     def store_exc_info(self, **kwargs):
         """
@@ -193,6 +195,12 @@ class Client(object):
             'SERVER_NAME':       'testserver',
             'SERVER_PORT':       '80',
             'SERVER_PROTOCOL':   'HTTP/1.1',
+            'wsgi.version':      (1,0),
+            'wsgi.url_scheme':   'http',
+            'wsgi.errors':       self.errors,
+            'wsgi.multiprocess': True,
+            'wsgi.multithread':  False,
+            'wsgi.run_once':     False,
         }
         environ.update(self.defaults)
         environ.update(request)
@@ -253,12 +261,13 @@ class Client(object):
         """
         Requests a response from the server using GET.
         """
+        parsed = urlparse(path)
         r = {
-            'CONTENT_LENGTH':  None,
             'CONTENT_TYPE':    'text/html; charset=utf-8',
-            'PATH_INFO':       urllib.unquote(path),
-            'QUERY_STRING':    urlencode(data, doseq=True),
+            'PATH_INFO':       urllib.unquote(parsed[2]),
+            'QUERY_STRING':    urlencode(data, doseq=True) or parsed[4],
             'REQUEST_METHOD': 'GET',
+            'wsgi.input':      FakePayload('')
         }
         r.update(extra)
 
@@ -273,12 +282,82 @@ class Client(object):
         else:
             post_data = data
 
+        parsed = urlparse(path)
         r = {
             'CONTENT_LENGTH': len(post_data),
             'CONTENT_TYPE':   content_type,
-            'PATH_INFO':      urllib.unquote(path),
+            'PATH_INFO':      urllib.unquote(parsed[2]),
+            'QUERY_STRING':   parsed[4],
             'REQUEST_METHOD': 'POST',
             'wsgi.input':     FakePayload(post_data),
+        }
+        r.update(extra)
+
+        return self.request(**r)
+
+    def head(self, path, data={}, **extra):
+        """
+        Request a response from the server using HEAD.
+        """
+        parsed = urlparse(path)
+        r = {
+            'CONTENT_TYPE':    'text/html; charset=utf-8',
+            'PATH_INFO':       urllib.unquote(parsed[2]),
+            'QUERY_STRING':    urlencode(data, doseq=True) or parsed[4],
+            'REQUEST_METHOD': 'HEAD',
+            'wsgi.input':      FakePayload('')
+        }
+        r.update(extra)
+
+        return self.request(**r)
+
+    def options(self, path, data={}, **extra):
+        """
+        Request a response from the server using OPTIONS.
+        """
+        parsed = urlparse(path)
+        r = {
+            'PATH_INFO':       urllib.unquote(parsed[2]),
+            'QUERY_STRING':    urlencode(data, doseq=True) or parsed[4],
+            'REQUEST_METHOD': 'OPTIONS',
+            'wsgi.input':      FakePayload('')
+        }
+        r.update(extra)
+
+        return self.request(**r)
+
+    def put(self, path, data={}, content_type=MULTIPART_CONTENT, **extra):
+        """
+        Send a resource to the server using PUT.
+        """
+        if content_type is MULTIPART_CONTENT:
+            post_data = encode_multipart(BOUNDARY, data)
+        else:
+            post_data = data
+
+        parsed = urlparse(path)
+        r = {
+            'CONTENT_LENGTH': len(post_data),
+            'CONTENT_TYPE':   content_type,
+            'PATH_INFO':      urllib.unquote(parsed[2]),
+            'QUERY_STRING':   urlencode(data, doseq=True) or parsed[4],
+            'REQUEST_METHOD': 'PUT',
+            'wsgi.input':     FakePayload(post_data),
+        }
+        r.update(extra)
+
+        return self.request(**r)
+
+    def delete(self, path, data={}, **extra):
+        """
+        Send a DELETE request to the server.
+        """
+        parsed = urlparse(path)
+        r = {
+            'PATH_INFO':       urllib.unquote(parsed[2]),
+            'QUERY_STRING':    urlencode(data, doseq=True) or parsed[4],
+            'REQUEST_METHOD': 'DELETE',
+            'wsgi.input':      FakePayload('')
         }
         r.update(extra)
 

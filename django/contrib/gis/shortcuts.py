@@ -5,7 +5,7 @@ from django.template import loader
 def compress_kml(kml):
     "Returns compressed KMZ from the given KML string."
     kmz = cStringIO.StringIO()
-    zf = zipfile.ZipFile(kmz, 'a', zipfile.ZIP_DEFLATED, False)
+    zf = zipfile.ZipFile(kmz, 'a', zipfile.ZIP_DEFLATED)
     zf.writestr('doc.kml', kml)
     zf.close()
     kmz.seek(0)
@@ -14,7 +14,7 @@ def compress_kml(kml):
 def render_to_kml(*args, **kwargs):
     "Renders the response as KML (using the correct MIME type)."
     return HttpResponse(loader.render_to_string(*args, **kwargs),
-                        mimetype='application/vnd.google-earth.kml+xml kml')
+                        mimetype='application/vnd.google-earth.kml+xml')
 
 def render_to_kmz(*args, **kwargs):
     """

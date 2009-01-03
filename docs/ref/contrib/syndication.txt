@@ -36,12 +36,6 @@ class and point to it in your :ref:`URLconf <topics-http-urls>`.
 Initialization
 --------------
 
-If you're not using the latest Django development version, you'll need to make
-sure Django's sites framework is installed -- including its database table. (See
-the :mod:`sites framework documentation <django.contrib.sites>` for more
-information.) This has changed in the Django development version; the
-syndication feed framework no longer requires the sites framework.
-
 To activate syndication feeds on your Django site, add this line to your
 :ref:`URLconf <topics-http-urls>`::
 
@@ -152,8 +146,7 @@ into those elements.
          
          * ``{{ site }}`` -- A :class:`django.contrib.sites.models.Site` object
            representing the current site. This is useful for ``{{ site.domain
-           }}`` or ``{{ site.name }}``. Note that if you're using the latest
-           Django development version and do *not* have the Django sites
+           }}`` or ``{{ site.name }}``. If you do *not* have the Django sites
            framework installed, this will be set to a
            :class:`django.contrib.sites.models.RequestSite` object. See the
            :ref:`RequestSite section of the sites framework documentation
@@ -921,14 +914,14 @@ For example, to create an Atom 1.0 feed and print it to standard output::
     >>> f.add_item(title=u"Hot dog today",
     ...     link=u"http://www.example.com/entries/1/",
     ...     description=u"<p>Today I had a Vienna Beef hot dog. It was pink, plump and perfect.</p>")
-    >>> print f.writeString('utf8')
-    <?xml version="1.0" encoding="utf8"?>
+    >>> print f.writeString('UTF-8')
+    <?xml version="1.0" encoding="UTF-8"?>
     <feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
     ...
     </feed>
 
 .. _django/utils/feedgenerator.py: http://code.djangoproject.com/browser/django/trunk/django/utils/feedgenerator.py
-.. _Python datetime object: http://www.python.org/doc/current/lib/module-datetime.html
+.. _Python datetime object: http://docs.python.org/library/datetime.html#datetime-objects
 
 Custom feed generators
 ----------------------
@@ -976,8 +969,8 @@ attributes. Thus, you can subclass the appropriate feed generator class
 For example, you might start implementing an iTunes RSS feed generator like so::
 
     class iTunesFeed(Rss201rev2Feed):
-        def root_attibutes(self):
-            attrs = super(iTunesFeed, self).root_attibutes()
+        def root_attributes(self):
+            attrs = super(iTunesFeed, self).root_attributes()
             attrs['xmlns:itunes'] = 'http://www.itunes.com/dtds/podcast-1.0.dtd'
             return attrs
             

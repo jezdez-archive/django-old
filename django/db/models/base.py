@@ -10,7 +10,7 @@ except NameError:
 
 import django.db.models.manager     # Imported to register signal handler.
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, FieldError
-from django.db.models.fields import AutoField
+from django.db.models.fields import AutoField, FieldDoesNotExist
 from django.db.models.fields.related import OneToOneRel, ManyToOneRel, OneToOneField
 from django.db.models.query import delete_objects, Q, CollectedObjects
 from django.db.models.options import Options
@@ -266,7 +266,11 @@ class Model(object):
         signals.post_init.send(sender=self.__class__, instance=self)
 
     def __repr__(self):
-        return smart_str(u'<%s: %s>' % (self.__class__.__name__, unicode(self)))
+        try:
+            u = unicode(self)
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            u = '[Bad Unicode data]'
+        return smart_str(u'<%s: %s>' % (self.__class__.__name__, u))
 
     def __str__(self):
         if hasattr(self, '__unicode__'):
@@ -291,6 +295,23 @@ class Model(object):
         return setattr(self, self._meta.pk.attname, value)
 
     pk = property(_get_pk_val, _set_pk_val)
+
+    def serializable_value(self, field_name):
+        """
+        Returns the value of the field name for this instance. If the field is
+        a foreign key, returns the id value, instead of the object. If there's
+        no Field object with this name on the model, the model attribute's
+        value is returned directly.
+
+        Used to serialize a field's value (in the serializer, or form output,
+        for example). Normally, you would just access the attribute directly
+        and not use this method.
+        """
+        try:
+            field = self._meta.get_field_by_name(field_name)[0]
+        except FieldDoesNotExist:
+            return getattr(self, field_name)
+        return getattr(self, field.attname)
 
     def save(self, force_insert=False, force_update=False):
         """

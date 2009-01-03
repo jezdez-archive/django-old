@@ -1,4 +1,5 @@
 from django.db import connection, transaction
+from django.db.backends import util
 from django.db.models import signals, get_model
 from django.db.models.fields import AutoField, Field, IntegerField, PositiveIntegerField, PositiveSmallIntegerField, FieldDoesNotExist
 from django.db.models.related import RelatedObject
@@ -174,7 +175,7 @@ class SingleRelatedObjectDescriptor(object):
 
     def __get__(self, instance, instance_type=None):
         if instance is None:
-            raise AttributeError, "%s must be accessed via instance" % self.related.opts.object_name
+            return self
 
         try:
             return getattr(instance, self.cache_name)
@@ -222,7 +223,7 @@ class ReverseSingleRelatedObjectDescriptor(object):
 
     def __get__(self, instance, instance_type=None):
         if instance is None:
-            raise AttributeError, "%s must be accessed via instance" % self.field.name
+            return self
         cache_name = self.field.get_cache_name()
         try:
             return getattr(instance, cache_name)
@@ -286,7 +287,7 @@ class ForeignRelatedObjectsDescriptor(object):
 
     def __get__(self, instance, instance_type=None):
         if instance is None:
-            raise AttributeError, "Manager must be accessed via instance"
+            return self
 
         rel_field = self.related.field
         rel_model = self.related.model
@@ -499,7 +500,7 @@ class ManyRelatedObjectsDescriptor(object):
 
     def __get__(self, instance, instance_type=None):
         if instance is None:
-            raise AttributeError, "Manager must be accessed via instance"
+            return self
 
         # Dynamically create a class that subclasses the related
         # model's default manager.
@@ -544,7 +545,7 @@ class ReverseManyRelatedObjectsDescriptor(object):
 
     def __get__(self, instance, instance_type=None):
         if instance is None:
-            raise AttributeError, "Manager must be accessed via instance"
+            return self
 
         # Dynamically create a class that subclasses the related
         # model's default manager.
@@ -727,8 +728,6 @@ class OneToOneField(ForeignKey):
     def contribute_to_related_class(self, cls, related):
         setattr(cls, related.get_accessor_name(),
                 SingleRelatedObjectDescriptor(related))
-        if not cls._meta.one_to_one_field:
-            cls._meta.one_to_one_field = self
 
     def formfield(self, **kwargs):
         if self.rel.parent_link:
@@ -771,7 +770,8 @@ class ManyToManyField(RelatedField, Field):
         elif self.db_table:
             return self.db_table
         else:
-            return '%s_%s' % (opts.db_table, self.name)
+            return util.truncate_name('%s_%s' % (opts.db_table, self.name),
+                                      connection.ops.max_name_length())
 
     def _get_m2m_column_name(self, related):
         "Function that can be curried to provide the source column name for the m2m table"

@@ -27,9 +27,9 @@ try:
 except NameError:
     from sets import Set as set     # Python 2.3 fallback
 
-__all__ = ['Query']
+__all__ = ['Query', 'BaseQuery']
 
-class Query(object):
+class BaseQuery(object):
     """
     A single SQL query.
     """
@@ -54,7 +54,6 @@ class Query(object):
         self.default_ordering = True
         self.standard_ordering = True
         self.ordering_aliases = []
-        self.start_meta = None
         self.select_fields = []
         self.related_select_fields = []
         self.dupe_avoidance = {}
@@ -125,10 +124,9 @@ class Query(object):
     def get_meta(self):
         """
         Returns the Options instance (the model._meta) from which to start
-        processing. Normally, this is self.model._meta, but it can change.
+        processing. Normally, this is self.model._meta, but it can be changed
+        by subclasses.
         """
-        if self.start_meta:
-            return self.start_meta
         return self.model._meta
 
     def quote_name_unless_alias(self, name):
@@ -166,7 +164,6 @@ class Query(object):
         obj.default_ordering = self.default_ordering
         obj.standard_ordering = self.standard_ordering
         obj.ordering_aliases = []
-        obj.start_meta = self.start_meta
         obj.select_fields = self.select_fields[:]
         obj.related_select_fields = self.related_select_fields[:]
         obj.dupe_avoidance = self.dupe_avoidance.copy()
@@ -291,6 +288,8 @@ class Query(object):
         if self.group_by:
             grouping = self.get_grouping()
             result.append('GROUP BY %s' % ', '.join(grouping))
+            if not ordering:
+                ordering = self.connection.ops.force_no_ordering()
 
         if self.having:
             having, h_params = self.get_having()
@@ -608,7 +607,7 @@ class Query(object):
         if self.extra_order_by:
             ordering = self.extra_order_by
         elif not self.default_ordering:
-            ordering = []
+            ordering = self.order_by
         else:
             ordering = self.order_by or self.model._meta.ordering
         qn = self.quote_name_unless_alias
@@ -621,6 +620,12 @@ class Query(object):
             asc, desc = ORDER_DIR['ASC']
         else:
             asc, desc = ORDER_DIR['DESC']
+
+        # It's possible, due to model inheritance, that normal usage might try
+        # to include the same field more than once in the ordering. We track
+        # the table/column pairs we use and discard any after the first use.
+        processed_pairs = set()
+
         for field in ordering:
             if field == '?':
                 result.append(self.connection.ops.random_function_sql())
@@ -638,18 +643,22 @@ class Query(object):
                 # on verbatim.
                 col, order = get_order_dir(field, asc)
                 table, col = col.split('.', 1)
-                elt = '%s.%s' % (qn(table), col)
-                if not distinct or elt in select_aliases:
-                    result.append('%s %s' % (elt, order))
+                if (table, col) not in processed_pairs:
+                    elt = '%s.%s' % (qn(table), col)
+                    processed_pairs.add((table, col))
+                    if not distinct or elt in select_aliases:
+                        result.append('%s %s' % (elt, order))
             elif get_order_dir(field)[0] not in self.extra_select:
                 # 'col' is of the form 'field' or 'field1__field2' or
                 # '-field1__field2__field', etc.
                 for table, col, order in self.find_ordering_name(field,
                         self.model._meta, default_order=asc):
-                    elt = '%s.%s' % (qn(table), qn2(col))
-                    if distinct and elt not in select_aliases:
-                        ordering_aliases.append(elt)
-                    result.append('%s %s' % (elt, order))
+                    if (table, col) not in processed_pairs:
+                        elt = '%s.%s' % (qn(table), qn2(col))
+                        processed_pairs.add((table, col))
+                        if distinct and elt not in select_aliases:
+                            ordering_aliases.append(elt)
+                        result.append('%s %s' % (elt, order))
             else:
                 col, order = get_order_dir(field, asc)
                 elt = qn2(col)
@@ -1448,7 +1457,10 @@ class Query(object):
                     self.update_dupe_avoidance(dupe_opts, dupe_col, alias)
 
         if pos != len(names) - 1:
-            raise FieldError("Join on field %r not permitted." % name)
+            if pos == len(names) - 2:
+                raise FieldError("Join on field %r not permitted. Did you misspell %r for the lookup type?" % (name, names[pos + 1]))
+            else:
+                raise FieldError("Join on field %r not permitted." % name)
 
         return field, target, opts, joins, last, extra_filters
 
@@ -1475,10 +1487,23 @@ class Query(object):
         query = Query(self.model, self.connection)
         query.add_filter(filter_expr, can_reuse=can_reuse)
         query.bump_prefix()
-        query.set_start(prefix)
         query.clear_ordering(True)
+        query.set_start(prefix)
         self.add_filter(('%s__in' % prefix, query), negate=True, trim=True,
                 can_reuse=can_reuse)
+
+        # If there's more than one join in the inner query (before any initial
+        # bits were trimmed -- which means the last active table is more than
+        # two places into the alias list), we need to also handle the
+        # possibility that the earlier joins don't match anything by adding a
+        # comparison to NULL (e.g. in
+        # Tag.objects.exclude(parent__parent__name='t1'), a tag with no parent
+        # would otherwise be overlooked).
+        active_positions = [pos for (pos, count) in
+                enumerate(query.alias_refcount.itervalues()) if count]
+        if active_positions[-1] > 1:
+            self.add_filter(('%s__isnull' % prefix, False), negate=True,
+                    trim=True, can_reuse=can_reuse)
 
     def set_limits(self, low=None, high=None):
         """
@@ -1491,12 +1516,12 @@ class Query(object):
         clamped to any existing high value.
         """
         if high is not None:
-            if self.high_mark:
+            if self.high_mark is not None:
                 self.high_mark = min(self.high_mark, self.low_mark + high)
             else:
                 self.high_mark = self.low_mark + high
         if low is not None:
-            if self.high_mark:
+            if self.high_mark is not None:
                 self.low_mark = min(self.high_mark, self.low_mark + low)
             else:
                 self.low_mark = self.low_mark + low
@@ -1685,19 +1710,26 @@ class Query(object):
         alias = self.get_initial_alias()
         field, col, opts, joins, last, extra = self.setup_joins(
                 start.split(LOOKUP_SEP), opts, alias, False)
-        self.unref_alias(alias)
-        alias = joins[last[-1]]
-        self.select = [(alias, self.alias_map[alias][RHS_JOIN_COL])]
-        self.select_fields = [field]
-        self.start_meta = opts
+        select_col = self.alias_map[joins[1]][LHS_JOIN_COL]
+        select_alias = alias
 
-        # The call to setup_joins add an extra reference to everything in
-        # joins. So we need to unref everything once, and everything prior to
-        # the final join a second time.
+        # The call to setup_joins added an extra reference to everything in
+        # joins. Reverse that.
         for alias in joins:
             self.unref_alias(alias)
-        for alias in joins[:last[-1]]:
-            self.unref_alias(alias)
+
+        # We might be able to trim some joins from the front of this query,
+        # providing that we only traverse "always equal" connections (i.e. rhs
+        # is *always* the same value as lhs).
+        for alias in joins[1:]:
+            join_info = self.alias_map[alias]
+            if (join_info[LHS_JOIN_COL] != select_col
+                    or join_info[JOIN_TYPE] != self.INNER):
+                break
+            self.unref_alias(select_alias)
+            select_alias = join_info[RHS_ALIAS]
+            select_col = join_info[RHS_JOIN_COL]
+        self.select = [(select_alias, select_col)]
 
     def execute_sql(self, result_type=MULTI):
         """
@@ -1747,7 +1779,9 @@ class Query(object):
 # Use the backend's custom Query class if it defines one. Otherwise, use the
 # default.
 if connection.features.uses_custom_query_class:
-    Query = connection.ops.query_class(Query)
+    Query = connection.ops.query_class(BaseQuery)
+else:
+    Query = BaseQuery
 
 def get_order_dir(field, default='ASC'):
     """

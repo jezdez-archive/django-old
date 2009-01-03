@@ -50,8 +50,8 @@ Storage engines
 MySQL has several `storage engines`_ (previously called table types). You can
 change the default storage engine in the server configuration.
 
-The default engine is MyISAM_. The main drawback of MyISAM is that it doesn't
-currently support transactions or foreign keys. On the plus side, it's
+The default engine is MyISAM_ [#]_. The main drawback of MyISAM is that it
+doesn't currently support transactions or foreign keys. On the plus side, it's
 currently the only engine that supports full-text indexing and searching.
 
 The InnoDB_ engine is fully transactional and supports foreign key references.
@@ -69,6 +69,10 @@ For now, InnoDB is probably your best choice.
 .. _Other storage engines: http://dev.mysql.com/doc/refman/5.1/en/storage-engines-other.html
 .. _SolidDB: http://forge.mysql.com/projects/project.php?id=139
 .. _Falcon: http://dev.mysql.com/doc/falcon/en/index.html
+
+.. [#] Unless this was changed by the packager of your MySQL package. We've
+   had reports that the Windows Community Server installer sets up InnoDB as
+   the default storage engine, for example.
 
 MySQLdb
 -------
@@ -230,8 +234,11 @@ storage engine, you have a couple of options.
 
 .. _AlterModelOnSyncDB: http://code.djangoproject.com/wiki/AlterModelOnSyncDB
 
-Boolean fields in Django
--------------------------
+Notes on specific fields
+------------------------
+
+Boolean fields
+~~~~~~~~~~~~~~
 
 Since MySQL doesn't have a direct ``BOOLEAN`` column type, Django uses a
 ``TINYINT`` column with values of ``1`` and ``0`` to store values for the
@@ -240,11 +247,27 @@ of that field for more details, but usually this won't be something that will
 matter unless you're printing out the field values and are expecting to see
 ``True`` and ``False.``.
 
+Character fields
+~~~~~~~~~~~~~~~~
+
+Any fields that are stored with ``VARCHAR`` column types have their
+``max_length`` restricted to 255 characters if you are using ``unique=True``
+for the field. This affects :class:`~django.db.models.CharField`,
+:class:`~django.db.models.SlugField` and
+:class:`~django.db.models.CommaSeparatedIntegerField`.
+
+Furthermore, if you are using a version of MySQL prior to 5.0.3, all of those
+column types have a maximum length restriction of 255 characters, regardless
+of whether ``unique=True`` is specified or not.
+
 .. _sqlite-notes:
 
 SQLite notes 
 ============ 
  
+Versions prior to 3.3.6
+------------------------
+
 Versions of SQLite 3.3.5 and older `contain a bug`_ when handling ``ORDER BY``
 parameters. This can cause problems when you use the ``select`` parameter for
 the ``extra()`` QuerySet method. The bug can be identified by the error message
@@ -267,12 +290,23 @@ described above, this can be solved by downloading and installing a newer
 version of ``pysqlite2`` (``pysqlite-2.x.x.win32-py2.5.exe``) that includes and 
 uses a newer version of SQLite. Python 2.6 ships with a newer version of 
 SQLite and is not affected by this issue.
- 
-If you are in such platform and find yourself in the need to update 
-``pysqlite``/SQLite, you will also need to manually modify the 
-``django/db/backends/sqlite3/base.py`` file in the Django source tree so it 
-attempts to import ``pysqlite2`` before that ``sqlite3`` and so it can take 
+
+If you are in such platform and find yourself in the need to update
+``pysqlite``/SQLite, you will also need to manually modify the
+``django/db/backends/sqlite3/base.py`` file in the Django source tree so it
+attempts to import ``pysqlite2`` before than ``sqlite3`` and so it can take
 advantage of the new ``pysqlite2``/SQLite versions.
+
+Version 3.6.2
+--------------
+
+SQLite version 3.6.2 (released August 30, 2008) introduced a bug into ``SELECT
+DISTINCT`` handling that is triggered by, amongst other things, Django's
+``DateQuerySet`` (returned by the ``dates()`` method on a queryset).
+
+You should avoid using this version of SQLite with Django. Either upgrade to
+3.6.3 (released September 22, 2008) or later, or downgrade to an earlier
+version of SQLite.
 
 .. _oracle-notes:
 

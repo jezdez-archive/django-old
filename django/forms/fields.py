@@ -28,7 +28,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode, smart_str
 
 from util import ErrorList, ValidationError
-from widgets import TextInput, PasswordInput, HiddenInput, MultipleHiddenInput, FileInput, CheckboxInput, Select, NullBooleanSelect, SelectMultiple, DateTimeInput, TimeInput, SplitHiddenDateTimeWidget
+from widgets import TextInput, PasswordInput, HiddenInput, MultipleHiddenInput, FileInput, CheckboxInput, Select, NullBooleanSelect, SelectMultiple, DateTimeInput, TimeInput, SplitDateTimeWidget, SplitHiddenDateTimeWidget
 from django.core.files.uploadedfile import SimpleUploadedFile as UploadedFile
 
 __all__ = (
@@ -254,12 +254,12 @@ class DecimalField(Field):
         decimals = abs(exponent)
         # digittuple doesn't include any leading zeros.
         digits = len(digittuple)
-        if decimals >= digits:
+        if decimals > digits:
             # We have leading zeros up to or past the decimal point.  Count
-            # everything past the decimal point as a digit.  We also add one
-            # for leading zeros before the decimal point (any number of leading
-            # whole zeros collapse to one digit).
-            digits = decimals + 1
+            # everything past the decimal point as a digit.  We do not count 
+            # 0 before the decimal point as a digit since that would mean 
+            # we would not allow max_digits = decimal_places.
+            digits = decimals
         whole_digits = digits - decimals
 
         if self.max_value is not None and value > self.max_value:
@@ -667,7 +667,7 @@ class TypedChoiceField(ChoiceField):
         self.coerce = kwargs.pop('coerce', lambda val: val)
         self.empty_value = kwargs.pop('empty_value', '')
         super(TypedChoiceField, self).__init__(*args, **kwargs)
-        
+
     def clean(self, value):
         """
         Validate that the value is in self.choices and can be coerced to the
@@ -676,12 +676,12 @@ class TypedChoiceField(ChoiceField):
         value = super(TypedChoiceField, self).clean(value)
         if value == self.empty_value or value in EMPTY_VALUES:
             return self.empty_value
-        
+
         # Hack alert: This field is purpose-made to use with Field.to_python as
         # a coercion function so that ModelForms with choices work. However,
-        # Django's Field.to_python raises django.core.exceptions.ValidationError,
-        # which is a *different* exception than
-        # django.forms.utils.ValidationError. So unfortunatly we need to catch
+        # Django's Field.to_python raises
+        # django.core.exceptions.ValidationError, which is a *different*
+        # exception than django.forms.util.ValidationError. So we need to catch
         # both.
         try:
             value = self.coerce(value)
@@ -843,6 +843,7 @@ class FilePathField(ChoiceField):
         self.widget.choices = self.choices
 
 class SplitDateTimeField(MultiValueField):
+    widget = SplitDateTimeWidget
     hidden_widget = SplitHiddenDateTimeWidget
     default_error_messages = {
         'invalid_date': _(u'Enter a valid date.'),

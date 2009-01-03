@@ -35,9 +35,13 @@ You can evaluate a ``QuerySet`` in the following ways:
 
     * **Slicing.** As explained in :ref:`limiting-querysets`, a ``QuerySet`` can
       be sliced, using Python's array-slicing syntax. Usually slicing a
-      ``QuerySet`` returns another (unevaluated )``QuerySet``, but Django will
+      ``QuerySet`` returns another (unevaluated ) ``QuerySet``, but Django will
       execute the database query if you use the "step" parameter of slice
       syntax.
+
+    * **Pickling/Caching.** See the following section for details of what
+      is involved when `pickling QuerySets`_. The important thing for the
+      purposes of this section is that the results are read from the database.
 
     * **repr().** A ``QuerySet`` is evaluated when you call ``repr()`` on it.
       This is for convenience in the Python interactive interpreter, so you can
@@ -61,6 +65,36 @@ You can evaluate a ``QuerySet`` in the following ways:
       Django will load each element of the list into memory. In contrast,
       iterating over a ``QuerySet`` will take advantage of your database to
       load data and instantiate objects only as you need them.
+
+.. _pickling QuerySets:
+
+Pickling QuerySets
+------------------
+
+If you pickle_ a ``QuerySet``, this will force all the results to be loaded
+into memory prior to pickling. Pickling is usually used as a precursor to
+caching and when the cached queryset is reloaded, you want the results to
+already be present and ready for use (reading from the database can take some
+time, defeating the purpose of caching). This means that when you unpickle a
+``QuerySet``, it contains the results at the moment it was pickled, rather
+than the results that are currently in the database.
+
+If you only want to pickle the necessary information to recreate the
+``Queryset`` from the database at a later time, pickle the ``query`` attribute
+of the ``QuerySet``. You can then recreate the original ``QuerySet`` (without
+any results loaded) using some code like this::
+
+    >>> import pickle
+    >>> query = pickle.loads(s)     # Assuming 's' is the pickled string.
+    >>> qs = MyModel.objects.all()
+    >>> qs.query = query            # Restore the original 'query'.
+
+The ``query`` attribute is an opaque object. It represents the internals of
+the query construction and is not part of the public API. However, it is safe
+(and fully supported) to pickle and unpickle the attribute's contents as
+described here.
+
+.. _pickle: http://docs.python.org/lib/module-pickle.html
 
 .. _queryset-api:
 
@@ -477,8 +511,8 @@ related ``Person`` *and* the related ``City``::
     p = b.author         # Hits the database.
     c = p.hometown       # Hits the database.
 
-Note that ``select_related()`` does not follow foreign keys that have
-``null=True``.
+Note that, by default, ``select_related()`` does not follow foreign keys that
+have ``null=True``.
 
 Usually, using ``select_related()`` can vastly improve performance because your
 app can avoid many database calls. However, in situations with deeply nested
@@ -493,9 +527,44 @@ follow::
     p = b.author         # Doesn't hit the database.
     c = p.hometown       # Requires a database call.
 
+Sometimes you only want to access specific models that are related to your root
+model, not all of the related models. In these cases, you can pass the related
+field names to ``select_related()`` and it will only follow those relations.
+You can even do this for models that are more than one relation away by
+separating the field names with double underscores, just as for filters. For
+example, if you have this model::
+
+    class Room(models.Model):
+        # ...
+        building = models.ForeignKey(...)
+
+    class Group(models.Model):
+        # ...
+        teacher = models.ForeignKey(...)
+        room = models.ForeignKey(Room)
+        subject = models.ForeignKey(...)
+
+...and you only needed to work with the ``room`` and ``subject`` attributes,
+you could write this::
+
+    g = Group.objects.select_related('room', 'subject')
+
+This is also valid::
+
+    g = Group.objects.select_related('room__building', 'subject')
+
+...and would also pull in the ``building`` relation.
+
+You can only refer to ``ForeignKey`` relations in the list of fields passed to
+``select_related``. You *can* refer to foreign keys that have ``null=True``
+(unlike the default ``select_related()`` call). It's an error to use both a
+list of fields and the ``depth`` parameter in the same ``select_related()``
+call, since they are conflicting options.
+
 .. versionadded:: 1.0
 
-The ``depth`` argument is new in Django version 1.0.
+Both the ``depth`` argument and the ability to specify field names in the call
+to ``select_related()`` are new in Django version 1.0.
 
 ``extra(select=None, where=None, params=None, tables=None, order_by=None, select_params=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -558,7 +627,7 @@ of the arguments is required, but you should use at least one of them.
     .. versionadded:: 1.0
 
     In some rare cases, you might wish to pass parameters to the SQL fragments
-    in ``extra(select=...)```. For this purpose, use the ``select_params``
+    in ``extra(select=...)``. For this purpose, use the ``select_params``
     parameter. Since ``select_params`` is a sequence and the ``select``
     attribute is a dictionary, some care is required so that the parameters
     are matched up correctly with the extra select pieces.  In this situation,
@@ -674,11 +743,13 @@ they query the database each time they're called.
 Returns the object matching the given lookup parameters, which should be in
 the format described in `Field lookups`_.
 
-``get()`` raises ``AssertionError`` if more than one object was found.
+``get()`` raises ``MultipleObjectsReturned`` if more than one object was
+found. The ``MultipleObjectsReturned`` exception is an attribute of the model
+class.
 
-``get()`` raises a ``DoesNotExist`` exception if an object wasn't found for the
-given parameters. The ``DoesNotExist`` exception is an attribute of the model
-class. Example::
+``get()`` raises a ``DoesNotExist`` exception if an object wasn't found for
+the given parameters. This exception is also an attribute of the model class.
+Example::
 
     Entry.objects.get(id='foo') # raises Entry.DoesNotExist
 
@@ -888,10 +959,10 @@ SQL equivalents::
     SELECT ... WHERE id IS NULL;
 
 .. versionchanged:: 1.0
-   The semantics of ``id__exact=None`` have
-   changed in the development version. Previously, it was (intentionally)
-   converted to ``WHERE id = NULL`` at the SQL level, which would never match
-   anything. It has now been changed to behave the same as ``id__isnull=True``.
+   The semantics of ``id__exact=None`` have changed in Django 1.0. Previously,
+   it was (intentionally) converted to ``WHERE id = NULL`` at the SQL level,
+   which would never match anything. It has now been changed to behave the
+   same as ``id__isnull=True``.
 
 .. admonition:: MySQL comparisons
 
@@ -1147,14 +1218,6 @@ Example::
 SQL equivalent::
 
     SELECT ... WHERE pub_date IS NULL;
-
-.. admonition:: ``__isnull=True`` vs ``__exact=None``
-
-    There is an important difference between ``__isnull=True`` and
-    ``__exact=None``. ``__exact=None`` will *always* return an empty result
-    set, because SQL requires that no value is equal to ``NULL``.
-    ``__isnull`` determines if the field is currently holding the value
-    of ``NULL`` without performing a comparison.
 
 search
 ~~~~~~

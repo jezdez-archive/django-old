@@ -142,6 +142,13 @@ All attributes except ``session`` should be considered read-only.
         * ``SERVER_NAME`` -- The hostname of the server.
         * ``SERVER_PORT`` -- The port of the server.
 
+    With the exception of ``CONTENT_LENGTH`` and ``CONTENT_TYPE``, as given
+    above, any HTTP headers in the request are converted to ``META`` keys by
+    converting all characters to uppercase, replacing any hyphens with
+    underscores and adding an ``HTTP_`` prefix to the name. So, for example, a
+    header called ``X-Bender`` would be mapped to the ``META`` key
+    ``HTTP_X_BENDER``.
+
 .. attribute:: HttpRequest.user
 
     A ``django.contrib.auth.models.User`` object representing the currently
@@ -499,7 +506,7 @@ Methods
           calendars.lawrence.com. Otherwise, a cookie will only be readable by
           the domain that set it.
 
-    .. _`cookie Morsel`: http://www.python.org/doc/current/lib/morsel-objects.html
+    .. _`cookie Morsel`: http://docs.python.org/library/cookie.html#Cookie.Morsel
 
 .. method:: HttpResponse.delete_cookie(key, path='/', domain=None)
 
@@ -524,6 +531,8 @@ Methods
 
 .. _HTTP Status code: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10
 
+
+.. _ref-httpresponse-subclasses:
 
 HttpResponse subclasses
 -----------------------

@@ -9,7 +9,7 @@ Making queries
 Once you've created your :ref:`data models <topics-db-models>`, Django
 automatically gives you a database-abstraction API that lets you create,
 retrieve, update and delete objects. This document explains how to use this 
-API. Refer to the `data model reference <ref-models-index>` for full 
+API. Refer to the :ref:`data model reference <ref-models-index>` for full 
 details of all the various model lookup options.
 
 Throughout this guide (and in the reference), we'll refer to the following
@@ -340,7 +340,7 @@ you'll probably use:
         
         .. code-block:: sql
 
-            SELECT ... WHERE headline = 'Man bits dog';
+            SELECT ... WHERE headline = 'Man bites dog';
             
         If you don't provide a lookup type -- that is, if your keyword argument
         doesn't contain a double underscore -- the lookup type is assumed to be
@@ -601,7 +601,11 @@ This is equivalent to the following SQL ``WHERE`` clause::
     WHERE question LIKE 'Who%' OR question LIKE 'What%'
 
 You can compose statements of arbitrary complexity by combining ``Q`` objects
-with the ``&`` and ``|`` operators. You can also use parenthetical grouping.
+with the ``&`` and ``|`` operators and use parenthetical grouping. Also, ``Q``
+objects can be negated using the ``~`` operator, allowing for combined lookups
+that combine both a normal query and a negated (``NOT``) query::
+
+    Q(question__startswith='Who') | ~Q(pub_date__year=2005)
 
 Each lookup function that takes keyword-arguments (e.g. ``filter()``,
 ``exclude()``, ``get()``) can also be passed one or more ``Q`` objects as

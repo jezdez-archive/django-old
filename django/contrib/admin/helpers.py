@@ -108,7 +108,10 @@ class InlineAdminFormSet(object):
             yield InlineAdminForm(self.formset, form, self.fieldsets, self.opts.prepopulated_fields, None)
 
     def fields(self):
+        fk = getattr(self.formset, "fk", None)
         for field_name in flatten_fieldsets(self.fieldsets):
+            if fk and fk.name == field_name:
+                continue
             yield self.formset.form.base_fields[field_name]
 
     def _media(self):
@@ -129,9 +132,30 @@ class InlineAdminForm(AdminForm):
             self.original.content_type_id = ContentType.objects.get_for_model(original).pk
         self.show_url = original and hasattr(original, 'get_absolute_url')
         super(InlineAdminForm, self).__init__(form, fieldsets, prepopulated_fields)
+    
+    def __iter__(self):
+        for name, options in self.fieldsets:
+            yield InlineFieldset(self.formset, self.form, name, **options)
+    
+    def field_count(self):
+        # tabular.html uses this function for colspan value.
+        num_of_fields = 1 # always has at least one field
+        num_of_fields += len(self.fieldsets[0][1]["fields"])
+        if self.formset.can_order:
+            num_of_fields += 1
+        if self.formset.can_delete:
+            num_of_fields += 1
+        return num_of_fields
 
     def pk_field(self):
         return AdminField(self.form, self.formset._pk_field.name, False)
+    
+    def fk_field(self):
+        fk = getattr(self.formset, "fk", None)
+        if fk:
+            return AdminField(self.form, fk.name, False)
+        else:
+            return ""
 
     def deletion_field(self):
         from django.forms.formsets import DELETION_FIELD_NAME
@@ -141,6 +165,18 @@ class InlineAdminForm(AdminForm):
         from django.forms.formsets import ORDERING_FIELD_NAME
         return AdminField(self.form, ORDERING_FIELD_NAME, False)
 
+class InlineFieldset(Fieldset):
+    def __init__(self, formset, *args, **kwargs):
+        self.formset = formset
+        super(InlineFieldset, self).__init__(*args, **kwargs)
+        
+    def __iter__(self):
+        fk = getattr(self.formset, "fk", None)
+        for field in self.fields:
+            if fk and fk.name == field:
+                continue
+            yield Fieldline(self.form, field)
+            
 class AdminErrorList(forms.util.ErrorList):
     """
     Stores all errors for the form/formsets in an add/change stage view.

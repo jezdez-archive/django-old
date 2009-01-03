@@ -89,8 +89,15 @@ Fields
 
     .. attribute:: models.User.is_active
 
-        Boolean. Designates whether this account can be used to log in. Set this
-        flag to ``False`` instead of deleting accounts.
+        Boolean. Designates whether this user account should be considered
+        active. Set this flag to ``False`` instead of deleting accounts.
+
+        This doesn't control whether or not the user can log in. Nothing in
+        the authentication path checks the ``is_active`` flag, so if you want
+        to reject a login based on ``is_active`` being ``False``, it is up to
+        you to check that in your own login view. However, permission checking
+        using the methods like :meth:`~models.User.has_perm` does check this
+        flag and will always return ``False`` for inactive users.
 
     .. attribute:: models.User.is_superuser
 
@@ -246,8 +253,8 @@ Manager functions
     .. method:: models.UserManager.create_user(username, email, password=None)
 
         Creates, saves and returns a :class:`~django.contrib.auth.models.User`.
-        The :attr:`~django.contrib.auth.models.User.username`, 
-        :attr:`~django.contrib.auth.models.User.email` and 
+        The :attr:`~django.contrib.auth.models.User.username`,
+        :attr:`~django.contrib.auth.models.User.email` and
         :attr:`~django.contrib.auth.models.User.password` are set as given, and the
         :class:`~django.contrib.auth.models.User` gets ``is_active=True``.
 
@@ -285,6 +292,21 @@ that comes with Django::
     >>> user.is_staff = True
     >>> user.save()
 
+You can also create users using the Django admin site. Assuming you've enabled
+the admin site and hooked it to the URL ``/admin/``, the "Add user" page is at
+``/admin/auth/user/add/``. You should also see a link to "Users" in the "Auth"
+section of the main admin index page. The "Add user" admin page is different
+than standard admin pages in that it requires you to choose a username and
+password before allowing you to edit the rest of the user's fields.
+
+Also note: if you want your own user account to be able to create users using
+the Django admin site, you'll need to give yourself permission to add users
+*and* change users (i.e., the "Add user" and "Change user" permissions). If
+your account has permission to add users but not to change them, you won't be
+able to add users. Why? Because if you have permission to add users, you have
+the power to create superusers, which can then, in turn, change other users. So
+Django requires add *and* change permissions as a slight security measure.
+
 Changing passwords
 ~~~~~~~~~~~~~~~~~~
 
@@ -313,8 +335,10 @@ Hashtype is either ``sha1`` (default), ``md5`` or ``crypt`` -- the algorithm
 used to perform a one-way hash of the password. Salt is a random string used
 to salt the raw password to create the hash. Note that the ``crypt`` method is
 only supported on platforms that have the standard Python ``crypt`` module
-available, and ``crypt`` support is only available in the Django development
-version.
+available.
+
+.. versionadded:: 1.0
+    Support for the ``crypt`` module is new in Django 1.0.
 
 For example::
 
@@ -351,11 +375,11 @@ Anonymous users
       ``False`` instead of ``True``.
     * :meth:`~django.contrib.auth.models.User.has_perm()` always returns ``False``.
     * :meth:`~django.contrib.auth.models.User.set_password()`,
-      :meth:`~django.contrib.auth.models.User.check_password()`, 
-      :meth:`~django.contrib.auth.models.User.save()`, 
+      :meth:`~django.contrib.auth.models.User.check_password()`,
+      :meth:`~django.contrib.auth.models.User.save()`,
       :meth:`~django.contrib.auth.models.User.delete()`,
-      :meth:`~django.contrib.auth.models.User.set_groups()` and 
-      :meth:`~django.contrib.auth.models.User.set_permissions()` raise 
+      :meth:`~django.contrib.auth.models.User.set_groups()` and
+      :meth:`~django.contrib.auth.models.User.set_permissions()` raise
       :exc:`NotImplementedError`.
 
 In practice, you probably won't need to use
@@ -619,7 +643,6 @@ The login_required decorator
         def my_view(request):
             # ...
 
-    In the Django development version,
     :func:`~django.contrib.auth.decorators.login_required` also takes an
     optional ``redirect_field_name`` parameter. Example::
 
@@ -674,16 +697,16 @@ the following line to your URLconf::
 
         * ``form``: A :class:`~django.forms.Form` object representing the
           login form. See the :ref:`forms documentation <topics-forms-index>`
-          for more on ``FormWrapper`` objects.
+          for more on ``Form`` objects.
 
         * ``next``: The URL to redirect to after successful login. This may contain
           a query string, too.
 
         * ``site_name``: The name of the current
-          :class:`~django.contrib.sites.models.Site``, according to the
+          :class:`~django.contrib.sites.models.Site`, according to the
           :setting:`SITE_ID` setting. If you're using the Django development version
           and you don't have the site framework installed, this will be set to the
-          value of ``request.META['SERVER_NAME']``. For more on sites, see 
+          value of ``request.META['SERVER_NAME']``. For more on sites, see
           :ref:`ref-contrib-sites`.
 
     If you'd prefer not to call the template :file:`registration/login.html`,
@@ -1029,7 +1052,7 @@ Fields
 fields:
 
 .. attribute:: models.Permission.name
-    
+
     Required. 50 characters or fewer. Example: ``'Can vote'``.
 
 .. attribute:: models.Permission.content_type
@@ -1038,7 +1061,7 @@ fields:
     which contains a record for each installed Django model.
 
 .. attribute:: models.Permission.codename
-    
+
     Required. 100 characters or fewer. Example: ``'can_vote'``.
 
 Methods
@@ -1061,7 +1084,7 @@ The currently logged-in user and his/her permissions are made available in the
    :setting:`TEMPLATE_CONTEXT_PROCESSORS` setting contains
    ``"django.core.context_processors.auth"``, which is default. For more, see
    the :ref:`RequestContext docs <subclassing-context-requestcontext>`.
-   
+
 Users
 -----
 
@@ -1091,7 +1114,7 @@ in the ``foo`` app::
 
     {{ perms.foo }}
 
-Two-level-attribute lookup is a proxy to 
+Two-level-attribute lookup is a proxy to
 :meth:`User.has_perm <django.contrib.auth.models.User.has_perm>`. This example
 would display ``True`` if the logged-in user had the permission
 ``foo.can_vote``::
@@ -1145,7 +1168,7 @@ The API is simple:
 
     To create a new message, use
     ``user_obj.message_set.create(message='message_text')``.
-    
+
     To retrieve/delete messages, use
     :meth:`user_obj.get_and_delete_messages() <django.contrib.auth.models.User.get_and_delete_messages>`,
     which returns a list of ``Message`` objects in the user's queue (if any)
@@ -1305,7 +1328,7 @@ Custom auth backends can provide their own permissions.
 
 The user model will delegate permission lookup functions
 (:meth:`~django.contrib.auth.models.User.get_group_permissions()`,
-:meth:`~django.contrib.auth.models.User.get_all_permissions()`, 
+:meth:`~django.contrib.auth.models.User.get_all_permissions()`,
 :meth:`~django.contrib.auth.models.User.has_perm()`, and
 :meth:`~django.contrib.auth.models.User.has_module_perms()`) to any
 authentication backend that implements these functions.

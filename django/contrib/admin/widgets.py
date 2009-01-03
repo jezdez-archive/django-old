@@ -131,10 +131,10 @@ class ForeignKeyRawIdWidget(forms.TextInput):
             items = []
             for k, v in self.rel.limit_choices_to.items():
                 if isinstance(v, list):
-                    v = [str(x) for x in v]
+                    v = ','.join([str(x) for x in v])
                 else:
                     v = str(v)
-                items.append((k, ','.join(v)))
+                items.append((k, v))
             params.update(dict(items))
         return params    
     
@@ -146,7 +146,7 @@ class ForeignKeyRawIdWidget(forms.TextInput):
             
     def label_for_value(self, value):
         key = self.rel.get_related_field().name
-        obj = self.rel.to.objects.get(**{key: value})
+        obj = self.rel.to._default_manager.get(**{key: value})
         return '&nbsp;<strong>%s</strong>' % truncate_words(obj, 14)
 
 class ManyToManyRawIdWidget(ForeignKeyRawIdWidget):

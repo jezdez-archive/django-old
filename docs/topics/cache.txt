@@ -72,15 +72,17 @@ bindings. Two versions of this are available. Choose and install *one* of the
 following modules:
 
     * The fastest available option is a module called ``cmemcache``, available
-      at http://gijsbert.org/cmemcache/ . (This module is only compatible with
-      the Django development version. Django 0.96 is only compatible with the
-      second option, below.)
+      at http://gijsbert.org/cmemcache/ .
 
     * If you can't install ``cmemcache``, you can install ``python-memcached``,
       available at ftp://ftp.tummy.com/pub/python-memcached/ . If that URL is
       no longer valid, just go to the Memcached Web site
       (http://www.danga.com/memcached/) and get the Python bindings from the
       "Client APIs" section.
+
+.. versionadded:: 1.0
+    The ``cmemcache`` option is new in 1.0. Previously, only
+    ``python-memcached`` was supported.
 
 To use Memcached with Django, set ``CACHE_BACKEND`` to
 ``memcached://ip:port/``, where ``ip`` is the IP address of the Memcached
@@ -211,8 +213,9 @@ All caches may take arguments. They're given in query-string style on the
         minutes (300 seconds).
 
     max_entries
-        For the simple and database backends, the maximum number of entries
-        allowed in the cache before it is cleaned. Defaults to 300.
+        For the ``locmem``, ``filesystem`` and ``database`` backends, the
+        maximum number of entries allowed in the cache before it is cleaned.
+        Defaults to 300.
 
     cull_percentage
         The percentage of entries that are culled when max_entries is reached.
@@ -229,7 +232,7 @@ In this example, ``timeout`` is set to ``60``::
 
 In this example, ``timeout`` is ``30`` and ``max_entries`` is ``400``::
 
-    CACHE_BACKEND = "memcached://127.0.0.1:11211/?timeout=30&max_entries=400"
+    CACHE_BACKEND = "locmem:///?timeout=30&max_entries=400"
 
 Invalid arguments are silently ignored, as are invalid values of known
 arguments.

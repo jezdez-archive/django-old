@@ -31,12 +31,12 @@ Our example object
 ------------------
 
 Creating custom fields requires a bit of attention to detail. To make things
-easier to follow, we'll use a consistent example throughout this document.
-Suppose you have a Python object representing the deal of cards in a hand of
-Bridge_. (Don't worry, you don't know how to play Bridge to follow this
-example. You only need to know that 52 cards are dealt out equally to four
-players, who are traditionally called *north*, *east*, *south* and *west*.)
-Our class looks something like this::
+easier to follow, we'll use a consistent example throughout this document:
+wrapping a Python object representing the deal of cards in a hand of Bridge_.
+Don't worry, you don't have know how to play Bridge to follow this example.
+You only need to know that 52 cards are dealt out equally to four players, who
+are traditionally called *north*, *east*, *south* and *west*.  Our class looks
+something like this::
 
     class Hand(object):
         def __init__(self, north, east, south, west):
@@ -167,7 +167,7 @@ behave like any existing field, so we'll subclass directly from
             kwargs['max_length'] = 104
             super(HandField, self).__init__(*args, **kwargs)
 
-Our ``HandField`` accept most of the standard field options (see the list
+Our ``HandField`` accepts most of the standard field options (see the list
 below), but we ensure it has a fixed length, since it only needs to hold 52
 card values plus their suits; 104 characters in total.
 
@@ -437,7 +437,7 @@ for the first time, the ``add`` parameter will be ``True``, otherwise it will be
 
 You only need to override this method if you want to preprocess the value
 somehow, just before saving. For example, Django's
-`:class:`~django.db.models.DateTimeField` uses this method to set the attribute
+:class:`~django.db.models.DateTimeField` uses this method to set the attribute
 correctly in the case of :attr:`~django.db.models.Field.auto_now` or
 :attr:`~django.db.models.Field.auto_now_add`.
 
@@ -569,7 +569,7 @@ Converting field data for serialization
 .. method:: value_to_string(self, obj)
 
 This method is used by the serializers to convert the field into a string for
-output. Calling :meth:``Field._get_val_from_obj(obj)`` is the best way to get the
+output. Calling :meth:`Field._get_val_from_obj(obj)` is the best way to get the
 value to serialize. For example, since our ``HandField`` uses strings for its
 data storage anyway, we can reuse some existing conversion code::
 

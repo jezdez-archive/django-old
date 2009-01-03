@@ -19,7 +19,8 @@ try:
 except NameError:
     from django.utils.itercompat import sorted
 
-temp_storage = FileSystemStorage(tempfile.gettempdir())
+temp_storage_dir = tempfile.mkdtemp()
+temp_storage = FileSystemStorage(temp_storage_dir)
 
 ARTICLE_STATUS = (
     (1, 'Draft'),
@@ -98,6 +99,10 @@ class TextFile(models.Model):
         return self.description
 
 class ImageFile(models.Model):
+    def custom_upload_path(self, filename):
+        path = self.path or 'tests'
+        return '%s/%s' % (path, filename)
+    
     description = models.CharField(max_length=20)
     try:
         # If PIL is available, try testing PIL.
@@ -105,9 +110,10 @@ class ImageFile(models.Model):
         # for PyPy, you need to check for the underlying modules
         # If PIL is not available, this test is equivalent to TextFile above.
         from PIL import Image, _imaging
-        image = models.ImageField(storage=temp_storage, upload_to='tests')
+        image = models.ImageField(storage=temp_storage, upload_to=custom_upload_path)
     except ImportError:
-        image = models.FileField(storage=temp_storage, upload_to='tests')
+        image = models.FileField(storage=temp_storage, upload_to=custom_upload_path)
+    path = models.CharField(max_length=16, blank=True, default='')
 
     def __unicode__(self):
         return self.description
@@ -144,7 +150,24 @@ class Inventory(models.Model):
 
    def __unicode__(self):
       return self.name
-      
+
+class Book(models.Model):
+    title = models.CharField(max_length=40)
+    author = models.ForeignKey(Writer, blank=True, null=True)
+    special_id = models.IntegerField(blank=True, null=True, unique=True)
+    
+    class Meta:
+        unique_together = ('title', 'author')
+        
+class ExplicitPK(models.Model):
+    key = models.CharField(max_length=20, primary_key=True)
+    desc = models.CharField(max_length=20, blank=True, unique=True)
+    class Meta:
+        unique_together = ('key', 'desc')
+    
+    def __unicode__(self):
+        return self.key
+
 __test__ = {'API_TESTS': """
 >>> from django import forms
 >>> from django.forms.models import ModelForm, model_to_dict
@@ -1113,6 +1136,15 @@ True
 <...FieldFile: tests/test3.png>
 >>> instance.delete()
 
+# Test callable upload_to behavior that's dependent on the value of another field in the model
+>>> f = ImageFileForm(data={'description': u'And a final one', 'path': 'foo'}, files={'image': SimpleUploadedFile('test4.png', image_data)})
+>>> f.is_valid()
+True
+>>> instance = f.save()
+>>> instance.image
+<...FieldFile: foo/test4.png>
+>>> instance.delete()
+
 # Media on a ModelForm ########################################################
 
 # Similar to a regular Form class you can define custom media to be used on
@@ -1200,6 +1232,51 @@ False
 >>> form.is_valid()
 True
 
+# Unique & unique together with null values
+>>> class BookForm(ModelForm): 
+...     class Meta: 
+...        model = Book
+>>> w = Writer.objects.get(name='Mike Royko')
+>>> form = BookForm({'title': 'I May Be Wrong But I Doubt It', 'author' : w.pk})
+>>> form.is_valid()
+True
+>>> form.save()
+<Book: Book object>
+>>> form = BookForm({'title': 'I May Be Wrong But I Doubt It', 'author' : w.pk})
+>>> form.is_valid()
+False
+>>> form._errors
+{'__all__': [u'Book with this Title and Author already exists.']}
+>>> form = BookForm({'title': 'I May Be Wrong But I Doubt It'})
+>>> form.is_valid()
+True
+>>> form.save()
+<Book: Book object>
+>>> form = BookForm({'title': 'I May Be Wrong But I Doubt It'})
+>>> form.is_valid()
+True
+
+# Test for primary_key being in the form and failing validation.
+>>> class ExplicitPKForm(ModelForm):
+...     class Meta:
+...         model = ExplicitPK
+...         fields = ('key', 'desc',)
+>>> form = ExplicitPKForm({'key': u'', 'desc': u'' })
+>>> form.is_valid()
+False
+
+# Ensure keys and blank character strings are tested for uniqueness.
+>>> form = ExplicitPKForm({'key': u'key1', 'desc': u''})
+>>> form.is_valid()
+True
+>>> form.save()
+<ExplicitPK: key1>
+>>> form = ExplicitPKForm({'key': u'key1', 'desc': u''})
+>>> form.is_valid()
+False
+>>> form.errors
+{'__all__': [u'Explicit pk with this Key and Desc already exists.'], 'key': [u'Explicit pk with this Key already exists.'], 'desc': [u'Explicit pk with this Desc already exists.']}
+
 # Choices on CharField and IntegerField
 >>> class ArticleForm(ModelForm):
 ...     class Meta:
@@ -1251,4 +1328,8 @@ ValidationError: [u'Select a valid choice. z is not one of the available choices
 >>> core = form.save()
 >>> core.parent
 <Inventory: Pear>
+
+# Clean up
+>>> import shutil
+>>> shutil.rmtree(temp_storage_dir)
 """}

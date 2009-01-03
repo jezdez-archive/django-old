@@ -1,10 +1,12 @@
 import os
 import tempfile
+import shutil
 from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.core.files.base import ContentFile
 
-temp_storage = FileSystemStorage(tempfile.gettempdir())
+temp_storage_dir = tempfile.mkdtemp()
+temp_storage = FileSystemStorage(temp_storage_dir)
 
 # Test for correct behavior of width_field/height_field.
 # Of course, we can't run this without PIL.
@@ -20,12 +22,12 @@ except ImportError:
 if Image:
     class Person(models.Model):
         name = models.CharField(max_length=50)
-        mugshot = models.ImageField(storage=temp_storage, upload_to='tests', 
-                                    height_field='mug_height', 
+        mugshot = models.ImageField(storage=temp_storage, upload_to='tests',
+                                    height_field='mug_height',
                                     width_field='mug_width')
         mug_height = models.PositiveSmallIntegerField()
         mug_width = models.PositiveSmallIntegerField()
-        
+
     __test__ = {'API_TESTS': """
 
 >>> image_data = open(os.path.join(os.path.dirname(__file__), "test.png"), 'rb').read()
@@ -39,6 +41,18 @@ if Image:
 16
 >>> p.mug_width
 16
+
+# Bug #9786: Ensure '==' and '!=' work correctly.
+>>> image_data = open(os.path.join(os.path.dirname(__file__), "test1.png"), 'rb').read()
+>>> p1 = Person(name="Bob")
+>>> p1.mugshot.save("mug", ContentFile(image_data))
+>>> p2 = Person.objects.get(name="Joe")
+>>> p.mugshot == p2.mugshot
+True
+>>> p.mugshot != p2.mugshot
+False
+>>> p.mugshot != p1.mugshot
+True
 
 # Bug #8175: correctly delete files that have been removed off the file system.
 >>> import os
@@ -64,5 +78,7 @@ False
 >>> _ = p3.mugshot.size
 >>> hasattr(p3.mugshot, '_file')
 False
+
+>>> shutil.rmtree(temp_storage_dir)
 """}
-    
+

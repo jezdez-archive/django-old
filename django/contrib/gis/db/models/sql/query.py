@@ -122,7 +122,7 @@ class GeoQuery(sql.Query):
             table_alias = start_alias
         else:
             table_alias = self.tables[0]
-        root_pk = self.model._meta.pk.column
+        root_pk = opts.pk.column
         seen = {None: table_alias}
         aliases = set()
         for field, model in opts.get_fields_with_model():
@@ -172,11 +172,21 @@ class GeoQuery(sql.Query):
         """
         values = []
         aliases = self.extra_select.keys()
-        index_start = len(aliases)
-        values = [self.convert_values(v, self.extra_select_fields.get(a, None)) 
-                  for v, a in izip(row[:index_start], aliases)]
+
+        # Have to set a starting row number offset that is used for
+        # determining the correct starting row index -- needed for
+        # doing pagination with Oracle.
+        rn_offset = 0
         if SpatialBackend.oracle:
-            # This is what happens normally in Oracle's `resolve_columns`.
+            if self.high_mark is not None or self.low_mark: rn_offset = 1
+        index_start = rn_offset + len(aliases)
+
+        # Converting any extra selection values (e.g., geometries and
+        # distance objects added by GeoQuerySet methods).
+        values = [self.convert_values(v, self.extra_select_fields.get(a, None)) 
+                  for v, a in izip(row[rn_offset:index_start], aliases)]
+        if SpatialBackend.oracle:
+            # This is what happens normally in OracleQuery's `resolve_columns`.
             for value, field in izip(row[index_start:], fields):
                 values.append(self.convert_values(value, field))
         else:
@@ -187,7 +197,7 @@ class GeoQuery(sql.Query):
         """
         Using the same routines that Oracle does we can convert our
         extra selection objects into Geometry and Distance objects.
-        TODO: Laziness.
+        TODO: Make converted objects 'lazy' for less overhead.
         """
         if SpatialBackend.oracle:
             # Running through Oracle's first.
