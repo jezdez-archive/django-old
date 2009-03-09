@@ -1,14 +1,20 @@
 import re
 import os
 import sys
+import warnings
 from itertools import dropwhile
 from optparse import make_option
+
 from django.core.management.base import CommandError, BaseCommand
 
 try:
     set
 except NameError:
     from sets import Set as set     # For Python 2.3
+
+# Intentionally silence DeprecationWarnings about os.popen3 in Python 2.6. It's
+# still sensible for us to use it, since subprocess didn't exist in 2.3.
+warnings.filterwarnings('ignore', category=DeprecationWarning, message=r'os\.popen3')
 
 pythonize_re = re.compile(r'\n\s*//')
 
@@ -69,6 +75,22 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False, extens
             message = "usage: make-messages.py -l <language>\n   or: make-messages.py -a\n"
         raise CommandError(message)
 
+    # xgettext versions prior to 0.15 assumed Python source files were encoded
+    # in iso-8859-1, and produce utf-8 output.  In the case where xgettext is
+    # given utf-8 input (required for Django files with non-ASCII characters),
+    # this results in a utf-8 re-encoding of the original utf-8 that needs to be
+    # undone to restore the original utf-8.  So we check the xgettext version
+    # here once and set a flag to remember if a utf-8 decoding needs to be done
+    # on xgettext's output for Python files.  We default to assuming this isn't
+    # necessary if we run into any trouble determining the version.
+    xgettext_reencodes_utf8 = False
+    (stdin, stdout, stderr) = os.popen3('xgettext --version', 't')
+    match = re.search(r'(?P<major>\d+)\.(?P<minor>\d+)', stdout.read())
+    if match:
+        xversion = (int(match.group('major')), int(match.group('minor')))
+        if xversion < (0, 15):
+            xgettext_reencodes_utf8 = True
+ 
     languages = []
     if locale is not None:
         languages.append(locale)
@@ -133,6 +155,10 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False, extens
                 errors = stderr.read()
                 if errors:
                     raise CommandError("errors happened while running xgettext on %s\n%s" % (file, errors))
+
+                if xgettext_reencodes_utf8:
+                    msgs = msgs.decode('utf-8').encode('iso-8859-1')
+
                 if thefile != file:
                     old = '#: '+os.path.join(dirpath, thefile)[2:]
                     new = '#: '+os.path.join(dirpath, file)[2:]
@@ -170,9 +196,6 @@ class Command(BaseCommand):
             help='Creates or updates the message files only for the given locale (e.g. pt_BR).'),
         make_option('--domain', '-d', default='django', dest='domain',
             help='The domain of the message files (default: "django").'),
-        make_option('--verbosity', '-v', action='store', dest='verbosity',
-            default='1', type='choice', choices=['0', '1', '2'],
-            help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
         make_option('--all', '-a', action='store_true', dest='all',
             default=False, help='Reexamines all source code and templates for new translation strings and updates all message files for all available languages.'),
         make_option('--extension', '-e', dest='extensions',

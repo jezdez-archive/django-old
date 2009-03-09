@@ -4,6 +4,7 @@ except NameError:
     from sets import Set as set     # Python 2.3 fallback
 
 from django.db import connection, transaction, IntegrityError
+from django.db.models.aggregates import Aggregate
 from django.db.models.fields import DateField
 from django.db.models.query_utils import Q, select_related_descend
 from django.db.models import signals, sql
@@ -14,6 +15,9 @@ from django.utils.datastructures import SortedDict
 # when deleting objects).
 CHUNK_SIZE = 100
 ITER_CHUNK_SIZE = CHUNK_SIZE
+
+# The maximum number of items to display in a QuerySet.__repr__
+REPR_OUTPUT_SIZE = 20
 
 # Pull into this namespace for backwards compatibility.
 EmptyResultSet = sql.EmptyResultSet
@@ -141,7 +145,10 @@ class QuerySet(object):
         return obj_dict
 
     def __repr__(self):
-        return repr(list(self))
+        data = list(self[:REPR_OUTPUT_SIZE + 1])
+        if len(data) > REPR_OUTPUT_SIZE:
+            data[-1] = "...(remaining elements truncated)..."
+        return repr(data)
 
     def __len__(self):
         # Since __len__ is called quite frequently (for example, as part of
@@ -264,17 +271,49 @@ class QuerySet(object):
         else:
             requested = None
         max_depth = self.query.max_depth
+
         extra_select = self.query.extra_select.keys()
+        aggregate_select = self.query.aggregate_select.keys()
+
         index_start = len(extra_select)
+        aggregate_start = index_start + len(self.model._meta.fields)
+
         for row in self.query.results_iter():
             if fill_cache:
-                obj, _ = get_cached_row(self.model, row, index_start,
-                        max_depth, requested=requested)
+                obj, _ = get_cached_row(self.model, row,
+                            index_start, max_depth,
+                            requested=requested, offset=len(aggregate_select))
             else:
-                obj = self.model(*row[index_start:])
+                # omit aggregates in object creation
+                obj = self.model(*row[index_start:aggregate_start])
+
             for i, k in enumerate(extra_select):
                 setattr(obj, k, row[i])
+
+            # Add the aggregates to the model
+            for i, aggregate in enumerate(aggregate_select):
+                setattr(obj, aggregate, row[i+aggregate_start])
+
             yield obj
+
+    def aggregate(self, *args, **kwargs):
+        """
+        Returns a dictionary containing the calculations (aggregation)
+        over the current queryset
+
+        If args is present the expression is passed as a kwarg ussing
+        the Aggregate object's default alias.
+        """
+        for arg in args:
+            kwargs[arg.default_alias] = arg
+
+        query = self.query.clone()
+
+        for (alias, aggregate_expr) in kwargs.items():
+            query.add_aggregate(aggregate_expr, self.model, alias,
+                is_summary=True)
+
+        return query.get_aggregation()
 
     def count(self):
         """
@@ -547,6 +586,25 @@ class QuerySet(object):
         """
         self.query.select_related = other.query.select_related
 
+    def annotate(self, *args, **kwargs):
+        """
+        Return a query set in which the returned objects have been annotated
+        with data aggregated from related fields.
+        """
+        for arg in args:
+            kwargs[arg.default_alias] = arg
+
+        obj = self._clone()
+
+        obj._setup_aggregate_query(kwargs.keys())
+
+        # Add the aggregates to the query
+        for (alias, aggregate_expr) in kwargs.items():
+            obj.query.add_aggregate(aggregate_expr, self.model, alias,
+                is_summary=False)
+
+        return obj
+
     def order_by(self, *field_names):
         """
         Returns a new QuerySet instance with the ordering changed.
@@ -635,6 +693,26 @@ class QuerySet(object):
         """
         pass
 
+    def _setup_aggregate_query(self, aggregates):
+        """
+        Prepare the query for computing a result that contains aggregate annotations.
+        """
+        opts = self.model._meta
+        if self.query.group_by is None:
+            field_names = [f.attname for f in opts.fields]
+            self.query.add_fields(field_names, False)
+            self.query.set_group_by()
+
+    def _as_sql(self):
+        """
+        Returns the internal query's SQL and parameters (as a tuple).
+        """
+        obj = self.values("pk")
+        return obj.query.as_nested_sql()
+
+    # When used as part of a nested query, a queryset will never be an "always
+    # empty" result.
+    value_annotation = True
 
 class ValuesQuerySet(QuerySet):
     def __init__(self, *args, **kwargs):
@@ -646,10 +724,16 @@ class ValuesQuerySet(QuerySet):
         # names of the model fields to select.
 
     def iterator(self):
-        if (not self.extra_names and
-            len(self.field_names) != len(self.model._meta.fields)):
+        # Purge any extra columns that haven't been explicitly asked for
+        if self.extra_names is not None:
             self.query.trim_extra_select(self.extra_names)
-        names = self.query.extra_select.keys() + self.field_names
+
+        extra_names = self.query.extra_select.keys()
+        field_names = self.field_names
+        aggregate_names = self.query.aggregate_select.keys()
+
+        names = extra_names + field_names + aggregate_names
+
         for row in self.query.results_iter():
             yield dict(zip(names, row))
 
@@ -661,33 +745,46 @@ class ValuesQuerySet(QuerySet):
         Called by the _clone() method after initializing the rest of the
         instance.
         """
-        self.extra_names = []
+        self.query.clear_select_fields()
+
         if self._fields:
-            if not self.query.extra_select:
-                field_names = list(self._fields)
+            self.extra_names = []
+            self.aggregate_names = []
+            if not self.query.extra_select and not self.query.aggregate_select:
+                self.field_names = list(self._fields)
             else:
-                field_names = []
+                self.query.default_cols = False
+                self.field_names = []
                 for f in self._fields:
                     if self.query.extra_select.has_key(f):
                         self.extra_names.append(f)
+                    elif self.query.aggregate_select.has_key(f):
+                        self.aggregate_names.append(f)
                     else:
-                        field_names.append(f)
+                        self.field_names.append(f)
         else:
             # Default to all fields.
-            field_names = [f.attname for f in self.model._meta.fields]
+            self.extra_names = None
+            self.field_names = [f.attname for f in self.model._meta.fields]
+            self.aggregate_names = None
 
-        self.query.add_fields(field_names, False)
-        self.query.default_cols = False
-        self.field_names = field_names
+        self.query.select = []
+        self.query.add_fields(self.field_names, False)
+        if self.aggregate_names is not None:
+            self.query.set_aggregate_mask(self.aggregate_names)
 
     def _clone(self, klass=None, setup=False, **kwargs):
         """
         Cloning a ValuesQuerySet preserves the current fields.
         """
         c = super(ValuesQuerySet, self)._clone(klass, **kwargs)
-        c._fields = self._fields[:]
+        if not hasattr(c, '_fields'):
+            # Only clone self._fields if _fields wasn't passed into the cloning
+            # call directly.
+            c._fields = self._fields[:]
         c.field_names = self.field_names
         c.extra_names = self.extra_names
+        c.aggregate_names = self.aggregate_names
         if setup and hasattr(c, '_setup_query'):
             c._setup_query()
         return c
@@ -695,28 +792,68 @@ class ValuesQuerySet(QuerySet):
     def _merge_sanity_check(self, other):
         super(ValuesQuerySet, self)._merge_sanity_check(other)
         if (set(self.extra_names) != set(other.extra_names) or
-                set(self.field_names) != set(other.field_names)):
+                set(self.field_names) != set(other.field_names) or
+                self.aggregate_names != other.aggregate_names):
             raise TypeError("Merging '%s' classes must involve the same values in each case."
                     % self.__class__.__name__)
 
+    def _setup_aggregate_query(self, aggregates):
+        """
+        Prepare the query for computing a result that contains aggregate annotations.
+        """
+        self.query.set_group_by()
+
+        if self.aggregate_names is not None:
+            self.aggregate_names.extend(aggregates)
+            self.query.set_aggregate_mask(self.aggregate_names)
+
+        super(ValuesQuerySet, self)._setup_aggregate_query(aggregates)
+
+    def _as_sql(self):
+        """
+        For ValueQuerySet (and subclasses like ValuesListQuerySet), they can
+        only be used as nested queries if they're already set up to select only
+        a single field (in which case, that is the field column that is
+        returned). This differs from QuerySet.as_sql(), where the column to
+        select is set up by Django.
+        """
+        if ((self._fields and len(self._fields) > 1) or
+                (not self._fields and len(self.model._meta.fields) > 1)):
+            raise TypeError('Cannot use a multi-field %s as a filter value.'
+                    % self.__class__.__name__)
+        return self._clone().query.as_nested_sql()
 
 class ValuesListQuerySet(ValuesQuerySet):
     def iterator(self):
-        self.query.trim_extra_select(self.extra_names)
+        if self.extra_names is not None:
+            self.query.trim_extra_select(self.extra_names)
+
         if self.flat and len(self._fields) == 1:
             for row in self.query.results_iter():
                 yield row[0]
-        elif not self.query.extra_select:
+        elif not self.query.extra_select and not self.query.aggregate_select:
             for row in self.query.results_iter():
                 yield tuple(row)
         else:
-            # When extra(select=...) is involved, the extra cols come are
-            # always at the start of the row, so we need to reorder the fields
+            # When extra(select=...) or an annotation is involved, the extra cols are
+            # always at the start of the row, and we need to reorder the fields
             # to match the order in self._fields.
-            names = self.query.extra_select.keys() + self.field_names
+            extra_names = self.query.extra_select.keys()
+            field_names = self.field_names
+            aggregate_names = self.query.aggregate_select.keys()
+
+            names = extra_names + field_names + aggregate_names
+
+            # If a field list has been specified, use it. Otherwise, use the
+            # full list of fields, including extras and aggregates.
+            if self._fields:
+                fields = self._fields
+            else:
+                fields = names
+
             for row in self.query.results_iter():
                 data = dict(zip(names, row))
-                yield tuple([data[f] for f in self._fields])
+                yield tuple([data[f] for f in fields])
 
     def _clone(self, *args, **kwargs):
         clone = super(ValuesListQuerySet, self)._clone(*args, **kwargs)
@@ -780,9 +917,13 @@ class EmptyQuerySet(QuerySet):
         # (it raises StopIteration immediately).
         yield iter([]).next()
 
+    # EmptyQuerySet is always an empty result in where-clauses (and similar
+    # situations).
+    value_annotation = False
+
 
 def get_cached_row(klass, row, index_start, max_depth=0, cur_depth=0,
-                   requested=None):
+                   requested=None, offset=0):
     """
     Helper function that recursively returns an object with the specified
     related attributes already populated.
@@ -799,6 +940,7 @@ def get_cached_row(klass, row, index_start, max_depth=0, cur_depth=0,
         obj = None
     else:
         obj = klass(*fields)
+    index_end += offset
     for f in klass._meta.fields:
         if not select_related_descend(f, restricted, requested):
             continue

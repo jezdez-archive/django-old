@@ -21,7 +21,7 @@ get_verbose_name = lambda class_name: re.sub('(((?<=[a-z])[A-Z])|([A-Z](?![A-Z]|
 DEFAULT_NAMES = ('verbose_name', 'db_table', 'ordering',
                  'unique_together', 'permissions', 'get_latest_by',
                  'order_with_respect_to', 'app_label', 'db_tablespace',
-                 'abstract')
+                 'abstract', 'managed')
 
 class Options(object):
     def __init__(self, meta, app_label=None):
@@ -41,8 +41,8 @@ class Options(object):
         self.meta = meta
         self.pk = None
         self.has_auto_field, self.auto_field = False, None
-        self.one_to_one_field = None
         self.abstract = False
+        self.managed = True
         self.parents = SortedDict()
         self.duplicate_targets = {}
         # Managers that have been inherited from abstract base classes. These
@@ -436,6 +436,21 @@ class Options(object):
             result.update(parent._meta.get_parent_list())
         return result
 
+    def get_ancestor_link(self, ancestor):
+        """
+        Returns the field on the current model which points to the given
+        "ancestor". This is possible an indirect link (a pointer to a parent
+        model, which points, eventually, to the ancestor). Used when
+        constructing table joins for model inheritance.
+
+        Returns None if the model isn't an ancestor of this one.
+        """
+        if ancestor in self.parents:
+            return self.parents[ancestor]
+        for parent in self.parents:
+            if parent._meta.get_ancestor_link(ancestor):
+                return self.parents[parent]
+
     def get_ordered_objects(self):
         "Returns a list of Options objects that are ordered with respect to this object."
         if not hasattr(self, '_ordered_objects'):
@@ -448,3 +463,4 @@ class Options(object):
             #        objects.append(opts)
             self._ordered_objects = objects
         return self._ordered_objects
+

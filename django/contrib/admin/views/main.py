@@ -99,14 +99,7 @@ class ChangeList(object):
     def get_results(self, request):
         paginator = Paginator(self.query_set, self.list_per_page)
         # Get the number of objects, with admin filters applied.
-        try:
-            result_count = paginator.count
-        # Naked except! Because we don't have any other way of validating
-        # "params". They might be invalid if the keyword arguments are
-        # incorrect, or if the values are not in the correct type (which would
-        # result in a database error).
-        except:
-            raise IncorrectLookupParameters
+        result_count = paginator.count
 
         # Get the total number of objects, with no admin filters applied.
         # Perform a slight optimization: Check to see whether any filters were
@@ -157,7 +150,12 @@ class ChangeList(object):
                     # See whether field_name is a name of a non-field
                     # that allows sorting.
                     try:
-                        attr = getattr(self.model, field_name)
+                        if callable(field_name):
+                            attr = field_name
+                        elif hasattr(self.model_admin, field_name):
+                            attr = getattr(self.model_admin, field_name)
+                        else:
+                            attr = getattr(self.model, field_name)
                         order_field = attr.admin_order_field
                     except AttributeError:
                         pass
@@ -187,7 +185,15 @@ class ChangeList(object):
                 lookup_params[key] = value.split(',')
 
         # Apply lookup parameters from the query string.
-        qs = qs.filter(**lookup_params)
+        try:
+            qs = qs.filter(**lookup_params)
+        # Naked except! Because we don't have any other way of validating "params".
+        # They might be invalid if the keyword arguments are incorrect, or if the
+        # values are not in the correct type, so we might get FieldError, ValueError,
+        # ValicationError, or ? from a custom field that raises yet something else 
+        # when handed impossible data.
+        except:
+            raise IncorrectLookupParameters
 
         # Use select_related() if one of the list_display options is a field
         # with a relationship.
@@ -230,9 +236,6 @@ class ChangeList(object):
                 if '__' in field_name:
                     qs = qs.distinct()
                     break
-
-        if self.opts.one_to_one_field:
-            qs = qs.complex_filter(self.opts.one_to_one_field.rel.limit_choices_to)
 
         return qs
 

@@ -1,9 +1,12 @@
+import re
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.comments import signals
 from django.contrib.comments.models import Comment
 from regressiontests.comment_tests.models import Article
 from regressiontests.comment_tests.tests import CommentTestCase
+
+post_redirect_re = re.compile(r'^http://testserver/posted/\?c=(?P<pk>\d+$)')
 
 class CommentViewTests(CommentTestCase):
 
@@ -45,7 +48,7 @@ class CommentViewTests(CommentTestCase):
     def testCommentPreview(self):
         a = Article.objects.get(pk=1)
         data = self.getValidData(a)
-        data["submit"] = "preview"
+        data["preview"] = "Preview"
         response = self.client.post("/post/", data)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "comments/preview.html")
@@ -85,7 +88,7 @@ class CommentViewTests(CommentTestCase):
         c = Comment.objects.all()[0]
         self.assertEqual(c.ip_address, "1.2.3.4")
         self.assertEqual(c.comment, "This is my comment")
-        
+
     def testPostAsAuthenticatedUser(self):
         a = Article.objects.get(pk=1)
         data = self.getValidData(a)
@@ -100,6 +103,23 @@ class CommentViewTests(CommentTestCase):
         self.assertEqual(c.user, u)
         self.assertEqual(c.user_name, u.get_full_name())
         self.assertEqual(c.user_email, u.email)
+
+    def testPostAsAuthenticatedUserWithoutFullname(self):
+        """
+        Check that the user's name in the comment is populated for
+        authenticated users without first_name and last_name.
+        """
+        user = User.objects.create_user(username='jane_other',
+                email='jane@example.com', password='jane_other')
+        a = Article.objects.get(pk=1)
+        data = self.getValidData(a)
+        data['name'] = data['email'] = ''
+        self.client.login(username="jane_other", password="jane_other")
+        self.response = self.client.post("/post/", data, REMOTE_ADDR="1.2.3.4")
+        c = Comment.objects.get(user=user)
+        self.assertEqual(c.ip_address, "1.2.3.4")
+        self.assertEqual(c.user_name, 'jane_other')
+        user.delete()
 
     def testPreventDuplicateComments(self):
         """Prevent posting the exact same comment twice"""
@@ -131,7 +151,7 @@ class CommentViewTests(CommentTestCase):
         # Post a comment and check the signals
         self.testCreateValidComment()
         self.assertEqual(received_signals, excepted_signals)
-        
+
     def testWillBePostedSignal(self):
         """
         Test that the comment_will_be_posted signal can prevent the comment from
@@ -164,18 +184,26 @@ class CommentViewTests(CommentTestCase):
         a = Article.objects.get(pk=1)
         data = self.getValidData(a)
         response = self.client.post("/post/", data)
-        self.assertEqual(response["Location"], "http://testserver/posted/?c=1")
-
+        location = response["Location"]
+        match = post_redirect_re.match(location)
+        self.failUnless(match != None, "Unexpected redirect location: %s" % location)
+        
         data["next"] = "/somewhere/else/"
         data["comment"] = "This is another comment"
         response = self.client.post("/post/", data)
-        self.assertEqual(response["Location"], "http://testserver/somewhere/else/?c=2")
+        location = response["Location"]        
+        match = re.search(r"^http://testserver/somewhere/else/\?c=\d+$", location)
+        self.failUnless(match != None, "Unexpected redirect location: %s" % location)
 
     def testCommentDoneView(self):
         a = Article.objects.get(pk=1)
         data = self.getValidData(a)
         response = self.client.post("/post/", data)
-        response = self.client.get("/posted/", {'c':1})
+        location = response["Location"]        
+        match = post_redirect_re.match(location)
+        self.failUnless(match != None, "Unexpected redirect location: %s" % location)
+        pk = int(match.group('pk'))
+        response = self.client.get(location)
         self.assertTemplateUsed(response, "comments/posted.html")
-        self.assertEqual(response.context[0]["comment"], Comment.objects.get(pk=1))
+        self.assertEqual(response.context[0]["comment"], Comment.objects.get(pk=pk))
 

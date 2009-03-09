@@ -57,7 +57,7 @@ Form objects
 
 A Form object encapsulates a sequence of form fields and a collection of
 validation rules that must be fulfilled in order for the form to be accepted.
-Form classes are created as subclasses of ``django.forms.Form`` and are
+Form classes are created as subclasses of ``django.forms.Form`` and
 make use of a declarative style that you'll be familiar with if you've used
 Django's database models.
 
@@ -244,7 +244,7 @@ over them::
 
     {% if form.subject.errors %}
         <ol>
-        {% for error in form.message.errors %}
+        {% for error in form.subject.errors %}
             <li><strong>{{ error|escape }}</strong></li>
         {% endfor %}
         </ol>
@@ -253,9 +253,9 @@ over them::
 Looping over the form's fields
 ------------------------------
 
-If you're the same HTML for each of your form fields, you can
-reduce duplicate code by looping through each field in turn using
-a ``{% for %}`` loop::
+If you're using the same HTML for each of your form fields, you can reduce
+duplicate code by looping through each field in turn using a ``{% for %}``
+loop::
 
     <form action="/contact/" method="POST">
         {% for field in form %}
@@ -291,6 +291,57 @@ templates:
         the errors with a ``{% for error in field.errors %}`` loop. In this
         case, each object in the loop is a simple string containing the error
         message.
+
+    ``field.is_hidden``
+        This attribute is ``True`` is the form field is a hidden field and
+        ``False`` otherwise. It's not particularly useful as a template
+        variable, but could be useful in conditional tests such as::
+
+            {% if field.is_hidden %}
+               {# Do something special #}
+            {% endif %}
+
+Looping over hidden and visible fields
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you're manually laying out a form in a template, as opposed to relying on
+Django's default form layout, you might want to treat ``<input type="hidden">``
+fields differently than non-hidden fields. For example, because hidden fields
+don't display anything, putting error messages "next to" the field could cause
+confusion for your users -- so errors for those fields should be handled
+differently.
+
+Django provides two methods on a form that allow you to loop over the hidden
+and visible fields independently: ``hidden_fields()`` and
+``visible_fields()``. Here's a modification of an earlier example that uses
+these two methods::
+
+    <form action="/contact/" method="POST">
+        {% for field in form.visible_fields %}
+            <div class="fieldWrapper">
+
+                {# Include the hidden fields in the form #}
+                {% if forloop.first %}
+                    {% for hidden in form.hidden_fields %}
+                    {{ hidden }}
+                    {% endfor %}
+                {% endif %}
+
+                {{ field.errors }}
+                {{ field.label_tag }}: {{ field }}
+            </div>
+        {% endfor %}
+        <p><input type="submit" value="Send message" /></p>
+    </form>
+
+This example does not handle any errors in the hidden fields. Usually, an
+error in a hidden field is a sign of form tampering, since normal form
+interaction won't alter them. However, you could easily insert some error
+displays for those form errors, as well.
+
+.. versionadded:: 1.1
+    The ``hidden_fields`` and ``visible_fields`` methods are new in Django
+    1.1.
 
 Reusable form templates
 -----------------------

@@ -13,6 +13,13 @@ from datastructures import EmptyResultSet, FullResultSet
 AND = 'AND'
 OR = 'OR'
 
+class EmptyShortCircuit(Exception):
+    """
+    Internal exception used to indicate that a "matches nothing" node should be
+    added to the where-clause.
+    """
+    pass
+
 class WhereNode(tree.Node):
     """
     Used to represent the SQL where-clause.
@@ -35,36 +42,41 @@ class WhereNode(tree.Node):
         storing any reference to field objects). Otherwise, the 'data' is
         stored unchanged and can be anything with an 'as_sql()' method.
         """
-        # Because of circular imports, we need to import this here.
-        from django.db.models.base import ObjectDoesNotExist
-
         if not isinstance(data, (list, tuple)):
             super(WhereNode, self).add(data, connector)
             return
 
-        alias, col, field, lookup_type, value = data
-        try:
-            if field:
-                params = field.get_db_prep_lookup(lookup_type, value)
-                db_type = field.db_type()
-            else:
-                # This is possible when we add a comparison to NULL sometimes
-                # (we don't really need to waste time looking up the associated
-                # field object).
-                params = Field().get_db_prep_lookup(lookup_type, value)
-                db_type = None
-        except ObjectDoesNotExist:
-            # This can happen when trying to insert a reference to a null pk.
-            # We break out of the normal path and indicate there's nothing to
-            # match.
-            super(WhereNode, self).add(NothingNode(), connector)
-            return
+        obj, lookup_type, value = data
+        if hasattr(value, '__iter__') and hasattr(value, 'next'):
+            # Consume any generators immediately, so that we can determine
+            # emptiness and transform any non-empty values correctly.
+            value = list(value)
+        if hasattr(obj, "process"):
+            try:
+                obj, params = obj.process(lookup_type, value)
+            except (EmptyShortCircuit, EmptyResultSet):
+                # There are situations where we want to short-circuit any
+                # comparisons and make sure that nothing is returned. One
+                # example is when checking for a NULL pk value, or the
+                # equivalent.
+                super(WhereNode, self).add(NothingNode(), connector)
+                return
+        else:
+            params = Field().get_db_prep_lookup(lookup_type, value)
+
+        # The "annotation" parameter is used to pass auxilliary information
+        # about the value(s) to the query construction. Specifically, datetime
+        # and empty values need special handling. Other types could be used
+        # here in the future (using Python types is suggested for consistency).
         if isinstance(value, datetime.datetime):
             annotation = datetime.datetime
+        elif hasattr(value, 'value_annotation'):
+            annotation = value.value_annotation
         else:
             annotation = bool(value)
-        super(WhereNode, self).add((alias, col, db_type, lookup_type,
-                annotation, params), connector)
+
+        super(WhereNode, self).add((obj, lookup_type, annotation, params),
+                connector)
 
     def as_sql(self, qn=None):
         """
@@ -89,6 +101,7 @@ class WhereNode(tree.Node):
                 else:
                     # A leaf node in the tree.
                     sql, params = self.make_atom(child, qn)
+
             except EmptyResultSet:
                 if self.connector == AND and not self.negated:
                     # We can bail out early in this particular case (only).
@@ -106,6 +119,7 @@ class WhereNode(tree.Node):
                 if self.negated:
                     empty = True
                 continue
+
             empty = False
             if sql:
                 result.append(sql)
@@ -130,28 +144,30 @@ class WhereNode(tree.Node):
         Returns the string for the SQL fragment and the parameters to use for
         it.
         """
-        table_alias, name, db_type, lookup_type, value_annot, params = child
-        if table_alias:
-            lhs = '%s.%s' % (qn(table_alias), qn(name))
+        lvalue, lookup_type, value_annot, params = child
+        if isinstance(lvalue, tuple):
+            # A direct database column lookup.
+            field_sql = self.sql_for_columns(lvalue, qn)
         else:
-            lhs = qn(name)
-        field_sql = connection.ops.field_cast_sql(db_type) % lhs
+            # A smart object with an as_sql() method.
+            field_sql = lvalue.as_sql(quote_func=qn)
 
         if value_annot is datetime.datetime:
             cast_sql = connection.ops.datetime_cast_sql()
         else:
             cast_sql = '%s'
 
-        if isinstance(params, QueryWrapper):
-            extra, params = params.data
+        if hasattr(params, 'as_sql'):
+            extra, params = params.as_sql(qn)
+            cast_sql = ''
         else:
             extra = ''
 
         if lookup_type in connection.operators:
-            format = "%s %%s %s" % (connection.ops.lookup_cast(lookup_type),
-                    extra)
+            format = "%s %%s %%s" % (connection.ops.lookup_cast(lookup_type),)
             return (format % (field_sql,
-                    connection.operators[lookup_type] % cast_sql), params)
+                              connection.operators[lookup_type] % cast_sql,
+                              extra), params)
 
         if lookup_type == 'in':
             if not value_annot:
@@ -162,9 +178,9 @@ class WhereNode(tree.Node):
                     params)
         elif lookup_type in ('range', 'year'):
             return ('%s BETWEEN %%s and %%s' % field_sql, params)
-        elif lookup_type in ('month', 'day'):
-            return ('%s = %%s' % connection.ops.date_extract_sql(lookup_type,
-                    field_sql), params)
+        elif lookup_type in ('month', 'day', 'week_day'):
+            return ('%s = %%s' % connection.ops.date_extract_sql(lookup_type, field_sql),
+                    params)
         elif lookup_type == 'isnull':
             return ('%s IS %sNULL' % (field_sql,
                 (not value_annot and 'NOT ' or '')), ())
@@ -174,6 +190,19 @@ class WhereNode(tree.Node):
             return connection.ops.regex_lookup(lookup_type) % (field_sql, cast_sql), params
 
         raise TypeError('Invalid lookup_type: %r' % lookup_type)
+
+    def sql_for_columns(self, data, qn):
+        """
+        Returns the SQL fragment used for the left-hand side of a column
+        constraint (for example, the "T1.foo" portion in the clause
+        "WHERE ... T1.foo = 6").
+        """
+        table_alias, name, db_type = data
+        if table_alias:
+            lhs = '%s.%s' % (qn(table_alias), qn(name))
+        else:
+            lhs = qn(name)
+        return connection.ops.field_cast_sql(db_type) % lhs
 
     def relabel_aliases(self, change_map, node=None):
         """
@@ -188,8 +217,17 @@ class WhereNode(tree.Node):
             elif isinstance(child, tree.Node):
                 self.relabel_aliases(change_map, child)
             else:
-                if child[0] in change_map:
-                    node.children[pos] = (change_map[child[0]],) + child[1:]
+                if isinstance(child[0], (list, tuple)):
+                    elt = list(child[0])
+                    if elt[0] in change_map:
+                        elt[0] = change_map[elt[0]]
+                        node.children[pos] = (tuple(elt),) + child[1:]
+                else:
+                    child[0].relabel_aliases(change_map)
+
+                # Check if the query value also requires relabelling
+                if hasattr(child[3], 'relabel_aliases'):
+                    child[3].relabel_aliases(change_map)
 
 class EverythingNode(object):
     """
@@ -210,4 +248,34 @@ class NothingNode(object):
 
     def relabel_aliases(self, change_map, node=None):
         return
+
+class Constraint(object):
+    """
+    An object that can be passed to WhereNode.add() and knows how to
+    pre-process itself prior to including in the WhereNode.
+    """
+    def __init__(self, alias, col, field):
+        self.alias, self.col, self.field = alias, col, field
+
+    def process(self, lookup_type, value):
+        """
+        Returns a tuple of data suitable for inclusion in a WhereNode
+        instance.
+        """
+        # Because of circular imports, we need to import this here.
+        from django.db.models.base import ObjectDoesNotExist
+        try:
+            if self.field:
+                params = self.field.get_db_prep_lookup(lookup_type, value)
+                db_type = self.field.db_type()
+            else:
+                # This branch is used at times when we add a comparison to NULL
+                # (we don't really want to waste time looking up the associated
+                # field object at the calling location).
+                params = Field().get_db_prep_lookup(lookup_type, value)
+                db_type = None
+        except ObjectDoesNotExist:
+            raise EmptyShortCircuit
+
+        return (self.alias, self.col, db_type), params
 

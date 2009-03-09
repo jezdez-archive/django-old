@@ -23,6 +23,7 @@ how they work. Each ``Field`` instance has a ``clean()`` method, which takes
 a single argument and either raises a ``django.forms.ValidationError``
 exception or returns the clean value::
 
+    >>> from django import forms
     >>> f = forms.EmailField()
     >>> f.clean('foo@example.com')
     u'foo@example.com'
@@ -316,8 +317,9 @@ For each field, we describe the default widget used if you don't specify
     * Error message keys: ``required``
 
 .. versionchanged:: 1.0
-   The empty value for a ``CheckboxInput`` (and hence the standard ``BooleanField``)
-   has changed to return ``False`` instead of ``None`` in the development version.
+   The empty value for a ``CheckboxInput`` (and hence the standard
+   ``BooleanField``) has changed to return ``False`` instead of ``None`` in
+   the Django 1.0.
 
 .. note::
 
@@ -516,10 +518,10 @@ given length.
     * Error message keys: ``required``, ``invalid``, ``missing``, ``empty``
 
 To learn more about the ``UploadedFile`` object, see the :ref:`file uploads
-documentation <topics-file-uploads>`.
+documentation <topics-http-file-uploads>`.
 
 When you use a ``FileField`` in a form, you must also remember to
-:ref:`bind the file data to the form <topics-file-uploads>`.
+:ref:`bind the file data to the form <binding-uploaded-files>`.
 
 ``FilePathField``
 ~~~~~~~~~~~~~~~~~
@@ -586,7 +588,7 @@ These control the range of values permitted in the field.
 Using an ImageField requires that the `Python Imaging Library`_ is installed.
 
 When you use an ``ImageField`` on a form, you must also remember to
-:ref:`bind the file data to the form <topics-file-uploads>`.
+:ref:`bind the file data to the form <binding-uploaded-files>`.
 
 .. _Python Imaging Library: http://www.pythonware.com/products/pil/
 

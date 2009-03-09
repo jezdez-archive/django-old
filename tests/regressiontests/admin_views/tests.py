@@ -12,7 +12,12 @@ from django.utils.html import escape
 from models import Article, CustomArticle, Section, ModelWithStringPrimaryKey
 
 class AdminViewBasicTest(TestCase):
-    fixtures = ['admin-views-users.xml']
+    fixtures = ['admin-views-users.xml', 'admin-views-colors.xml']
+    
+    # Store the bit of the URL where the admin is registered as a class 
+    # variable. That way we can test a second AdminSite just by subclassing
+    # this test case and changing urlbit.
+    urlbit = 'admin'
     
     def setUp(self):
         self.client.login(username='super', password='secret')
@@ -24,20 +29,20 @@ class AdminViewBasicTest(TestCase):
         """
         If you leave off the trailing slash, app should redirect and add it.
         """
-        request = self.client.get('/test_admin/admin/admin_views/article/add')
+        request = self.client.get('/test_admin/%s/admin_views/article/add' % self.urlbit)
         self.assertRedirects(request,
-            '/test_admin/admin/admin_views/article/add/'
+            '/test_admin/%s/admin_views/article/add/' % self.urlbit, status_code=301
         )
     
     def testBasicAddGet(self):
         """
         A smoke test to ensure GET on the add_view works.
         """
-        response = self.client.get('/test_admin/admin/admin_views/section/add/')
+        response = self.client.get('/test_admin/%s/admin_views/section/add/' % self.urlbit)
         self.failUnlessEqual(response.status_code, 200)
     
     def testAddWithGETArgs(self):
-        response = self.client.get('/test_admin/admin/admin_views/section/add/', {'name': 'My Section'})
+        response = self.client.get('/test_admin/%s/admin_views/section/add/' % self.urlbit, {'name': 'My Section'})
         self.failUnlessEqual(response.status_code, 200)
         self.failUnless(
             'value="My Section"' in response.content, 
@@ -48,7 +53,7 @@ class AdminViewBasicTest(TestCase):
         """
         A smoke test to ensureGET on the change_view works.
         """
-        response = self.client.get('/test_admin/admin/admin_views/section/1/')
+        response = self.client.get('/test_admin/%s/admin_views/section/1/' % self.urlbit)
         self.failUnlessEqual(response.status_code, 200)
     
     def testBasicAddPost(self):
@@ -61,7 +66,7 @@ class AdminViewBasicTest(TestCase):
             "article_set-TOTAL_FORMS": u"3",
             "article_set-INITIAL_FORMS": u"0",
         }
-        response = self.client.post('/test_admin/admin/admin_views/section/add/', post_data)
+        response = self.client.post('/test_admin/%s/admin_views/section/add/' % self.urlbit, post_data)
         self.failUnlessEqual(response.status_code, 302) # redirect somewhere
     
     def testBasicEditPost(self):
@@ -71,33 +76,121 @@ class AdminViewBasicTest(TestCase):
         post_data = {
             "name": u"Test section",
             # inline data
-            "article_set-TOTAL_FORMS": u"4",
-            "article_set-INITIAL_FORMS": u"1",
+            "article_set-TOTAL_FORMS": u"6",
+            "article_set-INITIAL_FORMS": u"3",
             "article_set-0-id": u"1",
             # there is no title in database, give one here or formset
             # will fail.
-            "article_set-0-title": u"Need a title.",
-            "article_set-0-content": u"&lt;p&gt;test content&lt;/p&gt;",
+            "article_set-0-title": u"Norske bostaver æøå skaper problemer",
+            "article_set-0-content": u"&lt;p&gt;Middle content&lt;/p&gt;",
             "article_set-0-date_0": u"2008-03-18",
             "article_set-0-date_1": u"11:54:58",
-            "article_set-1-id": u"",
-            "article_set-1-title": u"",
-            "article_set-1-content": u"",
-            "article_set-1-date_0": u"",
-            "article_set-1-date_1": u"",
-            "article_set-2-id": u"",
-            "article_set-2-title": u"",
-            "article_set-2-content": u"",
-            "article_set-2-date_0": u"",
-            "article_set-2-date_1": u"",
+            "article_set-1-id": u"2",
+            "article_set-1-title": u"Need a title.",
+            "article_set-1-content": u"&lt;p&gt;Oldest content&lt;/p&gt;",
+            "article_set-1-date_0": u"2000-03-18",
+            "article_set-1-date_1": u"11:54:58",
+            "article_set-2-id": u"3",
+            "article_set-2-title": u"Need a title.",
+            "article_set-2-content": u"&lt;p&gt;Newest content&lt;/p&gt;",
+            "article_set-2-date_0": u"2009-03-18",
+            "article_set-2-date_1": u"11:54:58",
             "article_set-3-id": u"",
             "article_set-3-title": u"",
             "article_set-3-content": u"",
             "article_set-3-date_0": u"",
             "article_set-3-date_1": u"",
+            "article_set-4-id": u"",
+            "article_set-4-title": u"",
+            "article_set-4-content": u"",
+            "article_set-4-date_0": u"",
+            "article_set-4-date_1": u"",
+            "article_set-5-id": u"",
+            "article_set-5-title": u"",
+            "article_set-5-content": u"",
+            "article_set-5-date_0": u"",
+            "article_set-5-date_1": u"",
         }
-        response = self.client.post('/test_admin/admin/admin_views/section/1/', post_data)
+        response = self.client.post('/test_admin/%s/admin_views/section/1/' % self.urlbit, post_data)
         self.failUnlessEqual(response.status_code, 302) # redirect somewhere
+
+    def testChangeListSortingCallable(self):
+        """
+        Ensure we can sort on a list_display field that is a callable 
+        (column 2 is callable_year in ArticleAdmin)
+        """
+        response = self.client.get('/test_admin/%s/admin_views/article/' % self.urlbit, {'ot': 'asc', 'o': 2})
+        self.failUnlessEqual(response.status_code, 200)
+        self.failUnless(
+            response.content.index('Oldest content') < response.content.index('Middle content') and
+            response.content.index('Middle content') < response.content.index('Newest content'),
+            "Results of sorting on callable are out of order."
+        )
+    
+    def testChangeListSortingModel(self):
+        """
+        Ensure we can sort on a list_display field that is a Model method 
+        (colunn 3 is 'model_year' in ArticleAdmin)
+        """
+        response = self.client.get('/test_admin/%s/admin_views/article/' % self.urlbit, {'ot': 'dsc', 'o': 3})
+        self.failUnlessEqual(response.status_code, 200)
+        self.failUnless(
+            response.content.index('Newest content') < response.content.index('Middle content') and
+            response.content.index('Middle content') < response.content.index('Oldest content'),
+            "Results of sorting on Model method are out of order."
+        )
+    
+    def testChangeListSortingModelAdmin(self):
+        """
+        Ensure we can sort on a list_display field that is a ModelAdmin method 
+        (colunn 4 is 'modeladmin_year' in ArticleAdmin)
+        """
+        response = self.client.get('/test_admin/%s/admin_views/article/' % self.urlbit, {'ot': 'asc', 'o': 4})
+        self.failUnlessEqual(response.status_code, 200)
+        self.failUnless(
+            response.content.index('Oldest content') < response.content.index('Middle content') and 
+            response.content.index('Middle content') < response.content.index('Newest content'),
+            "Results of sorting on ModelAdmin method are out of order."
+        )
+        
+    def testLimitedFilter(self):
+        """Ensure admin changelist filters do not contain objects excluded via limit_choices_to."""
+        response = self.client.get('/test_admin/%s/admin_views/thing/' % self.urlbit)
+        self.failUnlessEqual(response.status_code, 200)
+        self.failUnless(
+            '<div id="changelist-filter">' in response.content, 
+            "Expected filter not found in changelist view."
+        )
+        self.failIf(
+            '<a href="?color__id__exact=3">Blue</a>' in response.content,
+            "Changelist filter not correctly limited by limit_choices_to."
+        )
+        
+    def testIncorrectLookupParameters(self):
+        """Ensure incorrect lookup parameters are handled gracefully."""
+        response = self.client.get('/test_admin/%s/admin_views/thing/' % self.urlbit, {'notarealfield': '5'})
+        self.assertRedirects(response, '/test_admin/%s/admin_views/thing/?e=1' % self.urlbit)        
+        response = self.client.get('/test_admin/%s/admin_views/thing/' % self.urlbit, {'color__id__exact': 'StringNotInteger!'})
+        self.assertRedirects(response, '/test_admin/%s/admin_views/thing/?e=1' % self.urlbit)
+
+class CustomModelAdminTest(AdminViewBasicTest):
+    urlbit = "admin2"
+
+    def testCustomAdminSiteLoginTemplate(self):
+        self.client.logout()
+        request = self.client.get('/test_admin/admin2/')
+        self.assertTemplateUsed(request, 'custom_admin/login.html')
+        self.assert_('Hello from a custom login template' in request.content)
+
+    def testCustomAdminSiteIndexViewAndTemplate(self):
+        request = self.client.get('/test_admin/admin2/')
+        self.assertTemplateUsed(request, 'custom_admin/index.html')
+        self.assert_('Hello from a custom index template *bar*' in request.content)
+    
+    def testCustomAdminSiteView(self):
+        self.client.login(username='super', password='secret')
+        response = self.client.get('/test_admin/%s/my_view/' % self.urlbit)
+        self.assert_(response.content == "Django is a magical pony!", response.content)
 
 def get_perm(Model, perm):
     """Return the permission object, for the Model"""
@@ -252,23 +345,32 @@ class AdminViewPermissionsTest(TestCase):
         # Try POST just to make sure
         post = self.client.post('/test_admin/admin/admin_views/article/add/', add_dict)
         self.failUnlessEqual(post.status_code, 403)
-        self.failUnlessEqual(Article.objects.all().count(), 1)
+        self.failUnlessEqual(Article.objects.all().count(), 3)
         self.client.get('/test_admin/admin/logout/')
 
         # Add user may login and POST to add view, then redirect to admin root
         self.client.get('/test_admin/admin/')
         self.client.post('/test_admin/admin/', self.adduser_login)
+        addpage = self.client.get('/test_admin/admin/admin_views/article/add/')
+        self.failUnlessEqual(addpage.status_code, 200)
+        change_list_link = '<a href="../">Articles</a> &rsaquo;'
+        self.failIf(change_list_link in addpage.content,
+                    'User restricted to add permission is given link to change list view in breadcrumbs.')
         post = self.client.post('/test_admin/admin/admin_views/article/add/', add_dict)
         self.assertRedirects(post, '/test_admin/admin/')
-        self.failUnlessEqual(Article.objects.all().count(), 2)
+        self.failUnlessEqual(Article.objects.all().count(), 4)
         self.client.get('/test_admin/admin/logout/')
 
         # Super can add too, but is redirected to the change list view
         self.client.get('/test_admin/admin/')
         self.client.post('/test_admin/admin/', self.super_login)
+        addpage = self.client.get('/test_admin/admin/admin_views/article/add/')
+        self.failUnlessEqual(addpage.status_code, 200)
+        self.failIf(change_list_link not in addpage.content,
+                    'Unrestricted user is not given link to change list view in breadcrumbs.')
         post = self.client.post('/test_admin/admin/admin_views/article/add/', add_dict)
         self.assertRedirects(post, '/test_admin/admin/admin_views/article/')
-        self.failUnlessEqual(Article.objects.all().count(), 3)
+        self.failUnlessEqual(Article.objects.all().count(), 5)
         self.client.get('/test_admin/admin/logout/')
 
         # 8509 - if a normal user is already logged in, it is possible
@@ -309,6 +411,18 @@ class AdminViewPermissionsTest(TestCase):
         post = self.client.post('/test_admin/admin/admin_views/article/1/', change_dict)
         self.assertRedirects(post, '/test_admin/admin/admin_views/article/')
         self.failUnlessEqual(Article.objects.get(pk=1).content, '<p>edited article</p>')
+        
+        # one error in form should produce singular error message, multiple errors plural
+        change_dict['title'] = ''
+        post = self.client.post('/test_admin/admin/admin_views/article/1/', change_dict)
+        self.failUnlessEqual(request.status_code, 200)
+        self.failUnless('Please correct the error below.' in post.content,
+                        'Singular error message not found in response to post with one error.')
+        change_dict['content'] = ''
+        post = self.client.post('/test_admin/admin/admin_views/article/1/', change_dict)
+        self.failUnlessEqual(request.status_code, 200)
+        self.failUnless('Please correct the errors below.' in post.content,
+                        'Plural error message not found in response to post with multiple errors.')        
         self.client.get('/test_admin/admin/logout/')
 
     def testCustomModelAdminTemplates(self):
@@ -342,44 +456,6 @@ class AdminViewPermissionsTest(TestCase):
 
         self.client.get('/test_admin/admin/logout/')
 
-    def testCustomAdminSiteTemplates(self):
-        from django.contrib import admin
-        self.assertEqual(admin.site.index_template, None)
-        self.assertEqual(admin.site.login_template, None)
-
-        self.client.get('/test_admin/admin/logout/')
-        request = self.client.get('/test_admin/admin/')
-        self.assertTemplateUsed(request, 'admin/login.html')
-        self.client.post('/test_admin/admin/', self.changeuser_login)
-        request = self.client.get('/test_admin/admin/')
-        self.assertTemplateUsed(request, 'admin/index.html')
-
-        self.client.get('/test_admin/admin/logout/')
-        admin.site.login_template = 'custom_admin/login.html'
-        admin.site.index_template = 'custom_admin/index.html'
-        request = self.client.get('/test_admin/admin/')
-        self.assertTemplateUsed(request, 'custom_admin/login.html')
-        self.assert_('Hello from a custom login template' in request.content)
-        self.client.post('/test_admin/admin/', self.changeuser_login)
-        request = self.client.get('/test_admin/admin/')
-        self.assertTemplateUsed(request, 'custom_admin/index.html')
-        self.assert_('Hello from a custom index template' in request.content)
-
-        # Finally, using monkey patching check we can inject custom_context arguments in to index
-        original_index = admin.site.index
-        def index(*args, **kwargs):
-            kwargs['extra_context'] = {'foo': '*bar*'}
-            return original_index(*args, **kwargs)
-        admin.site.index = index
-        request = self.client.get('/test_admin/admin/')
-        self.assertTemplateUsed(request, 'custom_admin/index.html')
-        self.assert_('Hello from a custom index template *bar*' in request.content)
-
-        self.client.get('/test_admin/admin/logout/')
-        del admin.site.index # Resets to using the original
-        admin.site.login_template = None
-        admin.site.index_template = None
-
     def testDeleteView(self):
         """Delete view should restrict access and actually delete items."""
 
@@ -392,7 +468,7 @@ class AdminViewPermissionsTest(TestCase):
         self.failUnlessEqual(request.status_code, 403)
         post = self.client.post('/test_admin/admin/admin_views/article/1/delete/', delete_dict)
         self.failUnlessEqual(post.status_code, 403)
-        self.failUnlessEqual(Article.objects.all().count(), 1)
+        self.failUnlessEqual(Article.objects.all().count(), 3)
         self.client.get('/test_admin/admin/logout/')
 
         # Delete user can delete
@@ -406,7 +482,7 @@ class AdminViewPermissionsTest(TestCase):
         self.failUnlessEqual(response.status_code, 200)
         post = self.client.post('/test_admin/admin/admin_views/article/1/delete/', delete_dict)
         self.assertRedirects(post, '/test_admin/admin/')
-        self.failUnlessEqual(Article.objects.all().count(), 0)
+        self.failUnlessEqual(Article.objects.all().count(), 2)
         self.client.get('/test_admin/admin/logout/')
 
 class AdminViewStringPrimaryKeyTest(TestCase):
@@ -594,3 +670,54 @@ class SecureViewTest(TestCase):
         self.client.post('/test_admin/admin/secure-view/', self.super_login)
         # make sure the view removes test cookie
         self.failUnlessEqual(self.client.session.test_cookie_worked(), False)
+
+class AdminViewUnicodeTest(TestCase):
+    fixtures = ['admin-views-unicode.xml']
+
+    def setUp(self):
+        self.client.login(username='super', password='secret')
+
+    def tearDown(self):
+        self.client.logout()
+
+    def testUnicodeEdit(self):
+        """
+        A test to ensure that POST on edit_view handles non-ascii characters.
+        """
+        post_data = {
+            "name": u"Test lærdommer",
+            # inline data
+            "chapter_set-TOTAL_FORMS": u"6",
+            "chapter_set-INITIAL_FORMS": u"3",
+            "chapter_set-0-id": u"1",
+            "chapter_set-0-title": u"Norske bostaver æøå skaper problemer",
+            "chapter_set-0-content": u"&lt;p&gt;Svært frustrerende med UnicodeDecodeError&lt;/p&gt;",
+            "chapter_set-1-id": u"2",
+            "chapter_set-1-title": u"Kjærlighet.",
+            "chapter_set-1-content": u"&lt;p&gt;La kjærligheten til de lidende seire.&lt;/p&gt;",
+            "chapter_set-2-id": u"3",
+            "chapter_set-2-title": u"Need a title.",
+            "chapter_set-2-content": u"&lt;p&gt;Newest content&lt;/p&gt;",
+            "chapter_set-3-id": u"",
+            "chapter_set-3-title": u"",
+            "chapter_set-3-content": u"",
+            "chapter_set-4-id": u"",
+            "chapter_set-4-title": u"",
+            "chapter_set-4-content": u"",
+            "chapter_set-5-id": u"",
+            "chapter_set-5-title": u"",
+            "chapter_set-5-content": u"",
+        }
+
+        response = self.client.post('/test_admin/admin/admin_views/book/1/', post_data)
+        self.failUnlessEqual(response.status_code, 302) # redirect somewhere
+
+    def testUnicodeDelete(self):
+        """
+        Ensure that the delete_view handles non-ascii characters
+        """
+        delete_dict = {'post': 'yes'}
+        response = self.client.get('/test_admin/admin/admin_views/book/1/delete/')
+        self.failUnlessEqual(response.status_code, 200)
+        response = self.client.post('/test_admin/admin/admin_views/book/1/delete/', delete_dict)
+        self.assertRedirects(response, '/test_admin/admin/admin_views/book/')

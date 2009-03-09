@@ -7,13 +7,14 @@ from django.conf import settings
 from django.core import mail
 from django.core.management import call_command
 from django.core.urlresolvers import clear_url_caches
-from django.db import transaction
+from django.db import transaction, connection
 from django.http import QueryDict
 from django.test import _doctest as doctest
 from django.test.client import Client
 from django.utils import simplejson
 
 normalize_long_ints = lambda s: re.sub(r'(?<![\w])(\d+)L(?![\w])', '\\1', s)
+normalize_decimals = lambda s: re.sub(r"Decimal\('(\d+(\.\d*)?)'\)", lambda m: "Decimal(\"%s\")" % m.groups()[0], s)
 
 def to_list(value):
     """
@@ -26,12 +27,37 @@ def to_list(value):
         value = [value]
     return value
 
+real_commit = transaction.commit
+real_rollback = transaction.rollback
+real_enter_transaction_management = transaction.enter_transaction_management
+real_leave_transaction_management = transaction.leave_transaction_management
+real_savepoint_commit = transaction.savepoint_commit
+real_savepoint_rollback = transaction.savepoint_rollback
+
+def nop(x=None):
+    return
+
+def disable_transaction_methods():
+    transaction.commit = nop
+    transaction.rollback = nop
+    transaction.savepoint_commit = nop
+    transaction.savepoint_rollback = nop
+    transaction.enter_transaction_management = nop
+    transaction.leave_transaction_management = nop
+
+def restore_transaction_methods():
+    transaction.commit = real_commit
+    transaction.rollback = real_rollback
+    transaction.savepoint_commit = real_savepoint_commit
+    transaction.savepoint_rollback = real_savepoint_rollback
+    transaction.enter_transaction_management = real_enter_transaction_management
+    transaction.leave_transaction_management = real_leave_transaction_management
 
 class OutputChecker(doctest.OutputChecker):
     def check_output(self, want, got, optionflags):
         "The entry method for doctest output checking. Defers to a sequence of child checkers"
         checks = (self.check_output_default,
-                  self.check_output_long,
+                  self.check_output_numeric,
                   self.check_output_xml,
                   self.check_output_json)
         for check in checks:
@@ -43,19 +69,23 @@ class OutputChecker(doctest.OutputChecker):
         "The default comparator provided by doctest - not perfect, but good for most purposes"
         return doctest.OutputChecker.check_output(self, want, got, optionflags)
 
-    def check_output_long(self, want, got, optionflags):
-        """Doctest does an exact string comparison of output, which means long
-        integers aren't equal to normal integers ("22L" vs. "22"). The
-        following code normalizes long integers so that they equal normal
-        integers.
+    def check_output_numeric(self, want, got, optionflags):
+        """Doctest does an exact string comparison of output, which means that
+        some numerically equivalent values aren't equal. This check normalizes
+         * long integers (22L) so that they equal normal integers. (22)
+         * Decimals so that they are comparable, regardless of the change
+           made to __repr__ in Python 2.6.
         """
-        return normalize_long_ints(want) == normalize_long_ints(got)
+        return doctest.OutputChecker.check_output(self,
+            normalize_decimals(normalize_long_ints(want)),
+            normalize_decimals(normalize_long_ints(got)),
+            optionflags)
 
     def check_output_xml(self, want, got, optionsflags):
         """Tries to do a 'xml-comparision' of want and got.  Plain string
         comparision doesn't always work because, for example, attribute
         ordering should not be important.
-        
+
         Based on http://codespeak.net/svn/lxml/trunk/src/lxml/doctestcompare.py
         """
         _norm_whitespace_re = re.compile(r'[ \t\n][ \t\n]+')
@@ -102,7 +132,7 @@ class OutputChecker(doctest.OutputChecker):
             wrapper = '<root>%s</root>'
             want = wrapper % want
             got = wrapper % got
-            
+
         # Parse the want and got strings, and compare the parsings.
         try:
             want_root = parseString(want).firstChild
@@ -169,27 +199,33 @@ class DocTestRunner(doctest.DocTestRunner):
         # side effects on other tests.
         transaction.rollback_unless_managed()
 
-class TestCase(unittest.TestCase):
+class TransactionTestCase(unittest.TestCase):
     def _pre_setup(self):
         """Performs any pre-test setup. This includes:
 
             * Flushing the database.
-            * If the Test Case class has a 'fixtures' member, installing the 
+            * If the Test Case class has a 'fixtures' member, installing the
               named fixtures.
             * If the Test Case class has a 'urls' member, replace the
               ROOT_URLCONF with it.
             * Clearing the mail test outbox.
         """
+        self._fixture_setup()
+        self._urlconf_setup()
+        mail.outbox = []
+
+    def _fixture_setup(self):
         call_command('flush', verbosity=0, interactive=False)
         if hasattr(self, 'fixtures'):
             # We have to use this slightly awkward syntax due to the fact
             # that we're using *args and **kwargs together.
             call_command('loaddata', *self.fixtures, **{'verbosity': 0})
+
+    def _urlconf_setup(self):
         if hasattr(self, 'urls'):
             self._old_root_urlconf = settings.ROOT_URLCONF
             settings.ROOT_URLCONF = self.urls
             clear_url_caches()
-        mail.outbox = []
 
     def __call__(self, result=None):
         """
@@ -206,7 +242,7 @@ class TestCase(unittest.TestCase):
             import sys
             result.addError(self, sys.exc_info())
             return
-        super(TestCase, self).__call__(result)
+        super(TransactionTestCase, self).__call__(result)
         try:
             self._post_teardown()
         except (KeyboardInterrupt, SystemExit):
@@ -221,6 +257,13 @@ class TestCase(unittest.TestCase):
 
             * Putting back the original ROOT_URLCONF if it was changed.
         """
+        self._fixture_teardown()
+        self._urlconf_teardown()
+
+    def _fixture_teardown(self):
+        pass
+
+    def _urlconf_teardown(self):
         if hasattr(self, '_old_root_urlconf'):
             settings.ROOT_URLCONF = self._old_root_urlconf
             clear_url_caches()
@@ -233,25 +276,48 @@ class TestCase(unittest.TestCase):
         Note that assertRedirects won't work for external links since it uses
         TestClient to do a request.
         """
-        self.assertEqual(response.status_code, status_code,
-            ("Response didn't redirect as expected: Response code was %d"
-             " (expected %d)" % (response.status_code, status_code)))
-        url = response['Location']
-        scheme, netloc, path, query, fragment = urlsplit(url)
+        if hasattr(response, 'redirect_chain'):
+            # The request was a followed redirect
+            self.assertTrue(len(response.redirect_chain) > 0,
+                ("Response didn't redirect as expected: Response code was %d"
+                " (expected %d)" % (response.status_code, status_code)))
+
+            self.assertEqual(response.redirect_chain[0][1], status_code,
+                ("Initial response didn't redirect as expected: Response code was %d"
+                 " (expected %d)" % (response.redirect_chain[0][1], status_code)))
+
+            url, status_code = response.redirect_chain[-1]
+
+            self.assertEqual(response.status_code, target_status_code,
+                ("Response didn't redirect as expected: Final Response code was %d"
+                " (expected %d)" % (response.status_code, target_status_code)))
+
+        else:
+            # Not a followed redirect
+            self.assertEqual(response.status_code, status_code,
+                ("Response didn't redirect as expected: Response code was %d"
+                 " (expected %d)" % (response.status_code, status_code)))
+
+            url = response['Location']
+            scheme, netloc, path, query, fragment = urlsplit(url)
+
+            redirect_response = response.client.get(path, QueryDict(query))
+
+            # Get the redirection page, using the same client that was used
+            # to obtain the original response.
+            self.assertEqual(redirect_response.status_code, target_status_code,
+                ("Couldn't retrieve redirection page '%s': response code was %d"
+                 " (expected %d)") %
+                     (path, redirect_response.status_code, target_status_code))
+
         e_scheme, e_netloc, e_path, e_query, e_fragment = urlsplit(expected_url)
         if not (e_scheme or e_netloc):
             expected_url = urlunsplit(('http', host or 'testserver', e_path,
-                    e_query, e_fragment))
+                e_query, e_fragment))
+
         self.assertEqual(url, expected_url,
             "Response redirected to '%s', expected '%s'" % (url, expected_url))
 
-        # Get the redirection page, using the same client that was used
-        # to obtain the original response.
-        redirect_response = response.client.get(path, QueryDict(query))
-        self.assertEqual(redirect_response.status_code, target_status_code,
-            ("Couldn't retrieve redirection page '%s': response code was %d"
-             " (expected %d)") %
-                 (path, redirect_response.status_code, target_status_code))
 
     def assertContains(self, response, text, count=None, status_code=200):
         """
@@ -354,3 +420,37 @@ class TestCase(unittest.TestCase):
         self.failIf(template_name in template_names,
             (u"Template '%s' was used unexpectedly in rendering the"
              u" response") % template_name)
+
+class TestCase(TransactionTestCase):
+    """
+    Does basically the same as TransactionTestCase, but surrounds every test
+    with a transaction, monkey-patches the real transaction management routines to
+    do nothing, and rollsback the test transaction at the end of the test. You have
+    to use TransactionTestCase, if you need transaction management inside a test.
+    """
+
+    def _fixture_setup(self):
+        if not settings.DATABASE_SUPPORTS_TRANSACTIONS:
+            return super(TestCase, self)._fixture_setup()
+
+        transaction.enter_transaction_management()
+        transaction.managed(True)
+        disable_transaction_methods()
+
+        from django.contrib.sites.models import Site
+        Site.objects.clear_cache()
+
+        if hasattr(self, 'fixtures'):
+            call_command('loaddata', *self.fixtures, **{
+                                                        'verbosity': 0,
+                                                        'commit': False
+                                                        })
+
+    def _fixture_teardown(self):
+        if not settings.DATABASE_SUPPORTS_TRANSACTIONS:
+            return super(TestCase, self)._fixture_teardown()
+
+        restore_transaction_methods()
+        transaction.rollback()
+        transaction.leave_transaction_management()
+        connection.close()

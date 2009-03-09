@@ -151,15 +151,18 @@ DATABASE_ENGINE
 
 Default: ``''`` (Empty string)
 
-The database backend to use. The build-in database backends are
+The database backend to use. The built-in database backends are
 ``'postgresql_psycopg2'``, ``'postgresql'``, ``'mysql'``, ``'sqlite3'``, and
 ``'oracle'``.
 
-In the Django development version, you can use a database backend that doesn't
-ship with Django by setting ``DATABASE_ENGINE`` to a fully-qualified path (i.e.
+You can use a database backend that doesn't ship with Django by setting
+``DATABASE_ENGINE`` to a fully-qualified path (i.e.
 ``mypackage.backends.whatever``). Writing a whole new database backend from
 scratch is left as an exercise to the reader; see the other backends for
 examples.
+
+.. versionadded:: 1.0
+    Support for external database backends is new in 1.0.
 
 .. setting:: DATABASE_HOST
 
@@ -1152,8 +1155,9 @@ multiple Django-powered sites, each with a separate time-zone setting.
 
 Normally, Django sets the ``os.environ['TZ']`` variable to the time zone you
 specify in the ``TIME_ZONE`` setting. Thus, all your views and models will
-automatically operate in the correct time zone. However, if you're using the
-manual configuration option (see below), Django will *not* touch the ``TZ``
+automatically operate in the correct time zone. However, if you're manually
+:ref:`manually configuring settings
+<settings-without-django-settings-module>`, Django will *not* touch the ``TZ``
 environment variable, and it'll be up to you to ensure your processes are
 running in the correct environment.
 

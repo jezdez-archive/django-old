@@ -1,4 +1,5 @@
 import os, re, sys
+from subprocess import Popen, PIPE
 
 from django.conf import settings
 from django.core.management import call_command
@@ -6,12 +7,17 @@ from django.db import connection
 from django.db.backends.creation import TEST_DATABASE_PREFIX
 
 def getstatusoutput(cmd):
-    "A simpler version of getstatusoutput that works on win32 platforms."
-    stdin, stdout, stderr = os.popen3(cmd)
-    output = stdout.read()
-    if output.endswith('\n'): output = output[:-1]
-    status = stdin.close()
-    return status, output
+    """
+    Executes a shell command on the platform using subprocess.Popen and
+    return a tuple of the status and stdout output.
+    """
+    # Set stdout and stderr to PIPE because we want to capture stdout and
+    # prevent stderr from displaying.
+    p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    # We use p.communicate() instead of p.wait() to avoid deadlocks if the
+    # output buffers exceed POSIX buffer size.
+    stdout, stderr = p.communicate()
+    return p.returncode, stdout.strip()
 
 def create_lang(db_name, verbosity=1):
     "Sets up the pl/pgsql language on the given database."
@@ -24,7 +30,7 @@ def create_lang(db_name, verbosity=1):
     if verbosity >= 1: print createlang_cmd
 
     # Must have database super-user privileges to execute createlang -- it must
-    #  also be in your path.
+    # also be in your path.
     status, output = getstatusoutput(createlang_cmd)
 
     # Checking the status of the command, 0 => execution successful
@@ -33,12 +39,18 @@ def create_lang(db_name, verbosity=1):
 
 def _create_with_cursor(db_name, verbosity=1, autoclobber=False):
     "Creates database with psycopg2 cursor."
+    qn = connection.ops.quote_name
 
-    # Constructing the necessary SQL to create the database (the DATABASE_USER
-    #  must possess the privileges to create a database)
-    create_sql = 'CREATE DATABASE %s' % connection.ops.quote_name(db_name)
+    # Constructing the necessary SQL to create the database.
+    create_sql = 'CREATE DATABASE %s' % qn(db_name)
+
+    # If there's a template database for PostGIS set, then use it.
+    if hasattr(settings, 'POSTGIS_TEMPLATE'):
+        create_sql += ' TEMPLATE %s' % qn(settings.POSTGIS_TEMPLATE)
+
+    # The DATABASE_USER must possess the privileges to create a spatial database.
     if settings.DATABASE_USER:
-        create_sql += ' OWNER %s' % settings.DATABASE_USER
+        create_sql += ' OWNER %s' % qn(settings.DATABASE_USER)
 
     cursor = connection.cursor()
     connection.creation.set_autocommit()
@@ -46,7 +58,6 @@ def _create_with_cursor(db_name, verbosity=1, autoclobber=False):
     try:
         # Trying to create the database first.
         cursor.execute(create_sql)
-        #print create_sql
     except Exception, e:
         # Drop and recreate, if necessary.
         if not autoclobber:
@@ -63,12 +74,17 @@ created_regex = re.compile(r'^createdb: database creation failed: ERROR:  databa
 def _create_with_shell(db_name, verbosity=1, autoclobber=False):
     """
     If no spatial database already exists, then using a cursor will not work.
-     Thus, a `createdb` command will be issued through the shell to bootstrap
-     creation of the spatial database.
-    """
+    Thus, a `createdb` command will be issued through the shell to bootstrap
+    creation of the spatial database.
 
+    TODO: Actually allow this method to be used without a spatial database
+    in place first.
+    """
     # Getting the command-line options for the shell command
     options = get_cmd_options(False)
+    if hasattr(settings, 'POSTGIS_TEMPLATE'):
+        options += '-T %s ' % settings.POSTGIS_TEMPlATE
+
     create_cmd = 'createdb -O %s %s%s' % (settings.DATABASE_USER, options, db_name)
     if verbosity >= 1: print create_cmd
 
@@ -109,19 +125,22 @@ def create_spatial_db(test=False, verbosity=1, autoclobber=False, interactive=Fa
         db_name = get_spatial_db()
         _create_with_shell(db_name, verbosity=verbosity, autoclobber=autoclobber)
 
-    # Creating the db language, does not need to be done on NT platforms
-    #  since the PostGIS installer enables this capability.
-    if os.name != 'nt':
-        create_lang(db_name, verbosity=verbosity)
+    # If a template database is used, then don't need to do any of the following.
+    if not hasattr(settings, 'POSTGIS_TEMPLATE'):
+        # Creating the db language, does not need to be done on NT platforms
+        # since the PostGIS installer enables this capability.
+        if os.name != 'nt':
+            create_lang(db_name, verbosity=verbosity)
 
-    # Now adding in the PostGIS routines.
-    load_postgis_sql(db_name, verbosity=verbosity)
+        # Now adding in the PostGIS routines.
+        load_postgis_sql(db_name, verbosity=verbosity)
 
     if verbosity >= 1: print 'Creation of spatial database %s successful.' % db_name
 
     # Closing the connection
     connection.close()
     settings.DATABASE_NAME = db_name
+    settings.DATABASE_SUPPORTS_TRANSACTIONS = connection.creation._rollback_works()
 
     # Syncing the database
     call_command('syncdb', verbosity=verbosity, interactive=interactive)
@@ -129,7 +148,7 @@ def create_spatial_db(test=False, verbosity=1, autoclobber=False, interactive=Fa
 def drop_db(db_name=False, test=False):
     """
     Drops the given database (defaults to what is returned from
-     get_spatial_db()). All exceptions are propagated up to the caller.
+    get_spatial_db()). All exceptions are propagated up to the caller.
     """
     if not db_name: db_name = get_spatial_db(test=test)
     cursor = connection.cursor()
@@ -152,7 +171,7 @@ def get_cmd_options(db_name):
 def get_spatial_db(test=False):
     """
     Returns the name of the spatial database.  The 'test' keyword may be set
-     to return the test spatial database name.
+    to return the test spatial database name.
     """
     if test:
         if settings.TEST_DATABASE_NAME:
@@ -168,14 +187,13 @@ def get_spatial_db(test=False):
 def load_postgis_sql(db_name, verbosity=1):
     """
     This routine loads up the PostGIS SQL files lwpostgis.sql and
-     spatial_ref_sys.sql.
+    spatial_ref_sys.sql.
     """
-
     # Getting the path to the PostGIS SQL
     try:
         # POSTGIS_SQL_PATH may be placed in settings to tell GeoDjango where the
-        #  PostGIS SQL files are located.  This is especially useful on Win32
-        #  platforms since the output of pg_config looks like "C:/PROGRA~1/..".
+        # PostGIS SQL files are located.  This is especially useful on Win32
+        # platforms since the output of pg_config looks like "C:/PROGRA~1/..".
         sql_path = settings.POSTGIS_SQL_PATH
     except AttributeError:
         status, sql_path = getstatusoutput('pg_config --sharedir')
@@ -209,14 +227,14 @@ def load_postgis_sql(db_name, verbosity=1):
         raise Exception('Error in loading PostGIS spatial_ref_sys table.')
 
     # Setting the permissions because on Windows platforms the owner
-    #  of the spatial_ref_sys and geometry_columns tables is always
-    #  the postgres user, regardless of how the db is created.
+    # of the spatial_ref_sys and geometry_columns tables is always
+    # the postgres user, regardless of how the db is created.
     if os.name == 'nt': set_permissions(db_name)
 
 def set_permissions(db_name):
     """
     Sets the permissions on the given database to that of the user specified
-     in the settings.  Needed specifically for PostGIS on Win32 platforms.
+    in the settings.  Needed specifically for PostGIS on Win32 platforms.
     """
     cursor = connection.cursor()
     user = settings.DATABASE_USER

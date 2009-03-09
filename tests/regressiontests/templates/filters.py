@@ -199,6 +199,9 @@ def get_filter_tests():
         'filter-safe01': ("{{ a }} -- {{ a|safe }}", {"a": u"<b>hello</b>"}, "&lt;b&gt;hello&lt;/b&gt; -- <b>hello</b>"),
         'filter-safe02': ("{% autoescape off %}{{ a }} -- {{ a|safe }}{% endautoescape %}", {"a": "<b>hello</b>"}, u"<b>hello</b> -- <b>hello</b>"),
 
+        'filter-safeseq01': ('{{ a|join:", " }} -- {{ a|safeseq|join:", " }}', {"a": ["&", "<"]}, "&amp;, &lt; -- &, <"),
+        'filter-safeseq02': ('{% autoescape off %}{{ a|join:", " }} -- {{ a|safeseq|join:", " }}{% endautoescape %}', {"a": ["&", "<"]}, "&, < -- &, <"),
+
         'filter-removetags01': ('{{ a|removetags:"a b" }} {{ b|removetags:"a b" }}', {"a": "<a>x</a> <p><b>y</b></p>", "b": mark_safe("<a>x</a> <p><b>y</b></p>")}, u"x &lt;p&gt;y&lt;/p&gt; x <p>y</p>"),
         'filter-removetags02': ('{% autoescape off %}{{ a|removetags:"a b" }} {{ b|removetags:"a b" }}{% endautoescape %}', {"a": "<a>x</a> <p><b>y</b></p>", "b": mark_safe("<a>x</a> <p><b>y</b></p>")}, u"x <p>y</p> x <p>y</p>"),
 
@@ -277,5 +280,14 @@ def get_filter_tests():
 
         'escapejs01': (r'{{ a|escapejs }}', {'a': 'testing\r\njavascript \'string" <b>escaping</b>'}, 'testing\\x0D\\x0Ajavascript \\x27string\\x22 \\x3Cb\\x3Eescaping\\x3C/b\\x3E'),
         'escapejs02': (r'{% autoescape off %}{{ a|escapejs }}{% endautoescape %}', {'a': 'testing\r\njavascript \'string" <b>escaping</b>'}, 'testing\\x0D\\x0Ajavascript \\x27string\\x22 \\x3Cb\\x3Eescaping\\x3C/b\\x3E'),
+
+        # Boolean return value from length_is should not be coerced to a string
+        'lengthis01': (r'{% if "X"|length_is:0 %}Length is 0{% else %}Length not 0{% endif %}', {}, 'Length not 0'),
+        'lengthis02': (r'{% if "X"|length_is:1 %}Length is 1{% else %}Length not 1{% endif %}', {}, 'Length is 1'),
+
+        'join01': (r'{{ a|join:", " }}', {'a': ['alpha', 'beta & me']}, 'alpha, beta &amp; me'),
+        'join02': (r'{% autoescape off %}{{ a|join:", " }}{% endautoescape %}', {'a': ['alpha', 'beta & me']}, 'alpha, beta & me'),
+        'join03': (r'{{ a|join:" &amp; " }}', {'a': ['alpha', 'beta & me']}, 'alpha &amp; beta &amp; me'),
+        'join04': (r'{% autoescape off %}{{ a|join:" &amp; " }}{% endautoescape %}', {'a': ['alpha', 'beta & me']}, 'alpha &amp; beta & me'),
     }
 

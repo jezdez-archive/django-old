@@ -6,6 +6,7 @@ import datetime
 import pickle
 import sys
 
+from django.conf import settings
 from django.db import models
 from django.db.models.query import Q, ITER_CHUNK_SIZE
 
@@ -227,6 +228,43 @@ class ReservedName(models.Model):
     def __unicode__(self):
         return self.name
 
+# A simpler shared-foreign-key setup that can expose some problems.
+class SharedConnection(models.Model):
+    data = models.CharField(max_length=10)
+
+class PointerA(models.Model):
+    connection = models.ForeignKey(SharedConnection)
+
+class PointerB(models.Model):
+    connection = models.ForeignKey(SharedConnection)
+
+# Multi-layer ordering
+class SingleObject(models.Model):
+    name = models.CharField(max_length=10)
+
+    class Meta:
+        ordering = ['name']
+
+    def __unicode__(self):
+        return self.name
+
+class RelatedObject(models.Model):
+    single = models.ForeignKey(SingleObject)
+
+    class Meta:
+        ordering = ['single']
+
+class Plaything(models.Model):
+    name = models.CharField(max_length=10)
+    others = models.ForeignKey(RelatedObject, null=True)
+
+    class Meta:
+        ordering = ['others']
+
+    def __unicode__(self):
+        return self.name
+
+
 __test__ = {'API_TESTS':"""
 >>> t1 = Tag.objects.create(name='t1')
 >>> t2 = Tag.objects.create(name='t2', parent=t1)
@@ -333,6 +371,12 @@ Bug #4464
 [<Item: one>, <Item: two>]
 >>> Item.objects.filter(tags__in=[t1, t2]).filter(tags=t3)
 [<Item: two>]
+
+Make sure .distinct() works with slicing (this was broken in Oracle).
+>>> Item.objects.filter(tags__in=[t1, t2]).order_by('name')[:3]
+[<Item: one>, <Item: one>, <Item: two>]
+>>> Item.objects.filter(tags__in=[t1, t2]).distinct().order_by('name')[:3]
+[<Item: one>, <Item: two>]
 
 Bug #2080, #3592
 >>> Author.objects.filter(item__name='one') | Author.objects.filter(name='a3')
@@ -556,7 +600,7 @@ Bug #2076
 # automatically. Item normally requires a join with Note to do the default
 # ordering, but that isn't needed here.
 >>> qs = Item.objects.order_by('name')
->>> qs
+>>> list(qs)
 [<Item: four>, <Item: one>, <Item: three>, <Item: two>]
 >>> len(qs.query.tables)
 1
@@ -658,7 +702,7 @@ thus fail.)
 ...     s.reverse()
 ...     params.reverse()
 
-# This slightly odd comparison works aorund the fact that PostgreSQL will
+# This slightly odd comparison works around the fact that PostgreSQL will
 # return 'one' and 'two' as strings, not Unicode objects. It's a side-effect of
 # using constants here and not a real concern.
 >>> d = Item.objects.extra(select=SortedDict(s), select_params=params).values('a', 'b')[0]
@@ -725,7 +769,7 @@ We can do slicing beyond what is currently in the result cache, too.
 ## only apparent much later when the full test suite runs. I don't understand
 ## what's going on here yet.
 ##
-## # We need to mess with the implemenation internals a bit here to decrease the
+## # We need to mess with the implementation internals a bit here to decrease the
 ## # cache fill size so that we don't read all the results at once.
 ## >>> from django.db.models import query
 ## >>> query.ITER_CHUNK_SIZE = 2
@@ -778,7 +822,7 @@ More twisted cases, involving nested negations.
 [<Item: four>, <Item: one>, <Item: three>]
 
 Bug #7095
-Updates that are filtered on the model being updated are somewhat tricky to get
+Updates that are filtered on the model being updated are somewhat tricky
 in MySQL. This exercises that case.
 >>> mm = ManagedModel.objects.create(data='mm1', tag=t1, public=True)
 >>> ManagedModel.objects.update(data='mm')
@@ -859,9 +903,17 @@ used in lookups.
 >>> Item.objects.filter(created__in=[time1, time2])
 [<Item: one>, <Item: two>]
 
-Bug #7698 -- People like to slice with '0' as the high-water mark.
+Bug #7698, #10202 -- People like to slice with '0' as the high-water mark.
 >>> Item.objects.all()[0:0]
 []
+>>> Item.objects.all()[0:0][:10]
+[]
+>>> Item.objects.all()[:0].count()
+0
+>>> Item.objects.all()[:0].latest('created')
+Traceback (most recent call last):
+    ...
+AssertionError: Cannot change a query once a slice has been taken.
 
 Bug #7411 - saving to db must work even with partially read result set in
 another cursor.
@@ -953,24 +1005,104 @@ relations.
 >>> len([x[2] for x in q.alias_map.values() if x[2] == q.LOUTER and q.alias_refcount[x[1]]])
 1
 
-A check to ensure we don't break the internal query construction of GROUP BY
-and HAVING. These aren't supported in the public API, but the Query class knows
-about them and shouldn't do bad things.
->>> qs = Tag.objects.values_list('parent_id', flat=True).order_by()
->>> qs.query.group_by = ['parent_id']
->>> qs.query.having = ['count(parent_id) > 1']
->>> expected = [t3.parent_id, t4.parent_id]
->>> expected.sort()
->>> result = list(qs)
->>> result.sort()
->>> expected == result
+Make sure bump_prefix() (an internal Query method) doesn't (re-)break. It's
+sufficient that this query runs without error.
+>>> qs = Tag.objects.values_list('id', flat=True).order_by('id')
+>>> qs.query.bump_prefix()
+>>> list(qs)
+[1, 2, 3, 4, 5]
+
+Calling order_by() with no parameters removes any existing ordering on the
+model. But it should still be possible to add new ordering after that.
+>>> qs = Author.objects.order_by().order_by('name')
+>>> 'ORDER BY' in qs.query.as_sql()[0]
 True
 
-Make sure bump_prefix() (an internal Query method) doesn't (re-)break.
->>> query = Tag.objects.values_list('id').order_by().query
->>> query.bump_prefix()
->>> print query.as_sql()[0]
-SELECT U0."id" FROM "queries_tag" U0
+Incorrect SQL was being generated for certain types of exclude() queries that
+crossed multi-valued relations (#8921, #9188 and some pre-emptively discovered
+cases).
+
+>>> PointerA.objects.filter(connection__pointerb__id=1)
+[]
+>>> PointerA.objects.exclude(connection__pointerb__id=1)
+[]
+
+>>> Tag.objects.exclude(children=None)
+[<Tag: t1>, <Tag: t3>]
+
+# This example is tricky because the parent could be NULL, so only checking
+# parents with annotations omits some results (tag t1, in this case).
+>>> Tag.objects.exclude(parent__annotation__name="a1")
+[<Tag: t1>, <Tag: t4>, <Tag: t5>]
+
+# The annotation->tag link is single values and tag->children links is
+# multi-valued. So we have to split the exclude filter in the middle and then
+# optimise the inner query without losing results.
+>>> Annotation.objects.exclude(tag__children__name="t2")
+[<Annotation: a2>]
+
+Nested queries are possible (although should be used with care, since they have
+performance problems on backends like MySQL.
+
+>>> Annotation.objects.filter(notes__in=Note.objects.filter(note="n1"))
+[<Annotation: a1>]
+
+Nested queries should not evaluate the inner query as part of constructing the
+SQL (so we should see a nested query here, indicated by two "SELECT" calls).
+>>> Annotation.objects.filter(notes__in=Note.objects.filter(note="xyzzy")).query.as_sql()[0].count('SELECT')
+2
+
+Bug #10181 -- Avoid raising an EmptyResultSet if an inner query is provably
+empty (and hence, not executed).
+>>> Tag.objects.filter(id__in=Tag.objects.filter(id__in=[]))
+[]
+
+Bug #9997 -- If a ValuesList or Values queryset is passed as an inner query, we
+make sure it's only requesting a single value and use that as the thing to
+select.
+>>> Tag.objects.filter(name__in=Tag.objects.filter(parent=t1).values('name'))
+[<Tag: t2>, <Tag: t3>]
+
+# Multi-valued values() and values_list() querysets should raise errors.
+>>> Tag.objects.filter(name__in=Tag.objects.filter(parent=t1).values('name', 'id'))
+Traceback (most recent call last):
+...
+TypeError: Cannot use a multi-field ValuesQuerySet as a filter value.
+>>> Tag.objects.filter(name__in=Tag.objects.filter(parent=t1).values_list('name', 'id'))
+Traceback (most recent call last):
+...
+TypeError: Cannot use a multi-field ValuesListQuerySet as a filter value.
+
+Bug #9985 -- qs.values_list(...).values(...) combinations should work.
+>>> Note.objects.values_list("note", flat=True).values("id").order_by("id")
+[{'id': 1}, {'id': 2}, {'id': 3}]
+>>> Annotation.objects.filter(notes__in=Note.objects.filter(note="n1").values_list('note').values('id'))
+[<Annotation: a1>]
+
+Bug #10028 -- ordering by model related to nullable relations(!) should use
+outer joins, so that all results are included.
+>>> _ = Plaything.objects.create(name="p1")
+>>> Plaything.objects.all()
+[<Plaything: p1>]
+
+Bug #10205 -- When bailing out early because of an empty "__in" filter, we need
+to set things up correctly internally so that subqueries can continue properly.
+>>> Tag.objects.filter(name__in=()).update(name="foo")
+0
+
+Bug #10432 (see also the Python 2.4+ tests for this, below). Testing an empty
+"__in" filter with a generator as the value.
+>>> def f():
+...     return iter([])
+>>> n_obj = Note.objects.all()[0]
+>>> def g():
+...     for i in [n_obj.pk]:
+...         yield i
+>>> Note.objects.filter(pk__in=f())
+[]
+>>> list(Note.objects.filter(pk__in=g())) == [n_obj]
+True
+
 """}
 
 # In Python 2.3 and the Python 2.6 beta releases, exceptions raised in __len__
@@ -1001,6 +1133,33 @@ FieldError: Infinite loop caused by ordering.
 # ... but you can still order in a non-recursive fashion amongst linked fields
 # (the previous test failed because the default ordering was recursive).
 >>> LoopX.objects.all().order_by('y__x__y__x__id')
+[]
+
+"""
+
+if settings.DATABASE_ENGINE == "mysql":
+    __test__["API_TESTS"] += """
+When grouping without specifying ordering, we add an explicit "ORDER BY NULL"
+portion in MySQL to prevent unnecessary sorting.
+
+>>> query = Tag.objects.values_list('parent_id', flat=True).order_by().query
+>>> query.group_by = ['parent_id']
+>>> sql = query.as_sql()[0]
+>>> fragment = "ORDER BY "
+>>> pos = sql.find(fragment)
+>>> sql.find(fragment, pos + 1) == -1
+True
+>>> sql.find("NULL", pos + len(fragment)) == pos + len(fragment)
+True
+
+"""
+
+# Generator expressions are only in Python 2.4 and later.
+if sys.version_info >= (2, 4):
+    __test__["API_TESTS"] += """
+Using an empty generator expression as the rvalue for an "__in" lookup is legal
+(regression for #10432).
+>>> Note.objects.filter(pk__in=(x for x in ()))
 []
 
 """

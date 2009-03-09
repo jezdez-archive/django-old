@@ -10,7 +10,7 @@ except NameError:
 
 import django.db.models.manager     # Imported to register signal handler.
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, FieldError
-from django.db.models.fields import AutoField
+from django.db.models.fields import AutoField, FieldDoesNotExist
 from django.db.models.fields.related import OneToOneRel, ManyToOneRel, OneToOneField
 from django.db.models.query import delete_objects, Q, CollectedObjects
 from django.db.models.options import Options
@@ -94,12 +94,20 @@ class ModelBase(type):
                          new_class._meta.virtual_fields
             field_names = set([f.name for f in new_fields])
 
+            parent_fields = base._meta.local_fields + base._meta.local_many_to_many
+            # Check for clashes between locally declared fields and those
+            # on the base classes (we cannot handle shadowed fields at the
+            # moment).
+            for field in parent_fields:
+                if field.name in field_names:
+                    raise FieldError('Local field %r in class %r clashes '
+                                     'with field of similar name from '
+                                     'base class %r' %
+                                        (field.name, name, base.__name__))
             if not base._meta.abstract:
                 # Concrete classes...
                 if base in o2o_map:
                     field = o2o_map[base]
-                    field.primary_key = True
-                    new_class._meta.setup_pk(field)
                 else:
                     attr_name = '%s_ptr' % base._meta.module_name
                     field = OneToOneField(base, name=attr_name,
@@ -109,16 +117,7 @@ class ModelBase(type):
 
             else:
                 # .. and abstract ones.
-
-                # Check for clashes between locally declared fields and those
-                # on the ABC.
-                parent_fields = base._meta.local_fields + base._meta.local_many_to_many
                 for field in parent_fields:
-                    if field.name in field_names:
-                        raise FieldError('Local field %r in class %r clashes '\
-                                         'with field of similar name from '\
-                                         'abstract base class %r' % \
-                                            (field.name, name, base.__name__))
                     new_class.add_to_class(field.name, copy.deepcopy(field))
 
                 # Pass any non-abstract parent classes onto child.
@@ -133,7 +132,8 @@ class ModelBase(type):
                     new_manager = manager._copy_to_model(new_class)
                     new_class.add_to_class(mgr_name, new_manager)
 
-            # Inherit virtual fields (like GenericForeignKey) from the parent class
+            # Inherit virtual fields (like GenericForeignKey) from the parent
+            # class
             for field in base._meta.virtual_fields:
                 if base._meta.abstract and field.name in field_names:
                     raise FieldError('Local field %r in class %r clashes '\
@@ -224,12 +224,13 @@ class Model(object):
         # keywords, or default.
 
         for field in fields_iter:
-            rel_obj = None
+            is_related_object = False
             if kwargs:
                 if isinstance(field.rel, ManyToOneRel):
                     try:
                         # Assume object instance was passed in.
                         rel_obj = kwargs.pop(field.name)
+                        is_related_object = True
                     except KeyError:
                         try:
                             # Object instance wasn't passed in -- must be an ID.
@@ -245,11 +246,11 @@ class Model(object):
                     val = kwargs.pop(field.attname, field.get_default())
             else:
                 val = field.get_default()
-            # If we got passed a related instance, set it using the field.name
-            # instead of field.attname (e.g. "user" instead of "user_id") so
-            # that the object gets properly cached (and type checked) by the
-            # RelatedObjectDescriptor.
-            if rel_obj:
+            if is_related_object:
+                # If we are passed a related instance, set it using the
+                # field.name instead of field.attname (e.g. "user" instead of
+                # "user_id") so that the object gets properly cached (and type
+                # checked) by the RelatedObjectDescriptor.
                 setattr(self, field.name, rel_obj)
             else:
                 setattr(self, field.attname, val)
@@ -266,7 +267,11 @@ class Model(object):
         signals.post_init.send(sender=self.__class__, instance=self)
 
     def __repr__(self):
-        return smart_str(u'<%s: %s>' % (self.__class__.__name__, unicode(self)))
+        try:
+            u = unicode(self)
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            u = '[Bad Unicode data]'
+        return smart_str(u'<%s: %s>' % (self.__class__.__name__, u))
 
     def __str__(self):
         if hasattr(self, '__unicode__'):
@@ -291,6 +296,23 @@ class Model(object):
         return setattr(self, self._meta.pk.attname, value)
 
     pk = property(_get_pk_val, _set_pk_val)
+
+    def serializable_value(self, field_name):
+        """
+        Returns the value of the field name for this instance. If the field is
+        a foreign key, returns the id value, instead of the object. If there's
+        no Field object with this name on the model, the model attribute's
+        value is returned directly.
+
+        Used to serialize a field's value (in the serializer, or form output,
+        for example). Normally, you would just access the attribute directly
+        and not use this method.
+        """
+        try:
+            field = self._meta.get_field_by_name(field_name)[0]
+        except FieldDoesNotExist:
+            return getattr(self, field_name)
+        return getattr(self, field.attname)
 
     def save(self, force_insert=False, force_update=False):
         """
@@ -477,6 +499,8 @@ class Model(object):
             setattr(self, cachename, obj)
         return getattr(self, cachename)
 
+    def prepare_database_save(self, unused):
+        return self.pk
 
 
 ############################################

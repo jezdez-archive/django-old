@@ -43,6 +43,16 @@ class ParkingLot(Place):
     def __unicode__(self):
         return u"%s the parking lot" % self.name
 
+class ParkingLot2(Place):
+    # In lieu of any other connector, an existing OneToOneField will be
+    # promoted to the primary key.
+    parent = models.OneToOneField(Place)
+
+class ParkingLot3(Place):
+    # The parent_link connector need not be the pk on the model.
+    primary_key = models.AutoField(primary_key=True)
+    parent = models.OneToOneField(Place, parent_link=True)
+
 class Supplier(models.Model):
     restaurant = models.ForeignKey(Restaurant)
 
@@ -86,6 +96,19 @@ class Evaluation(Article):
 class QualityControl(Evaluation):
     assignee = models.CharField(max_length=50)
 
+class BaseM(models.Model):
+    base_name = models.CharField(max_length=100)
+
+    def __unicode__(self):
+        return self.base_name
+
+class DerivedM(BaseM):
+    customPK = models.IntegerField(primary_key=True)
+    derived_name = models.CharField(max_length=100)
+
+    def __unicode__(self):
+        return "PK = %d, base_name = %s, derived_name = %s" \
+                % (self.customPK, self.base_name, self.derived_name)
 
 __test__ = {'API_TESTS':"""
 # Regression for #7350, #7202
@@ -222,7 +245,7 @@ True
 >>> obj = SelfRefChild.objects.create(child_data=37, parent_data=42)
 >>> obj.delete()
 
-# Regression tests for #8076 - get_(next/previous)_by_date should 
+# Regression tests for #8076 - get_(next/previous)_by_date should work.
 >>> c1 = ArticleWithAuthor(headline='ArticleWithAuthor 1', author="Person 1", pub_date=datetime.datetime(2005, 8, 1, 3, 0))
 >>> c1.save()
 >>> c2 = ArticleWithAuthor(headline='ArticleWithAuthor 2', author="Person 2", pub_date=datetime.datetime(2005, 8, 1, 10, 0))
@@ -257,4 +280,43 @@ DoesNotExist: ArticleWithAuthor matching query does not exist.
 # without error.
 >>> _ = QualityControl.objects.create(headline="Problems in Django", pub_date=datetime.datetime.now(), quality=10, assignee="adrian")
 
+# Ordering should not include any database column more than once (this is most
+# likely to ocurr naturally with model inheritance, so we check it here).
+# Regression test for #9390. This necessarily pokes at the SQL string for the
+# query, since the duplicate problems are only apparent at that late stage.
+>>> sql = ArticleWithAuthor.objects.order_by('pub_date', 'pk').query.as_sql()[0]
+>>> fragment = sql[sql.find('ORDER BY'):]
+>>> pos = fragment.find('pub_date')
+>>> fragment.find('pub_date', pos + 1) == -1
+True
+
+# It is possible to call update() and only change a field in an ancestor model
+# (regression test for #10362).
+>>> article = ArticleWithAuthor.objects.create(author="fred", headline="Hey there!", pub_date = datetime.datetime(2009, 3, 1, 8, 0, 0))
+>>> ArticleWithAuthor.objects.filter(author="fred").update(headline="Oh, no!")
+1
+>>> ArticleWithAuthor.objects.filter(pk=article.pk).update(headline="Oh, no!")
+1
+
+>>> DerivedM.objects.create(customPK=44, base_name="b1", derived_name="d1")
+<DerivedM: PK = 44, base_name = b1, derived_name = d1>
+>>> DerivedM.objects.all()
+[<DerivedM: PK = 44, base_name = b1, derived_name = d1>]
+
+# Regression tests for #10406
+
+# If there's a one-to-one link between a child model and the parent and no
+# explicit pk declared, we can use the one-to-one link as the pk on the child.
+# The ParkingLot2 model shows this behaviour.
+>>> ParkingLot2._meta.pk.name
+"parent"
+
+# However, the connector from child to parent need not be the pk on the child
+# at all.
+>>> ParkingLot3._meta.pk.name
+"primary_key"
+>>> ParkingLot3._meta.get_ancestor_link(Place).name  # the child->parent link
+"parent"
+
 """}
+

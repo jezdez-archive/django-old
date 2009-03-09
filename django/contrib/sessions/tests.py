@@ -3,6 +3,7 @@ r"""
 >>> from django.conf import settings
 >>> from django.contrib.sessions.backends.db import SessionStore as DatabaseSession
 >>> from django.contrib.sessions.backends.cache import SessionStore as CacheSession
+>>> from django.contrib.sessions.backends.cached_db import SessionStore as CacheDBSession
 >>> from django.contrib.sessions.backends.file import SessionStore as FileSession
 >>> from django.contrib.sessions.backends.base import SessionBase
 >>> from django.contrib.sessions.models import Session
@@ -53,6 +54,36 @@ True
 >>> db_session = DatabaseSession(db_session.session_key)
 >>> db_session.save()
 >>> DatabaseSession('1').get('cat')
+
+#
+# Cached DB session tests
+#
+
+>>> cdb_session = CacheDBSession()
+>>> cdb_session.modified
+False
+>>> cdb_session['cat'] = "dog"
+>>> cdb_session.modified
+True
+>>> cdb_session.pop('cat')
+'dog'
+>>> cdb_session.pop('some key', 'does not exist')
+'does not exist'
+>>> cdb_session.save()
+>>> cdb_session.exists(cdb_session.session_key)
+True
+>>> cdb_session.delete(cdb_session.session_key)
+>>> cdb_session.exists(cdb_session.session_key)
+False
+
+#
+# File session tests.
+#
+
+# Do file session tests in an isolated directory, and kill it after we're done.
+>>> original_session_file_path = settings.SESSION_FILE_PATH
+>>> import tempfile
+>>> temp_session_store = settings.SESSION_FILE_PATH = tempfile.mkdtemp()
 
 >>> file_session = FileSession()
 >>> file_session.modified
@@ -105,6 +136,17 @@ Traceback (innermost last):
     ...
 ImproperlyConfigured: The session storage path '/if/this/directory/exists/you/have/a/weird/computer' doesn't exist. Please set your SESSION_FILE_PATH setting to an existing directory in which Django can store session data.
 
+# Clean up after the file tests
+>>> settings.SESSION_FILE_PATH = original_session_file_path
+>>> import shutil
+>>> shutil.rmtree(temp_session_store)
+
+#
+# Cache-based tests
+# NB: be careful to delete any sessions created; stale sessions fill up the
+# /tmp and eventually overwhelm it after lots of runs (think buildbots)
+#
+
 >>> cache_session = CacheSession()
 >>> cache_session.modified
 False
@@ -140,11 +182,16 @@ False
 False
 >>> cache_session.items() == prev_data
 True
+>>> cache_session = CacheSession()
+>>> cache_session.save()
+>>> key = cache_session.session_key
+>>> cache_session.exists(key)
+True
 
 >>> Session.objects.filter(pk=cache_session.session_key).delete()
 >>> cache_session = CacheSession(cache_session.session_key)
 >>> cache_session.save()
->>> CacheSession('1').get('cat')
+>>> cache_session.delete(cache_session.session_key)
 
 >>> s = SessionBase()
 >>> s._session['some key'] = 'exists' # Pre-populate the session with some data

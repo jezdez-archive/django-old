@@ -26,7 +26,12 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def date_extract_sql(self, lookup_type, field_name):
         # http://www.postgresql.org/docs/8.0/static/functions-datetime.html#FUNCTIONS-DATETIME-EXTRACT
-        return "EXTRACT('%s' FROM %s)" % (lookup_type, field_name)
+        if lookup_type == 'week_day':
+            # Using EXTRACT(), PostgreSQL days are indexed as Sunday=0, Saturday=6.
+            # If we instead us TO_CHAR, they're indexed with Sunday=1, Saturday=7
+            return "TO_CHAR(%s, 'D')" % field_name
+        else:
+            return "EXTRACT('%s' FROM %s)" % (lookup_type, field_name)
 
     def date_trunc_sql(self, lookup_type, field_name):
         # http://www.postgresql.org/docs/8.0/static/functions-datetime.html#FUNCTIONS-DATETIME-TRUNC
@@ -144,3 +149,14 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def prep_for_iexact_query(self, x):
         return x
+
+    def check_aggregate_support(self, aggregate):
+        """Check that the backend fully supports the provided aggregate.
+
+        The implementation of population statistics (STDDEV_POP and VAR_POP)
+        under Postgres 8.2 - 8.2.4 is known to be faulty. Raise
+        NotImplementedError if this is the database in use.
+        """
+        if aggregate.sql_function == 'STDDEV_POP' or aggregate.sql_function == 'VAR_POP':
+            if self.postgres_version[0] == 8 and self.postgres_version[1] == 2 and self.postgres_version[2] <= 4:
+                raise NotImplementedError('PostgreSQL 8.2 to 8.2.4 is known to have a faulty implementation of %s. Please upgrade your version of PostgreSQL.' % aggregate.sql_function)

@@ -7,13 +7,15 @@ class Animal(models.Model):
     name = models.CharField(max_length=150)
     latin_name = models.CharField(max_length=150)
     count = models.IntegerField()
-    
+    weight = models.FloatField()
+
     def __unicode__(self):
         return self.common_name
 
 def animal_pre_save_check(signal, sender, instance, **kwargs):
     "A signal that is used to check the type of data loaded from fixtures"
     print 'Count = %s (%s)' % (instance.count, type(instance.count))
+    print 'Weight = %s (%s)' % (instance.weight, type(instance.weight))
 
 class Plant(models.Model):
     name = models.CharField(max_length=150)
@@ -56,7 +58,7 @@ class Channel(models.Model):
 class Article(models.Model):
     title = models.CharField(max_length=255)
     channels = models.ManyToManyField(Channel)
-    
+
     class Meta:
         ordering = ('id',)
 
@@ -69,7 +71,7 @@ __test__ = {'API_TESTS':"""
 # Create a new animal. Without a sequence reset, this new object
 # will take a PK of 1 (on Postgres), and the save will fail.
 # This is a regression test for ticket #3790.
->>> animal = Animal(name='Platypus', latin_name='Ornithorhynchus anatinus', count=2)
+>>> animal = Animal(name='Platypus', latin_name='Ornithorhynchus anatinus', count=2, weight=2.3)
 >>> animal.save()
 
 ###############################################
@@ -113,6 +115,15 @@ No fixture data found for 'bad_fixture2'. (File format may be invalid.)
 >>> management.call_command('loaddata', 'bad_fixture2', verbosity=0)
 No fixture data found for 'bad_fixture2'. (File format may be invalid.)
 
+# Loading a fixture file with no data returns an error
+>>> management.call_command('loaddata', 'empty', verbosity=0)
+No fixture data found for 'empty'. (File format may be invalid.)
+
+# If any of the fixtures contain an error, loading is aborted
+# (Regression for #9011 - error message is correct)
+>>> management.call_command('loaddata', 'bad_fixture2', 'animal', verbosity=0)
+No fixture data found for 'bad_fixture2'. (File format may be invalid.)
+
 >>> sys.stderr = savestderr
 
 ###############################################
@@ -123,7 +134,7 @@ No fixture data found for 'bad_fixture2'. (File format may be invalid.)
 >>> management.call_command('loaddata', 'model-inheritance.json', verbosity=0)
 
 ###############################################
-# Test for ticket #7572 -- MySQL has a problem if the same connection is 
+# Test for ticket #7572 -- MySQL has a problem if the same connection is
 # used to create tables, load data, and then query over that data.
 # To compensate, we close the connection after running loaddata.
 # This ensures that a new connection is opened when test queries are issued.
@@ -140,12 +151,13 @@ No fixture data found for 'bad_fixture2'. (File format may be invalid.)
 [1, 2, 3, 4, 5, 6, 7, 8]
 
 ###############################################
-# Test for ticket #8298 - Field values should be coerced into the correct type
-# by the deserializer, not as part of the database write.
+# Test for tickets #8298, #9942 - Field values should be coerced into the
+# correct type by the deserializer, not as part of the database write.
 
 >>> models.signals.pre_save.connect(animal_pre_save_check)
 >>> management.call_command('loaddata', 'animal.xml', verbosity=0)
 Count = 42 (<type 'int'>)
+Weight = 1.2 (<type 'float'>)
 
 >>> models.signals.pre_save.disconnect(animal_pre_save_check)
 

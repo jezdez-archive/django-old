@@ -8,40 +8,19 @@ a list of all possible variables.
 
 import os
 import time     # Needed for Windows
+
 from django.conf import global_settings
+from django.utils.functional import LazyObject
 
 ENVIRONMENT_VARIABLE = "DJANGO_SETTINGS_MODULE"
 
-class LazySettings(object):
+class LazySettings(LazyObject):
     """
     A lazy proxy for either global Django settings or a custom settings object.
     The user can manually configure settings prior to using them. Otherwise,
     Django uses the settings module pointed to by DJANGO_SETTINGS_MODULE.
     """
-    def __init__(self):
-        # _target must be either None or something that supports attribute
-        # access (getattr, hasattr, etc).
-        self._target = None
-
-    def __getattr__(self, name):
-        if self._target is None:
-            self._import_settings()
-        if name == '__members__':
-            # Used to implement dir(obj), for example.
-            return self._target.get_all_members()
-        return getattr(self._target, name)
-
-    def __setattr__(self, name, value):
-        if name == '_target':
-            # Assign directly to self.__dict__, because otherwise we'd call
-            # __setattr__(), which would be an infinite loop.
-            self.__dict__['_target'] = value
-        else:
-            if self._target is None:
-                self._import_settings()
-            setattr(self._target, name, value)
-
-    def _import_settings(self):
+    def _setup(self):
         """
         Load the settings module pointed to by the environment variable. This
         is used the first time we need any settings at all, if the user has not
@@ -56,7 +35,7 @@ class LazySettings(object):
             # problems with Python's interactive help.
             raise ImportError("Settings cannot be imported, because environment variable %s is undefined." % ENVIRONMENT_VARIABLE)
 
-        self._target = Settings(settings_module)
+        self._wrapped = Settings(settings_module)
 
     def configure(self, default_settings=global_settings, **options):
         """
@@ -64,18 +43,18 @@ class LazySettings(object):
         parameter sets where to retrieve any unspecified values from (its
         argument must support attribute access (__getattr__)).
         """
-        if self._target != None:
+        if self._wrapped != None:
             raise RuntimeError, 'Settings already configured.'
         holder = UserSettingsHolder(default_settings)
         for name, value in options.items():
             setattr(holder, name, value)
-        self._target = holder
+        self._wrapped = holder
 
     def configured(self):
         """
         Returns True if the settings have already been configured.
         """
-        return bool(self._target)
+        return bool(self._wrapped)
     configured = property(configured)
 
 class Settings(object):
@@ -113,7 +92,7 @@ class Settings(object):
                 app_subdirs = os.listdir(appdir)
                 app_subdirs.sort()
                 for d in app_subdirs:
-                    if d.isalpha() and os.path.isdir(os.path.join(appdir, d)):
+                    if d.isalnum() and d[0].isalpha() and os.path.isdir(os.path.join(appdir, d)):
                         new_installed_apps.append('%s.%s' % (app[:-2], d))
             else:
                 new_installed_apps.append(app)

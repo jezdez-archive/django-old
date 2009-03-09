@@ -10,6 +10,7 @@ from django.db.backends import *
 from django.db.backends.sqlite3.client import DatabaseClient
 from django.db.backends.sqlite3.creation import DatabaseCreation
 from django.db.backends.sqlite3.introspection import DatabaseIntrospection
+from django.utils.safestring import SafeString
 
 try:
     try:
@@ -49,6 +50,7 @@ if Database.version_info >= (2,4,1):
     # slow-down, this adapter is only registered for sqlite3 versions
     # needing it.
     Database.register_adapter(str, lambda s:s.decode('utf-8'))
+    Database.register_adapter(SafeString, lambda s:s.decode('utf-8'))
 
 class DatabaseFeatures(BaseDatabaseFeatures):
     # SQLite cannot handle us only partially reading from a cursor's result set
@@ -100,8 +102,28 @@ class DatabaseOperations(BaseDatabaseOperations):
         second = '%s-12-31 23:59:59.999999'
         return [first % value, second % value]
 
+    def convert_values(self, value, field):
+        """SQLite returns floats when it should be returning decimals,
+        and gets dates and datetimes wrong.
+        For consistency with other backends, coerce when required.
+        """
+        internal_type = field.get_internal_type()
+        if internal_type == 'DecimalField':
+            return util.typecast_decimal(field.format_number(value))
+        elif internal_type and internal_type.endswith('IntegerField') or internal_type == 'AutoField':
+            return int(value)
+        elif internal_type == 'DateField':
+            return util.typecast_date(value)
+        elif internal_type == 'DateTimeField':
+            return util.typecast_timestamp(value)
+        elif internal_type == 'TimeField':
+            return util.typecast_time(value)
+
+        # No field, or the field isn't known to be a decimal or integer
+        return value
+
 class DatabaseWrapper(BaseDatabaseWrapper):
-    
+
     # SQLite requires LIKE statements to include an ESCAPE clause if the value
     # being escaped has a percent or underscore in it.
     # See http://www.sqlite.org/lang_expr.html for an explanation.
@@ -124,7 +146,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     def __init__(self, *args, **kwargs):
         super(DatabaseWrapper, self).__init__(*args, **kwargs)
-        
+
         self.features = DatabaseFeatures()
         self.ops = DatabaseOperations()
         self.client = DatabaseClient()
@@ -179,11 +201,16 @@ class SQLiteCursorWrapper(Database.Cursor):
         return query % tuple("?" * num_params)
 
 def _sqlite_extract(lookup_type, dt):
+    if dt is None:
+        return None
     try:
         dt = util.typecast_timestamp(dt)
     except (ValueError, TypeError):
         return None
-    return unicode(getattr(dt, lookup_type))
+    if lookup_type == 'week_day':
+        return unicode((dt.isoweekday() % 7) + 1)
+    else:
+        return unicode(getattr(dt, lookup_type))
 
 def _sqlite_date_trunc(lookup_type, dt):
     try:

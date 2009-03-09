@@ -3,7 +3,7 @@ Helper functions for creating Form classes from Django models
 and database field objects.
 """
 
-from django.utils.encoding import smart_unicode
+from django.utils.encoding import smart_unicode, force_unicode
 from django.utils.datastructures import SortedDict
 from django.utils.text import get_text_list, capfirst
 from django.utils.translation import ugettext_lazy as _
@@ -14,6 +14,11 @@ from fields import Field, ChoiceField, IntegerField, EMPTY_VALUES
 from widgets import Select, SelectMultiple, HiddenInput, MultipleHiddenInput
 from widgets import media_property
 from formsets import BaseFormSet, formset_factory, DELETION_FIELD_NAME
+
+try:
+    set
+except NameError:
+    from sets import Set as set     # Python 2.3 fallback
 
 __all__ = (
     'ModelForm', 'BaseModelForm', 'model_to_dict', 'fields_for_model',
@@ -36,6 +41,7 @@ def save_instance(form, instance, fields=None, fail_message='saved',
         raise ValueError("The %s could not be %s because the data didn't"
                          " validate." % (opts.object_name, fail_message))
     cleaned_data = form.cleaned_data
+    file_field_list = []
     for f in opts.fields:
         if not f.editable or isinstance(f, models.AutoField) \
                 or not f.name in cleaned_data:
@@ -44,7 +50,16 @@ def save_instance(form, instance, fields=None, fail_message='saved',
             continue
         if exclude and f.name in exclude:
             continue
+        # Defer saving file-type fields until after the other fields, so a
+        # callable upload_to can use the values from other fields.
+        if isinstance(f, models.FileField):
+            file_field_list.append(f)
+        else:
+            f.save_form_data(instance, cleaned_data[f.name])
+
+    for f in file_field_list:
         f.save_form_data(instance, cleaned_data[f.name])
+
     # Wrap up the saving of m2m data as a function.
     def save_m2m():
         opts = instance._meta
@@ -209,56 +224,60 @@ class BaseModelForm(BaseForm):
         return self.cleaned_data
 
     def validate_unique(self):
-        from django.db.models.fields import FieldDoesNotExist
+        from django.db.models.fields import FieldDoesNotExist, Field as ModelField
 
-        # Gather a list of checks to perform. Since this is a ModelForm, some
-        # fields may have been excluded; we can't perform a unique check on a
-        # form that is missing fields involved in that check.
+        # Gather a list of checks to perform. We only perform unique checks
+        # for fields present and not None in cleaned_data.  Since this is a
+        # ModelForm, some fields may have been excluded; we can't perform a unique
+        # check on a form that is missing fields involved in that check.  It also does
+        # not make sense to check data that didn't validate, and since NULL does not
+        # equal NULL in SQL we should not do any unique checking for NULL values.
         unique_checks = []
         for check in self.instance._meta.unique_together[:]:
-            fields_on_form = [field for field in check if field in self.fields]
+            fields_on_form = [field for field in check if self.cleaned_data.get(field) is not None]
             if len(fields_on_form) == len(check):
                 unique_checks.append(check)
-            
+
         form_errors = []
-        
+
         # Gather a list of checks for fields declared as unique and add them to
-        # the list of checks. Again, skip fields not on the form.
+        # the list of checks. Again, skip empty fields and any that did not validate.
         for name, field in self.fields.items():
             try:
                 f = self.instance._meta.get_field_by_name(name)[0]
             except FieldDoesNotExist:
                 # This is an extra field that's not on the ModelForm, ignore it
                 continue
-            # MySQL can't handle ... WHERE pk IS NULL, so make sure we
-            # don't generate queries of that form.
-            is_null_pk = f.primary_key and self.cleaned_data[name] is None
-            if name in self.cleaned_data and f.unique and not is_null_pk:
+            if not isinstance(f, ModelField):
+                # This is an extra field that happens to have a name that matches, 
+                # for example, a related object accessor for this model.  So 
+                # get_field_by_name found it, but it is not a Field so do not proceed
+                # to use it as if it were.
+                continue
+            if f.unique and self.cleaned_data.get(name) is not None:
                 unique_checks.append((name,))
-                
-        # Don't run unique checks on fields that already have an error.
-        unique_checks = [check for check in unique_checks if not [x in self._errors for x in check if x in self._errors]]
-        
+
+        bad_fields = set()
         for unique_check in unique_checks:
             # Try to look up an existing object with the same values as this
             # object's values for all the unique field.
-            
+
             lookup_kwargs = {}
             for field_name in unique_check:
                 lookup_kwargs[field_name] = self.cleaned_data[field_name]
-            
+
             qs = self.instance.__class__._default_manager.filter(**lookup_kwargs)
 
-            # Exclude the current object from the query if we are editing an 
+            # Exclude the current object from the query if we are editing an
             # instance (as opposed to creating a new one)
             if self.instance.pk is not None:
                 qs = qs.exclude(pk=self.instance.pk)
-                
+
             # This cute trick with extra/values is the most efficient way to
             # tell if a particular query returns any results.
             if qs.extra(select={'a': 1}).values('a').order_by():
                 model_name = capfirst(self.instance._meta.verbose_name)
-                
+
                 # A unique field
                 if len(unique_check) == 1:
                     field_name = unique_check[0]
@@ -278,13 +297,17 @@ class BaseModelForm(BaseForm):
                         {'model_name': unicode(model_name),
                          'field_label': unicode(field_labels)}
                     )
-                
-                # Remove the data from the cleaned_data dict since it was invalid
+
+                # Mark these fields as needing to be removed from cleaned data
+                # later.
                 for field_name in unique_check:
-                    del self.cleaned_data[field_name]
-        
+                    bad_fields.add(field_name)
+
+        for field_name in bad_fields:
+            del self.cleaned_data[field_name]
         if form_errors:
-            # Raise the unique together errors since they are considered form-wide.
+            # Raise the unique together errors since they are considered
+            # form-wide.
             raise ValidationError(form_errors)
 
     def save(self, commit=True):
@@ -300,6 +323,8 @@ class BaseModelForm(BaseForm):
         else:
             fail_message = 'changed'
         return save_instance(self, self.instance, self._meta.fields, fail_message, commit)
+
+    save.alters_data = True
 
 class ModelForm(BaseModelForm):
     __metaclass__ = ModelFormMetaclass
@@ -439,11 +464,16 @@ class BaseInlineFormSet(BaseModelFormSet):
     def __init__(self, data=None, files=None, instance=None,
                  save_as_new=False, prefix=None):
         from django.db.models.fields.related import RelatedObject
-        self.instance = instance
+        if instance is None:
+            self.instance = self.model()
+        else:
+            self.instance = instance
         self.save_as_new = save_as_new
         # is there a better way to get the object descriptor?
         self.rel_name = RelatedObject(self.fk.rel.to, self.model, self.fk).get_accessor_name()
-        super(BaseInlineFormSet, self).__init__(data, files, prefix=prefix or self.rel_name)
+        qs = self.model._default_manager.filter(**{self.fk.name: self.instance})
+        super(BaseInlineFormSet, self).__init__(data, files, prefix=prefix or self.rel_name,
+                                                queryset=qs)
 
     def _construct_forms(self):
         if self.save_as_new:
@@ -459,23 +489,22 @@ class BaseInlineFormSet(BaseModelFormSet):
             form.data[form.add_prefix(self._pk_field.name)] = None
         return form
 
-    def get_queryset(self):
-        """
-        Returns this FormSet's queryset, but restricted to children of
-        self.instance
-        """
-        kwargs = {self.fk.name: self.instance}
-        return self.model._default_manager.filter(**kwargs)
-
     def save_new(self, form, commit=True):
-        kwargs = {self.fk.get_attname(): self.instance.pk}
+        fk_attname = self.fk.get_attname()
+        kwargs = {fk_attname: self.instance.pk}
         new_obj = self.model(**kwargs)
-        return save_instance(form, new_obj, exclude=[self._pk_field.name], commit=commit)
-    
+        if fk_attname == self._pk_field.attname or self._pk_field.auto_created:
+            exclude =  [self._pk_field.name]
+        else:
+            exclude = []
+        return save_instance(form, new_obj, exclude=exclude, commit=commit)
+
     def add_fields(self, form, index):
         super(BaseInlineFormSet, self).add_fields(form, index)
         if self._pk_field == self.fk:
-            form.fields[self._pk_field.name] = IntegerField(required=False, widget=HiddenInput)
+            form.fields[self._pk_field.name] = InlineForeignKeyField(self.instance, pk_field=True)
+        else:
+            form.fields[self.fk.name] = InlineForeignKeyField(self.instance, label=form.fields[self.fk.name].label)
 
 def _get_foreign_key(parent_model, model, fk_name=None):
     """
@@ -527,11 +556,13 @@ def inlineformset_factory(parent_model, model, form=ModelForm,
     # enforce a max_num=1 when the foreign key to the parent model is unique.
     if fk.unique:
         max_num = 1
-    if exclude is not None:
-        exclude = list(exclude)
-        exclude.append(fk.name)
+    if fields is not None:
+        fields = list(fields)
+        fields.append(fk.name)
     else:
-        exclude = [fk.name]
+        # get all the fields for this model that will be generated.
+        fields = fields_for_model(model, fields, exclude, formfield_callback).keys()
+        fields.append(fk.name)
     kwargs = {
         'form': form,
         'formfield_callback': formfield_callback,
@@ -549,6 +580,41 @@ def inlineformset_factory(parent_model, model, form=ModelForm,
 
 
 # Fields #####################################################################
+
+class InlineForeignKeyHiddenInput(HiddenInput):
+    def _has_changed(self, initial, data):
+        return False
+
+class InlineForeignKeyField(Field):
+    """
+    A basic integer field that deals with validating the given value to a
+    given parent instance in an inline.
+    """
+    default_error_messages = {
+        'invalid_choice': _(u'The inline foreign key did not match the parent instance primary key.'),
+    }
+
+    def __init__(self, parent_instance, *args, **kwargs):
+        self.parent_instance = parent_instance
+        self.pk_field = kwargs.pop("pk_field", False)
+        if self.parent_instance is not None:
+            kwargs["initial"] = self.parent_instance.pk
+        kwargs["required"] = False
+        kwargs["widget"] = InlineForeignKeyHiddenInput
+        super(InlineForeignKeyField, self).__init__(*args, **kwargs)
+
+    def clean(self, value):
+        if value in EMPTY_VALUES:
+            if self.pk_field:
+                return None
+            # if there is no value act as we did before.
+            return self.parent_instance
+        # ensure the we compare the values as equal types.
+        if force_unicode(value) != force_unicode(self.parent_instance.pk):
+            raise ValidationError(self.error_messages['invalid_choice'])
+        if self.pk_field:
+            return self.parent_instance.pk
+        return self.parent_instance
 
 class ModelChoiceIterator(object):
     def __init__(self, field):
@@ -571,13 +637,7 @@ class ModelChoiceIterator(object):
 
     def choice(self, obj):
         if self.field.to_field_name:
-            # FIXME: The try..except shouldn't be necessary here. But this is
-            # going in just before 1.0, so I want to be careful. Will check it
-            # out later.
-            try:
-                key = getattr(obj, self.field.to_field_name).pk
-            except AttributeError:
-                key = getattr(obj, self.field.to_field_name)
+            key = obj.serializable_value(self.field.to_field_name)
         else:
             key = obj.pk
         return (key, self.field.label_from_instance(obj))

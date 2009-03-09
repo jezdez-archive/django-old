@@ -1,18 +1,15 @@
-import re
 import time
 import datetime
 
 from django import forms
 from django.forms.util import ErrorDict
 from django.conf import settings
-from django.http import Http404
 from django.contrib.contenttypes.models import ContentType
 from models import Comment
 from django.utils.encoding import force_unicode
 from django.utils.hashcompat import sha_constructor
 from django.utils.text import get_text_list
-from django.utils.translation import ngettext
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ungettext, ugettext_lazy as _
 
 COMMENT_MAX_LENGTH = getattr(settings,'COMMENT_MAX_LENGTH', 3000)
 
@@ -36,7 +33,7 @@ class CommentForm(forms.Form):
             initial = {}
         initial.update(self.generate_security_data())
         super(CommentForm, self).__init__(data=data, initial=initial)
-
+        
     def get_comment_object(self):
         """
         Return a new (unsaved) comment object based on the information in this
@@ -48,8 +45,28 @@ class CommentForm(forms.Form):
         """
         if not self.is_valid():
             raise ValueError("get_comment_object may only be called on valid forms")
-
-        new = Comment(
+        
+        CommentModel = self.get_comment_model()
+        new = CommentModel(**self.get_comment_create_data())
+        new = self.check_for_duplicate_comment(new)
+        
+        return new
+        
+    def get_comment_model(self):
+        """
+        Get the comment model to create with this form. Subclasses in custom
+        comment apps should override this, get_comment_create_data, and perhaps
+        check_for_duplicate_comment to provide custom comment models.
+        """
+        return Comment
+        
+    def get_comment_create_data(self):
+        """
+        Returns the dict of data to be used to create a comment. Subclasses in
+        custom comment apps that override get_comment_model can override this
+        method to add extra fields onto a custom comment model.
+        """
+        return dict(
             content_type = ContentType.objects.get_for_model(self.target_object),
             object_pk    = force_unicode(self.target_object._get_pk_val()),
             user_name    = self.cleaned_data["name"],
@@ -61,10 +78,13 @@ class CommentForm(forms.Form):
             is_public    = True,
             is_removed   = False,
         )
-
-        # Check that this comment isn't duplicate. (Sometimes people post comments
-        # twice by mistake.) If it is, fail silently by returning the old comment.
-        possible_duplicates = Comment.objects.filter(
+        
+    def check_for_duplicate_comment(self, new):
+        """
+        Check that a submitted comment isn't a duplicate. This might be caused
+        by someone posting a comment twice. If it is a dup, silently return the *previous* comment.
+        """
+        possible_duplicates = self.get_comment_model()._default_manager.filter(
             content_type = new.content_type,
             object_pk = new.object_pk,
             user_name = new.user_name,
@@ -74,7 +94,7 @@ class CommentForm(forms.Form):
         for old in possible_duplicates:
             if old.submit_date.date() == new.submit_date.date() and old.comment == new.comment:
                 return old
-
+                
         return new
 
     def security_errors(self):
@@ -122,7 +142,7 @@ class CommentForm(forms.Form):
             bad_words = [w for w in settings.PROFANITIES_LIST if w in comment.lower()]
             if bad_words:
                 plural = len(bad_words) > 1
-                raise forms.ValidationError(ngettext(
+                raise forms.ValidationError(ungettext(
                     "Watch your mouth! The word %s is not allowed here.",
                     "Watch your mouth! The words %s are not allowed here.", plural) % \
                     get_text_list(['"%s%s%s"' % (i[0], '-'*(len(i)-2), i[-1]) for i in bad_words], 'and'))

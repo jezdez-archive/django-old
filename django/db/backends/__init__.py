@@ -10,6 +10,12 @@ except NameError:
     # Python 2.3 compat
     from sets import Set as set
 
+try:
+    import decimal
+except ImportError:
+    # Python 2.3 fallback
+    from django.utils import _decimal as decimal
+
 from django.db.backends import util
 from django.utils import datetime_safe
 
@@ -62,6 +68,7 @@ class BaseDatabaseWrapper(local):
         return util.CursorDebugWrapper(cursor, self)
 
 class BaseDatabaseFeatures(object):
+    allows_group_by_pk = False
     # True if django.db.backend.utils.typecast_timestamp is used on values
     # returned from dates() calls.
     needs_datetime_string_cast = True
@@ -142,6 +149,14 @@ class BaseDatabaseOperations(object):
         searched against.
         """
         return '%s'
+
+    def force_no_ordering(self):
+        """
+        Returns a list used in the "ORDER BY" clause to force no ordering at
+        all. Returning an empty list means that nothing will be included in the
+        ordering.
+        """
+        return []
 
     def fulltext_search_sql(self, field_name):
         """
@@ -368,6 +383,40 @@ class BaseDatabaseOperations(object):
         """
         return self.year_lookup_bounds(value)
 
+    def convert_values(self, value, field):
+        """Coerce the value returned by the database backend into a consistent type that
+        is compatible with the field type.
+        """
+        internal_type = field.get_internal_type()
+        if internal_type == 'DecimalField':
+            return value
+        elif internal_type and internal_type.endswith('IntegerField') or internal_type == 'AutoField':
+            return int(value)
+        elif internal_type in ('DateField', 'DateTimeField', 'TimeField'):
+            return value
+        # No field, or the field isn't known to be a decimal or integer
+        # Default to a float
+        return float(value)
+
+    def check_aggregate_support(self, aggregate_func):
+        """Check that the backend supports the provided aggregate
+
+        This is used on specific backends to rule out known aggregates
+        that are known to have faulty implementations. If the named
+        aggregate function has a known problem, the backend should
+        raise NotImplemented.
+        """
+        pass
+
+    def combine_expression(self, connector, sub_expressions):
+        """Combine a list of subexpressions into a single expression, using
+        the provided connecting operator. This is required because operators
+        can vary between backends (e.g., Oracle with %% and &) and between
+        subexpression types (e.g., date expressions)
+        """
+        conn = ' %s ' % connector
+        return conn.join(sub_expressions)
+
 class BaseDatabaseIntrospection(object):
     """
     This class encapsulates all backend-specific introspection utilities
@@ -401,10 +450,12 @@ class BaseDatabaseIntrospection(object):
         tables = set()
         for app in models.get_apps():
             for model in models.get_models(app):
+                if not model._meta.managed:
+                    continue
                 tables.add(model._meta.db_table)
                 tables.update([f.m2m_db_table() for f in model._meta.local_many_to_many])
         if only_existing:
-            tables = [t for t in tables if t in self.table_names()]
+            tables = [t for t in tables if self.table_name_converter(t) in self.table_names()]
         return tables
 
     def installed_models(self, tables):
@@ -427,6 +478,8 @@ class BaseDatabaseIntrospection(object):
 
         for app in apps:
             for model in models.get_models(app):
+                if not model._meta.managed:
+                    continue
                 for f in model._meta.local_fields:
                     if isinstance(f, models.AutoField):
                         sequence_list.append({'table': model._meta.db_table, 'column': f.column})

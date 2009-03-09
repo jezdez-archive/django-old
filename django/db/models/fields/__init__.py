@@ -193,10 +193,18 @@ class Field(object):
 
     def get_db_prep_lookup(self, lookup_type, value):
         "Returns field's value prepared for database lookup."
-        if hasattr(value, 'as_sql'):
-            sql, params = value.as_sql()
+        if hasattr(value, 'as_sql') or hasattr(value, '_as_sql'):
+            # If the value has a relabel_aliases method, it will need to
+            # be invoked before the final SQL is evaluated
+            if hasattr(value, 'relabel_aliases'):
+                return value
+            if hasattr(value, 'as_sql'):
+                sql, params = value.as_sql()
+            else:
+                sql, params = value._as_sql()
             return QueryWrapper(('(%s)' % sql), params)
-        if lookup_type in ('regex', 'iregex', 'month', 'day', 'search'):
+
+        if lookup_type in ('regex', 'iregex', 'month', 'day', 'week_day', 'search'):
             return [value]
         elif lookup_type in ('exact', 'gt', 'gte', 'lt', 'lte'):
             return [self.get_db_prep_value(value)]
@@ -309,7 +317,7 @@ class Field(object):
             if callable(self.default):
                 defaults['show_hidden_initial'] = True
         if self.choices:
-            # Fields with choices get special treatment. 
+            # Fields with choices get special treatment.
             include_blank = self.blank or not (self.has_default() or 'initial' in kwargs)
             defaults['choices'] = self.get_choices(include_blank=include_blank)
             defaults['coerce'] = self.to_python
@@ -485,9 +493,9 @@ class DateField(Field):
                 curry(cls._get_next_or_previous_by_FIELD, field=self, is_next=False))
 
     def get_db_prep_lookup(self, lookup_type, value):
-        # For "__month" and "__day" lookups, convert the value to a string so
-        # the database backend always sees a consistent type.
-        if lookup_type in ('month', 'day'):
+        # For "__month", "__day", and "__week_day" lookups, convert the value 
+        # to a string so the database backend always sees a consistent type.
+        if lookup_type in ('month', 'day', 'week_day'):
             return [force_unicode(value)]
         return super(DateField, self).get_db_prep_lookup(lookup_type, value)
 
@@ -657,6 +665,15 @@ class FloatField(Field):
 
     def get_internal_type(self):
         return "FloatField"
+
+    def to_python(self, value):
+        if value is None:
+            return value
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            raise exceptions.ValidationError(
+                _("This value must be a float."))
 
     def formfield(self, **kwargs):
         defaults = {'form_class': forms.FloatField}

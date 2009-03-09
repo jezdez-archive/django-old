@@ -186,12 +186,12 @@ test utility is to find all the test cases (that is, subclasses of
 ``unittest.TestCase``) in ``models.py`` and ``tests.py``, automatically build a
 test suite out of those test cases, and run that suite.
 
-In the Django development version, there is a second way to define the test
-suite for a module: if you define a function called ``suite()`` in either
-``models.py`` or ``tests.py``, the Django test runner will use that function
-to construct the test suite for that module. This follows the `suggested
-organization`_ for unit tests. See the Python documentation for more details on
-how to construct a complex test suite.
+There is a second way to define the test suite for a module: if you define a
+function called ``suite()`` in either ``models.py`` or ``tests.py``, the
+Django test runner will use that function to construct the test suite for that
+module. This follows the `suggested organization`_ for unit tests. See the
+Python documentation for more details on how to construct a complex test
+suite.
 
 For more details about ``unittest``, see the `standard library unittest
 documentation`_.
@@ -478,7 +478,8 @@ arguments at time of construction:
     Once you have a ``Client`` instance, you can call any of the following
     methods:
 
-    .. method:: Client.get(path, data={})
+    .. method:: Client.get(path, data={}, follow=False)
+
 
         Makes a GET request on the provided ``path`` and returns a ``Response``
         object, which is documented below.
@@ -493,7 +494,30 @@ arguments at time of construction:
 
             /customers/details/?name=fred&age=7
 
-    .. method:: Client.post(path, data={}, content_type=MULTIPART_CONTENT)
+        .. versionadded:: 1.1
+
+        If you already have the GET arguments in URL-encoded form, you can
+        use that encoding instead of using the data argument. For example,
+        the previous GET request could also be posed as::
+
+        >>> c = Client()
+        >>> c.get('/customers/details/?name=fred&age=7')
+
+        If you provide URL both an encoded GET data and a data argument,
+        the data argument will take precedence.
+
+        If you set ``follow`` to ``True`` the client will follow any redirects
+        and a ``redirect_chain`` attribute will be set in the response object
+        containing tuples of the intermediate urls and status codes.
+
+        If you had an url ``/redirect_me/`` that redirected to ``/next/``, that
+        redirected to ``/final/``, this is what you'd see::
+
+            >>> response = c.get('/redirect_me/')
+            >>> response.redirect_chain
+            [(u'http://testserver/next/', 302), (u'http://testserver/final/', 302)]
+
+    .. method:: Client.post(path, data={}, content_type=MULTIPART_CONTENT, follow=False)
 
         Makes a POST request on the provided ``path`` and returns a
         ``Response`` object, which is documented below.
@@ -543,6 +567,68 @@ arguments at time of construction:
 
         Note that you should manually close the file after it has been provided
         to ``post()``.
+
+        .. versionchanged:: 1.1
+
+        If the URL you request with a POST contains encoded parameters, these
+        parameters will be made available in the request.GET data. For example,
+        if you were to make the request::
+
+        >>> c.post('/login/?vistor=true', {'name': 'fred', 'passwd': 'secret'})
+
+        ... the view handling this request could interrogate request.POST
+        to retrieve the username and password, and could interrogate request.GET
+        to determine if the user was a visitor.
+
+        If you set ``follow`` to ``True`` the client will follow any redirects
+        and a ``redirect_chain`` attribute will be set in the response object
+        containing tuples of the intermediate urls and status codes.
+
+    .. method:: Client.head(path, data={}, follow=False)
+
+        .. versionadded:: 1.1
+
+        Makes a HEAD request on the provided ``path`` and returns a ``Response``
+        object. Useful for testing RESTful interfaces. Acts just like
+        :meth:`Client.get` except it does not return a message body.
+
+        If you set ``follow`` to ``True`` the client will follow any redirects
+        and a ``redirect_chain`` attribute will be set in the response object
+        containing tuples of the intermediate urls and status codes.
+
+    .. method:: Client.options(path, data={}, follow=False)
+
+        .. versionadded:: 1.1
+
+        Makes an OPTIONS request on the provided ``path`` and returns a
+        ``Response`` object. Useful for testing RESTful interfaces.
+
+        If you set ``follow`` to ``True`` the client will follow any redirects
+        and a ``redirect_chain`` attribute will be set in the response object
+        containing tuples of the intermediate urls and status codes.
+
+    .. method:: Client.put(path, data={}, content_type=MULTIPART_CONTENT, follow=False)
+
+        .. versionadded:: 1.1
+
+        Makes an PUT request on the provided ``path`` and returns a
+        ``Response`` object. Useful for testing RESTful interfaces. Acts just
+        like :meth:`Client.post` except with the PUT request method.
+
+        If you set ``follow`` to ``True`` the client will follow any redirects
+        and a ``redirect_chain`` attribute will be set in the response object
+        containing tuples of the intermediate urls and status codes.
+
+    .. method:: Client.delete(path, follow=False)
+
+        .. versionadded:: 1.1
+
+        Makes an DELETE request on the provided ``path`` and returns a
+        ``Response`` object. Useful for testing RESTful interfaces.
+
+        If you set ``follow`` to ``True`` the client will follow any redirects
+        and a ``redirect_chain`` attribute will be set in the response object
+        containing tuples of the intermediate urls and status codes.
 
     .. method:: Client.login(**credentials)
 
@@ -730,6 +816,52 @@ just change the base class of your test from ``unittest.TestCase`` to
 ``django.test.TestCase``. All of the standard Python unit test functionality
 will continue to be available, but it will be augmented with some useful
 additions.
+
+.. versionadded:: 1.1
+
+.. class:: TransactionTestCase()
+
+Django ``TestCase`` classes make use of database transaction facilities, if
+available, to speed up the process of resetting the database to a known state
+at the beginning of each test. A consequence of this, however, is that the
+effects of transaction commit and rollback cannot be tested by a Django
+``TestCase`` class. If your test requires testing of such transactional
+behavior, you should use a Django ``TransactionTestCase``.
+
+``TransactionTestCase`` and ``TestCase`` are identical except for the manner
+in which the database is reset to a known state and the ability for test code
+to test the effects of commit and rollback. A ``TransactionTestCase`` resets
+the database before the test runs by truncating all tables and reloading
+initial data. A ``TransactionTestCase`` may call commit and rollback and
+observe the effects of these calls on the database.
+
+A ``TestCase``, on the other hand, does not truncate tables and reload initial
+data at the beginning of a test. Instead, it encloses the test code in a
+database transaction that is rolled back at the end of the test.  It also
+prevents the code under test from issuing any commit or rollback operations
+on the database, to ensure that the rollback at the end of the test restores
+the database to its initial state. In order to guarantee that all ``TestCase``
+code starts with a clean database, the Django test runner runs all ``TestCase``
+tests first, before any other tests (e.g. doctests) that may alter the
+database without restoring it to its original state.
+
+When running on a database that does not support rollback (e.g. MySQL with the
+MyISAM storage engine), ``TestCase`` falls back to initializing the database
+by truncating tables and reloading initial data.
+
+
+.. note::
+    The ``TestCase`` use of rollback to un-do the effects of the test code
+    may reveal previously-undetected errors in test code.  For example,
+    test code that assumes primary keys values will be assigned starting at
+    one may find that assumption no longer holds true when rollbacks instead
+    of table truncation are being used to reset the database.  Similarly,
+    the reordering of tests so that all ``TestCase`` classes run first may
+    reveal unexpected dependencies on test case ordering.  In such cases a
+    quick fix is to switch the ``TestCase`` to a ``TransactionTestCase``.
+    A better long-term fix, that allows the test to take advantage of the
+    speed benefit of ``TestCase``, is to fix the underlying test problem.
+
 
 Default test client
 ~~~~~~~~~~~~~~~~~~~
@@ -928,8 +1060,14 @@ applications:
 .. method:: assertRedirects(response, expected_url, status_code=302, target_status_code=200)
 
     Asserts that the response return a ``status_code`` redirect status, it
-    redirected to ``expected_url`` (including any GET data), and the subsequent
+    redirected to ``expected_url`` (including any GET data), and the final
     page was received with ``target_status_code``.
+
+    .. versionadded:: 1.1
+
+    If your request used the ``follow`` argument, the ``expected_url`` and
+    ``target_status_code`` will be the url and status code for the final
+    point of the redirect chain.
 
 E-mail services
 ---------------
@@ -950,7 +1088,7 @@ Django, such as your machine's mail server, if you're running one.)
 
 .. currentmodule:: django.core.mail
 
-.. data:: django.core.mail.output
+.. data:: django.core.mail.outbox
 
 During test running, each outgoing e-mail is saved in
 ``django.core.mail.outbox``. This is a simple list of all
@@ -960,6 +1098,11 @@ running unit tests. The outbox is created during test setup, along with the
 dummy :class:`<~django.core.mail.SMTPConnection>`. When the test framework is
 torn down, the standard :class:`<~django.core.mail.SMTPConnection>` class is
 restored, and the test outbox is destroyed.
+
+The ``outbox`` attribute is a special attribute that is created *only* when
+the tests are run. It doesn't normally exist as part of the
+:mod:`django.core.mail` module and you can't import it directly. The code
+below shows how to access this attribute correctly.
 
 Here's an example test that examines ``django.core.mail.outbox`` for length
 and contents::
@@ -975,10 +1118,10 @@ and contents::
                 fail_silently=False)
 
             # Test that one message has been sent.
-            self.assertEqual(len(mail.outbox), 1)
+            self.assertEquals(len(mail.outbox), 1)
 
             # Verify that the subject of the first message is correct.
-            self.assertEqual(mail.outbox[0].subject, 'Subject here')
+            self.assertEquals(mail.outbox[0].subject, 'Subject here')
 
 As noted :ref:`previously <emptying-test-outbox>`, the test outbox is emptied
 at the start of every test in a Django ``TestCase``. To empty the outbox

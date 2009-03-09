@@ -5,6 +5,8 @@ from django.db.models.fields.related import ForeignKey
 
 from django.contrib.gis.db.backend import SpatialBackend
 from django.contrib.gis.db.models.fields import GeometryField
+from django.contrib.gis.db.models.sql import aggregates as gis_aggregates_module
+from django.contrib.gis.db.models.sql.conversion import AreaField, DistanceField, GeomField
 from django.contrib.gis.db.models.sql.where import GeoWhereNode
 from django.contrib.gis.measure import Area, Distance
 
@@ -18,6 +20,7 @@ class GeoQuery(sql.Query):
     """
     # Overridding the valid query terms.
     query_terms = ALL_TERMS
+    aggregates_module = gis_aggregates_module
 
     #### Methods overridden from the base Query class ####
     def __init__(self, model, conn):
@@ -25,7 +28,6 @@ class GeoQuery(sql.Query):
         # The following attributes are customized for the GeoQuerySet.
         # The GeoWhereNode and SpatialBackend classes contain backend-specific
         # routines and functions.
-        self.aggregate = False
         self.custom_select = {}
         self.transformed_srid = None
         self.extra_select_fields = {}
@@ -34,7 +36,6 @@ class GeoQuery(sql.Query):
         obj = super(GeoQuery, self).clone(*args, **kwargs)
         # Customized selection dictionary and transformed srid flag have
         # to also be added to obj.
-        obj.aggregate = self.aggregate
         obj.custom_select = self.custom_select.copy()
         obj.transformed_srid = self.transformed_srid
         obj.extra_select_fields = self.extra_select_fields.copy()
@@ -50,12 +51,12 @@ class GeoQuery(sql.Query):
         (without the table names) are given unique aliases. This is needed in
         some cases to avoid ambiguitity with nested queries.
 
-        This routine is overridden from Query to handle customized selection of 
+        This routine is overridden from Query to handle customized selection of
         geometry columns.
         """
         qn = self.quote_name_unless_alias
         qn2 = self.connection.ops.quote_name
-        result = ['(%s) AS %s' % (self.get_extra_select_format(alias) % col[0], qn2(alias)) 
+        result = ['(%s) AS %s' % (self.get_extra_select_format(alias) % col[0], qn2(alias))
                   for alias, col in self.extra_select.iteritems()]
         aliases = set(self.extra_select.keys())
         if with_aliases:
@@ -67,38 +68,53 @@ class GeoQuery(sql.Query):
             for col, field in izip(self.select, self.select_fields):
                 if isinstance(col, (list, tuple)):
                     r = self.get_field_select(field, col[0])
-                    if with_aliases and col[1] in col_aliases:
-                        c_alias = 'Col%d' % len(col_aliases)
-                        result.append('%s AS %s' % (r, c_alias))
-                        aliases.add(c_alias)
-                        col_aliases.add(c_alias)
+                    if with_aliases:
+                        if col[1] in col_aliases:
+                            c_alias = 'Col%d' % len(col_aliases)
+                            result.append('%s AS %s' % (r, c_alias))
+                            aliases.add(c_alias)
+                            col_aliases.add(c_alias)
+                        else:
+                            result.append('%s AS %s' % (r, col[1]))
+                            aliases.add(r)
+                            col_aliases.add(col[1])
                     else:
                         result.append(r)
                         aliases.add(r)
                         col_aliases.add(col[1])
                 else:
                     result.append(col.as_sql(quote_func=qn))
+
                     if hasattr(col, 'alias'):
                         aliases.add(col.alias)
                         col_aliases.add(col.alias)
+
         elif self.default_cols:
             cols, new_aliases = self.get_default_columns(with_aliases,
                     col_aliases)
             result.extend(cols)
             aliases.update(new_aliases)
+
+        result.extend([
+                '%s%s' % (
+                    self.get_extra_select_format(alias) % aggregate.as_sql(quote_func=qn),
+                    alias is not None and ' AS %s' % alias or ''
+                    )
+                for alias, aggregate in self.aggregate_select.items()
+                ])
+
         # This loop customized for GeoQuery.
-        if not self.aggregate:
-            for (table, col), field in izip(self.related_select_cols, self.related_select_fields):
-                r = self.get_field_select(field, table)
-                if with_aliases and col in col_aliases:
-                    c_alias = 'Col%d' % len(col_aliases)
-                    result.append('%s AS %s' % (r, c_alias))
-                    aliases.add(c_alias)
-                    col_aliases.add(c_alias)
-                else:
-                    result.append(r)
-                    aliases.add(r)
-                    col_aliases.add(col)
+        for (table, col), field in izip(self.related_select_cols, self.related_select_fields):
+            r = self.get_field_select(field, table)
+            if with_aliases and col in col_aliases:
+                c_alias = 'Col%d' % len(col_aliases)
+                result.append('%s AS %s' % (r, c_alias))
+                aliases.add(c_alias)
+                col_aliases.add(c_alias)
+            else:
+                result.append(r)
+                aliases.add(r)
+                col_aliases.add(col)
 
         self._select_aliases = aliases
         return result
@@ -112,7 +128,7 @@ class GeoQuery(sql.Query):
         Returns a list of strings, quoted appropriately for use in SQL
         directly, as well as a set of aliases used in the select statement.
 
-        This routine is overridden from Query to handle customized selection of 
+        This routine is overridden from Query to handle customized selection of
         geometry columns.
         """
         result = []
@@ -122,7 +138,7 @@ class GeoQuery(sql.Query):
             table_alias = start_alias
         else:
             table_alias = self.tables[0]
-        root_pk = self.model._meta.pk.column
+        root_pk = opts.pk.column
         seen = {None: table_alias}
         aliases = set()
         for field, model in opts.get_fields_with_model():
@@ -154,29 +170,29 @@ class GeoQuery(sql.Query):
             return result, None
         return result, aliases
 
-    def get_ordering(self):
-        """
-        This routine is overridden to disable ordering for aggregate
-        spatial queries.
-        """
-        if not self.aggregate:
-            return super(GeoQuery, self).get_ordering()
-        else:
-            return ()
-
     def resolve_columns(self, row, fields=()):
         """
         This routine is necessary so that distances and geometries returned
-        from extra selection SQL get resolved appropriately into Python 
+        from extra selection SQL get resolved appropriately into Python
         objects.
         """
         values = []
         aliases = self.extra_select.keys()
-        index_start = len(aliases)
-        values = [self.convert_values(v, self.extra_select_fields.get(a, None)) 
-                  for v, a in izip(row[:index_start], aliases)]
+
+        # Have to set a starting row number offset that is used for
+        # determining the correct starting row index -- needed for
+        # doing pagination with Oracle.
+        rn_offset = 0
         if SpatialBackend.oracle:
-            # This is what happens normally in Oracle's `resolve_columns`.
+            if self.high_mark is not None or self.low_mark: rn_offset = 1
+        index_start = rn_offset + len(aliases)
+
+        # Converting any extra selection values (e.g., geometries and
+        # distance objects added by GeoQuerySet methods).
+        values = [self.convert_values(v, self.extra_select_fields.get(a, None))
+                  for v, a in izip(row[rn_offset:index_start], aliases)]
+        if SpatialBackend.oracle:
+            # This is what happens normally in OracleQuery's `resolve_columns`.
             for value, field in izip(row[index_start:], fields):
                 values.append(self.convert_values(value, field))
         else:
@@ -187,11 +203,11 @@ class GeoQuery(sql.Query):
         """
         Using the same routines that Oracle does we can convert our
         extra selection objects into Geometry and Distance objects.
-        TODO: Laziness.
+        TODO: Make converted objects 'lazy' for less overhead.
         """
         if SpatialBackend.oracle:
             # Running through Oracle's first.
-            value = super(GeoQuery, self).convert_values(value, field)
+            value = super(GeoQuery, self).convert_values(value, field or GeomField())
         if isinstance(field, DistanceField):
             # Using the field's distance attribute, can instantiate
             # `Distance` with the right context.
@@ -201,6 +217,19 @@ class GeoQuery(sql.Query):
         elif isinstance(field, GeomField):
             value = SpatialBackend.Geometry(value)
         return value
+
+    def resolve_aggregate(self, value, aggregate):
+        """
+        Overridden from GeoQuery's normalize to handle the conversion of
+        GeoAggregate objects.
+        """
+        if isinstance(aggregate, self.aggregates_module.GeoAggregate):
+            if aggregate.is_extent:
+                return self.aggregates_module.convert_extent(value)
+            else:
+                return self.aggregates_module.convert_geom(value, aggregate.source)
+        else:
+            return super(GeoQuery, self).resolve_aggregate(value, aggregate)
 
     #### Routines unique to GeoQuery ####
     def get_extra_select_format(self, alias):
@@ -212,9 +241,9 @@ class GeoQuery(sql.Query):
     def get_field_select(self, fld, alias=None):
         """
         Returns the SELECT SQL string for the given field.  Figures out
-        if any custom selection SQL is needed for the column  The `alias` 
-        keyword may be used to manually specify the database table where 
-        the column exists, if not in the model associated with this 
+        if any custom selection SQL is needed for the column  The `alias`
+        keyword may be used to manually specify the database table where
+        the column exists, if not in the model associated with this
         `GeoQuery`.
         """
         sel_fmt = self.get_select_format(fld)
@@ -249,50 +278,16 @@ class GeoQuery(sql.Query):
         return sel_fmt
 
     # Private API utilities, subject to change.
-    def _check_geo_field(self, model, name_param):
-        """
-        Recursive utility routine for checking the given name parameter
-        on the given model.  Initially, the name parameter is a string,
-        of the field on the given model e.g., 'point', 'the_geom'. 
-        Related model field strings like 'address__point', may also be 
-        used.
-
-        If a GeometryField exists according to the given name parameter 
-        it will be returned, otherwise returns False.
-        """
-        if isinstance(name_param, basestring):
-            # This takes into account the situation where the name is a 
-            # lookup to a related geographic field, e.g., 'address__point'.
-            name_param = name_param.split(sql.constants.LOOKUP_SEP)
-            name_param.reverse() # Reversing so list operates like a queue of related lookups.
-        elif not isinstance(name_param, list):
-            raise TypeError
-        try:
-            # Getting the name of the field for the model (by popping the first
-            # name from the `name_param` list created above).
-            fld, mod, direct, m2m = model._meta.get_field_by_name(name_param.pop())
-        except (FieldDoesNotExist, IndexError):
-            return False
-        # TODO: ManyToManyField?
-        if isinstance(fld, GeometryField): 
-            return fld # A-OK.
-        elif isinstance(fld, ForeignKey):
-            # ForeignKey encountered, return the output of this utility called
-            # on the _related_ model with the remaining name parameters.
-            return self._check_geo_field(fld.rel.to, name_param) # Recurse to check ForeignKey relation.
-        else:
-            return False
-
     def _field_column(self, field, table_alias=None):
         """
         Helper function that returns the database column for the given field.
         The table and column are returned (quoted) in the proper format, e.g.,
-        `"geoapp_city"."point"`.  If `table_alias` is not specified, the 
+        `"geoapp_city"."point"`.  If `table_alias` is not specified, the
         database table associated with the model of this `GeoQuery` will be
         used.
         """
         if table_alias is None: table_alias = self.model._meta.db_table
-        return "%s.%s" % (self.quote_name_unless_alias(table_alias), 
+        return "%s.%s" % (self.quote_name_unless_alias(table_alias),
                           self.connection.ops.quote_name(field.column))
 
     def _geo_field(self, field_name=None):
@@ -310,18 +305,4 @@ class GeoQuery(sql.Query):
         else:
             # Otherwise, check by the given field name -- which may be
             # a lookup to a _related_ geographic field.
-            return self._check_geo_field(self.model, field_name)
-
-### Field Classes for `convert_values` ####
-class AreaField(object):
-    def __init__(self, area_att):
-        self.area_att = area_att
-
-class DistanceField(object):
-    def __init__(self, distance_att):
-        self.distance_att = distance_att
-
-# Rather than use GeometryField (which requires a SQL query
-# upon instantiation), use this lighter weight class.
-class GeomField(object): 
-    pass
+            return GeoWhereNode._check_geo_field(self.model._meta, field_name)

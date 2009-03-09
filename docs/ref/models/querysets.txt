@@ -35,9 +35,13 @@ You can evaluate a ``QuerySet`` in the following ways:
 
     * **Slicing.** As explained in :ref:`limiting-querysets`, a ``QuerySet`` can
       be sliced, using Python's array-slicing syntax. Usually slicing a
-      ``QuerySet`` returns another (unevaluated )``QuerySet``, but Django will
+      ``QuerySet`` returns another (unevaluated ) ``QuerySet``, but Django will
       execute the database query if you use the "step" parameter of slice
       syntax.
+
+    * **Pickling/Caching.** See the following section for details of what
+      is involved when `pickling QuerySets`_. The important thing for the
+      purposes of this section is that the results are read from the database.
 
     * **repr().** A ``QuerySet`` is evaluated when you call ``repr()`` on it.
       This is for convenience in the Python interactive interpreter, so you can
@@ -61,6 +65,36 @@ You can evaluate a ``QuerySet`` in the following ways:
       Django will load each element of the list into memory. In contrast,
       iterating over a ``QuerySet`` will take advantage of your database to
       load data and instantiate objects only as you need them.
+
+.. _pickling QuerySets:
+
+Pickling QuerySets
+------------------
+
+If you pickle_ a ``QuerySet``, this will force all the results to be loaded
+into memory prior to pickling. Pickling is usually used as a precursor to
+caching and when the cached queryset is reloaded, you want the results to
+already be present and ready for use (reading from the database can take some
+time, defeating the purpose of caching). This means that when you unpickle a
+``QuerySet``, it contains the results at the moment it was pickled, rather
+than the results that are currently in the database.
+
+If you only want to pickle the necessary information to recreate the
+``Queryset`` from the database at a later time, pickle the ``query`` attribute
+of the ``QuerySet``. You can then recreate the original ``QuerySet`` (without
+any results loaded) using some code like this::
+
+    >>> import pickle
+    >>> query = pickle.loads(s)     # Assuming 's' is the pickled string.
+    >>> qs = MyModel.objects.all()
+    >>> qs.query = query            # Restore the original 'query'.
+
+The ``query`` attribute is an opaque object. It represents the internals of
+the query construction and is not part of the public API. However, it is safe
+(and fully supported) to pickle and unpickle the attribute's contents as
+described here.
+
+.. _pickle: http://docs.python.org/lib/module-pickle.html
 
 .. _queryset-api:
 
@@ -123,6 +157,48 @@ In SQL terms, that evaluates to::
     AND NOT headline = 'Hello'
 
 Note the second example is more restrictive.
+
+``annotate(*args, **kwargs)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 1.1
+
+Annotates each object in the ``QuerySet`` with the provided list of
+aggregate values (averages, sums, etc) that have been computed over
+the objects that are related to the objects in the ``QuerySet``.
+Each argument to ``annotate()`` is an annotation that will be added
+to each object in the ``QuerySet`` that is returned.
+
+The aggregation functions that are provided by Django are described
+in `Aggregation Functions`_ below.
+
+Annotations specified using keyword arguments will use the keyword as
+the alias for the annotation. Anonymous arguments will have an alias
+generated for them based upon the name of the aggregate function and
+the model field that is being aggregated.
+
+For example, if you were manipulating a list of blogs, you may want
+to determine how many entries have been made in each blog::
+
+    >>> q = Blog.objects.annotate(Count('entry'))
+    # The name of the first blog
+    >>> q[0].name
+    'Blogasaurus'
+    # The number of entries on the first blog
+    >>> q[0].entry__count
+    42
+
+The ``Blog`` model doesn't define an ``entry_count`` attribute by itself,
+but by using a keyword argument to specify the aggregate function, you can
+control the name of the annotation::
+
+    >>> q = Blog.objects.annotate(number_of_entries=Count('entry'))
+    # The number of entries on the first blog, using the name provided
+    >>> q[0].number_of_entries
+    42
+
+For an in-depth discussion of aggregation, see :ref:`the topic guide on
+Aggregation <topics-db-aggregation>`.
 
 ``order_by(*fields)``
 ~~~~~~~~~~~~~~~~~~~~~
@@ -477,8 +553,8 @@ related ``Person`` *and* the related ``City``::
     p = b.author         # Hits the database.
     c = p.hometown       # Hits the database.
 
-Note that ``select_related()`` does not follow foreign keys that have
-``null=True``.
+Note that, by default, ``select_related()`` does not follow foreign keys that
+have ``null=True``.
 
 Usually, using ``select_related()`` can vastly improve performance because your
 app can avoid many database calls. However, in situations with deeply nested
@@ -493,9 +569,44 @@ follow::
     p = b.author         # Doesn't hit the database.
     c = p.hometown       # Requires a database call.
 
+Sometimes you only want to access specific models that are related to your root
+model, not all of the related models. In these cases, you can pass the related
+field names to ``select_related()`` and it will only follow those relations.
+You can even do this for models that are more than one relation away by
+separating the field names with double underscores, just as for filters. For
+example, if you have this model::
+
+    class Room(models.Model):
+        # ...
+        building = models.ForeignKey(...)
+
+    class Group(models.Model):
+        # ...
+        teacher = models.ForeignKey(...)
+        room = models.ForeignKey(Room)
+        subject = models.ForeignKey(...)
+
+...and you only needed to work with the ``room`` and ``subject`` attributes,
+you could write this::
+
+    g = Group.objects.select_related('room', 'subject')
+
+This is also valid::
+
+    g = Group.objects.select_related('room__building', 'subject')
+
+...and would also pull in the ``building`` relation.
+
+You can only refer to ``ForeignKey`` relations in the list of fields passed to
+``select_related``. You *can* refer to foreign keys that have ``null=True``
+(unlike the default ``select_related()`` call). It's an error to use both a
+list of fields and the ``depth`` parameter in the same ``select_related()``
+call, since they are conflicting options.
+
 .. versionadded:: 1.0
 
-The ``depth`` argument is new in Django version 1.0.
+Both the ``depth`` argument and the ability to specify field names in the call
+to ``select_related()`` are new in Django version 1.0.
 
 ``extra(select=None, where=None, params=None, tables=None, order_by=None, select_params=None)``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -558,7 +669,7 @@ of the arguments is required, but you should use at least one of them.
     .. versionadded:: 1.0
 
     In some rare cases, you might wish to pass parameters to the SQL fragments
-    in ``extra(select=...)```. For this purpose, use the ``select_params``
+    in ``extra(select=...)``. For this purpose, use the ``select_params``
     parameter. Since ``select_params`` is a sequence and the ``select``
     attribute is a dictionary, some care is required so that the parameters
     are matched up correctly with the extra select pieces.  In this situation,
@@ -674,11 +785,13 @@ they query the database each time they're called.
 Returns the object matching the given lookup parameters, which should be in
 the format described in `Field lookups`_.
 
-``get()`` raises ``AssertionError`` if more than one object was found.
+``get()`` raises ``MultipleObjectsReturned`` if more than one object was
+found. The ``MultipleObjectsReturned`` exception is an attribute of the model
+class.
 
-``get()`` raises a ``DoesNotExist`` exception if an object wasn't found for the
-given parameters. The ``DoesNotExist`` exception is an attribute of the model
-class. Example::
+``get()`` raises a ``DoesNotExist`` exception if an object wasn't found for
+the given parameters. This exception is also an attribute of the model class.
+Example::
 
     Entry.objects.get(id='foo') # raises Entry.DoesNotExist
 
@@ -860,6 +973,38 @@ exist with the given parameters.
 
 Note ``latest()`` exists purely for convenience and readability.
 
+``aggregate(*args, **kwargs)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 1.1
+
+Returns a dictionary of aggregate values (averages, sums, etc) calculated
+over the ``QuerySet``. Each argument to ``aggregate()`` specifies
+a value that will be included in the dictionary that is returned.
+
+The aggregation functions that are provided by Django are described
+in `Aggregation Functions`_ below.
+
+Aggregates specified using keyword arguments will use the keyword as
+the name for the annotation. Anonymous arguments will have an name
+generated for them based upon the name of the aggregate function and
+the model field that is being aggregated.
+
+For example, if you were manipulating blog entries, you may want to know
+the number of authors that have contributed blog entries::
+
+    >>> q = Blog.objects.aggregate(Count('entry'))
+    {'entry__count': 16}
+
+By using a keyword argument to specify the aggregate function, you can
+control the name of the aggregation value that is returned::
+
+    >>> q = Blog.objects.aggregate(number_of_entries=Count('entry'))
+    {'number_of_entries': 16}
+
+For an in-depth discussion of aggregation, see :ref:`the topic guide on
+Aggregation <topics-db-aggregation>`.
+
 .. _field-lookups:
 
 Field lookups
@@ -888,10 +1033,10 @@ SQL equivalents::
     SELECT ... WHERE id IS NULL;
 
 .. versionchanged:: 1.0
-   The semantics of ``id__exact=None`` have
-   changed in the development version. Previously, it was (intentionally)
-   converted to ``WHERE id = NULL`` at the SQL level, which would never match
-   anything. It has now been changed to behave the same as ``id__isnull=True``.
+   The semantics of ``id__exact=None`` have changed in Django 1.0. Previously,
+   it was (intentionally) converted to ``WHERE id = NULL`` at the SQL level,
+   which would never match anything. It has now been changed to behave the
+   same as ``id__isnull=True``.
 
 .. admonition:: MySQL comparisons
 
@@ -915,8 +1060,15 @@ SQL equivalent::
 
     SELECT ... WHERE name ILIKE 'beatles blog';
 
-Note this will match ``'Beatles Blog'``, ``'beatles blog'``,
-``'BeAtLes BLoG'``, etc.
+Note this will match ``'Beatles Blog'``, ``'beatles blog'``, ``'BeAtLes
+BLoG'``, etc.
+
+.. admonition:: SQLite users
+
+    When using the SQLite backend and Unicode (non-ASCII) strings, bear in
+    mind the :ref:`database note <sqlite-string-matching>` about string
+    comparisons. SQLite does not do case-insensitive matching for Unicode
+    strings.
 
 contains
 ~~~~~~~~
@@ -950,6 +1102,12 @@ SQL equivalent::
 
     SELECT ... WHERE headline ILIKE '%Lennon%';
 
+.. admonition:: SQLite users
+
+    When using the SQLite backend and Unicode (non-ASCII) strings, bear in
+    mind the :ref:`database note <sqlite-string-matching>` about string
+    comparisons.
+
 in
 ~~
 
@@ -964,12 +1122,43 @@ SQL equivalent::
     SELECT ... WHERE id IN (1, 3, 4);
 
 You can also use a queryset to dynamically evaluate the list of values
-instead of providing a list of literal values. The queryset must be
-reduced to a list of individual values using the ``values()`` method,
-and then converted into a query using the ``query`` attribute::
+instead of providing a list of literal values::
 
-    q = Blog.objects.filter(name__contains='Cheddar').values('pk').query
-    e = Entry.objects.filter(blog__in=q)
+    inner_qs = Blog.objects.filter(name__contains='Cheddar')
+    entries = Entry.objects.filter(blog__in=inner_qs)
+
+This queryset will be evaluated as subselect statement::
+
+    SELECT ... WHERE blog.id IN (SELECT id FROM ... WHERE NAME LIKE '%Cheddar%')
+
+The above code fragment could also be written as follows::
+
+    inner_q = Blog.objects.filter(name__contains='Cheddar').values('pk').query
+    entries = Entry.objects.filter(blog__in=inner_q)
+
+
+.. versionchanged:: 1.1
+    In Django 1.0, only the latter piece of code is valid.
+
+This second form is a bit less readable and unnatural to write, since it
+accesses the internal ``query`` attribute and requires a ``ValuesQuerySet``.
+If your code doesn't require compatibility with Django 1.0, use the first
+form, passing in a queryset directly.
+
+If you pass in a ``ValuesQuerySet`` or ``ValuesListQuerySet`` (the result of
+calling ``values()`` or ``values_list()`` on a queryset) as the value to an
+``__in`` lookup, you need to ensure you are only extracting one field in the
+result. For example, this will work (filtering on the blog names)::
+
+    inner_qs = Blog.objects.filter(name__contains='Ch').values('name')
+    entries = Entry.objects.filter(blog__name__in=inner_qs)
+
+This example will raise an exception, since the inner query is trying to
+extract two field values, where only one is expected::
+
+    # Bad code! Will raise a TypeError.
+    inner_qs = Blog.objects.filter(name__contains='Ch').values('name', 'id')
+    entries = Entry.objects.filter(blog__name__in=inner_qs)
 
 .. warning::
 
@@ -977,9 +1166,18 @@ and then converted into a query using the ``query`` attribute::
     It's fine to use it like above, but its API may change between Django
     versions.
 
-This queryset will be evaluated as subselect statement::
+.. admonition:: Performance considerations
 
-    SELECT ... WHERE blog.id IN (SELECT id FROM ... WHERE NAME LIKE '%Cheddar%')
+    Be cautious about using nested queries and understand your database
+    server's performance characteristics (if in doubt, benchmark!). Some
+    database backends, most notably MySQL, don't optimize nested queries very
+    well. It is more efficient, in those cases, to extract a list of values
+    and then pass that into the second query. That is, execute two queries
+    instead of one::
+
+        values = Blog.objects.filter(
+                name__contains='Cheddar').values_list('pk', flat=True)
+        entries = Entry.objects.filter(blog__in=values)
 
 gt
 ~~
@@ -1038,6 +1236,12 @@ SQL equivalent::
 
     SELECT ... WHERE headline ILIKE 'Will%';
 
+.. admonition:: SQLite users
+
+    When using the SQLite backend and Unicode (non-ASCII) strings, bear in
+    mind the :ref:`database note <sqlite-string-matching>` about string
+    comparisons.
+
 endswith
 ~~~~~~~~
 
@@ -1066,6 +1270,12 @@ Example::
 SQL equivalent::
 
     SELECT ... WHERE headline ILIKE '%will'
+
+.. admonition:: SQLite users
+
+    When using the SQLite backend and Unicode (non-ASCII) strings, bear in
+    mind the :ref:`database note <sqlite-string-matching>` about string
+    comparisons.
 
 range
 ~~~~~
@@ -1134,6 +1344,27 @@ SQL equivalent::
 Note this will match any record with a pub_date on the third day of the month,
 such as January 3, July 3, etc.
 
+week_day
+~~~~~~~~
+
+.. versionadded:: 1.1
+
+For date/datetime fields, a 'day of the week' match.
+
+Example::
+
+    Entry.objects.filter(pub_date__week_day=2)
+
+SQL equivalent::
+
+    SELECT ... WHERE EXTRACT('dow' FROM pub_date) = '2';
+
+(The exact SQL syntax varies for each database engine.)
+
+Note this will match any record with a pub_date that falls on a Monday (day 2
+of the week), regardless of the month or year in which it occurs. Week days
+are indexed with day 1 being Sunday and day 7 being Saturday.
+
 isnull
 ~~~~~~
 
@@ -1147,14 +1378,6 @@ Example::
 SQL equivalent::
 
     SELECT ... WHERE pub_date IS NULL;
-
-.. admonition:: ``__isnull=True`` vs ``__exact=None``
-
-    There is an important difference between ``__isnull=True`` and
-    ``__exact=None``. ``__exact=None`` will *always* return an empty result
-    set, because SQL requires that no value is equal to ``NULL``.
-    ``__isnull`` determines if the field is currently holding the value
-    of ``NULL`` without performing a comparison.
 
 search
 ~~~~~~
@@ -1214,3 +1437,117 @@ SQL equivalents::
 
     SELECT ... WHERE title REGEXP '(?i)^(an?|the) +'; -- SQLite
 
+.. _aggregation-functions:
+
+Aggregation Functions
+---------------------
+
+.. versionadded:: 1.1
+
+Django provides the following aggregation functions in the
+``django.db.models`` module. For details on how to use these
+aggregate functions, see
+:ref:`the topic guide on aggregation <topics-db-aggregation>`.
+
+``Avg``
+~~~~~~~
+
+.. class:: Avg(field)
+
+Returns the mean value of the given field.
+
+    * Default alias: ``<field>__avg``
+    * Return type: float
+
+``Count``
+~~~~~~~~~
+
+.. class:: Count(field, distinct=False)
+
+Returns the number of objects that are related through the provided field.
+
+    * Default alias: ``<field>__count``
+    * Return type: integer
+
+Has one optional argument:
+
+.. attribute:: distinct
+
+    If distinct=True, the count will only include unique instances. This has
+    the SQL equivalent of ``COUNT(DISTINCT field)``. Default value is ``False``.
+
+``Max``
+~~~~~~~
+
+.. class:: Max(field)
+
+Returns the maximum value of the given field.
+
+    * Default alias: ``<field>__max``
+    * Return type: same as input field
+
+``Min``
+~~~~~~~
+
+.. class:: Min(field)
+
+Returns the minimum value of the given field.
+
+    * Default alias: ``<field>__min``
+    * Return type: same as input field
+
+``StdDev``
+~~~~~~~~~~
+
+.. class:: StdDev(field, sample=False)
+
+Returns the standard deviation of the data in the provided field.
+
+    * Default alias: ``<field>__stddev``
+    * Return type: float
+
+Has one optional argument:
+
+.. attribute:: sample
+
+    By default, ``StdDev`` returns the population standard deviation. However,
+    if ``sample=True``, the return value will be the sample standard deviation.
+
+.. admonition:: SQLite
+
+    SQLite doesn't provide ``StdDev`` out of the box. An implementation is
+    available as an extension module for SQLite. Consult the SQlite
+    documentation for instructions on obtaining and installing this extension.
+
+``Sum``
+~~~~~~~
+
+.. class:: Sum(field)
+
+Computes the sum of all values of the given field.
+
+    * Default alias: ``<field>__sum``
+    * Return type: same as input field
+
+``Variance``
+~~~~~~~~~~~~
+
+.. class:: Variance(field, sample=False)
+
+Returns the variance of the data in the provided field.
+
+    * Default alias: ``<field>__variance``
+    * Return type: float
+
+Has one optional argument:
+
+.. attribute:: sample
+
+    By default, ``Variance`` returns the population variance. However,
+    if ``sample=True``, the return value will be the sample variance.
+
+.. admonition:: SQLite
+
+    SQLite doesn't provide ``Variance`` out of the box. An implementation is
+    available as an extension module for SQLite. Consult the SQlite
+    documentation for instructions on obtaining and installing this extension.

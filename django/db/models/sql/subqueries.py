@@ -5,11 +5,12 @@ Query subclasses which provide extra functionality beyond simple data retrieval.
 from django.core.exceptions import FieldError
 from django.db.models.sql.constants import *
 from django.db.models.sql.datastructures import Date
+from django.db.models.sql.expressions import SQLEvaluator
 from django.db.models.sql.query import Query
-from django.db.models.sql.where import AND
+from django.db.models.sql.where import AND, Constraint
 
 __all__ = ['DeleteQuery', 'UpdateQuery', 'InsertQuery', 'DateQuery',
-        'CountQuery']
+        'AggregateQuery']
 
 class DeleteQuery(Query):
     """
@@ -48,8 +49,9 @@ class DeleteQuery(Query):
             if not isinstance(related.field, generic.GenericRelation):
                 for offset in range(0, len(pk_list), GET_ITERATOR_CHUNK_SIZE):
                     where = self.where_class()
-                    where.add((None, related.field.m2m_reverse_name(),
-                            related.field, 'in',
+                    where.add((Constraint(None,
+                            related.field.m2m_reverse_name(), related.field),
+                            'in',
                             pk_list[offset : offset+GET_ITERATOR_CHUNK_SIZE]),
                             AND)
                     self.do_query(related.field.m2m_db_table(), where)
@@ -59,11 +61,11 @@ class DeleteQuery(Query):
             if isinstance(f, generic.GenericRelation):
                 from django.contrib.contenttypes.models import ContentType
                 field = f.rel.to._meta.get_field(f.content_type_field_name)
-                w1.add((None, field.column, field, 'exact',
+                w1.add((Constraint(None, field.column, field), 'exact',
                         ContentType.objects.get_for_model(cls).id), AND)
             for offset in range(0, len(pk_list), GET_ITERATOR_CHUNK_SIZE):
                 where = self.where_class()
-                where.add((None, f.m2m_column_name(), f, 'in',
+                where.add((Constraint(None, f.m2m_column_name(), f), 'in',
                         pk_list[offset : offset + GET_ITERATOR_CHUNK_SIZE]),
                         AND)
                 if w1:
@@ -81,7 +83,7 @@ class DeleteQuery(Query):
         for offset in range(0, len(pk_list), GET_ITERATOR_CHUNK_SIZE):
             where = self.where_class()
             field = self.model._meta.pk
-            where.add((None, field.column, field, 'in',
+            where.add((Constraint(None, field.column, field), 'in',
                     pk_list[offset : offset + GET_ITERATOR_CHUNK_SIZE]), AND)
             self.do_query(self.model._meta.db_table, where)
 
@@ -111,14 +113,19 @@ class UpdateQuery(Query):
     def execute_sql(self, result_type=None):
         """
         Execute the specified update. Returns the number of rows affected by
-        the primary update query (there could be other updates on related
-        tables, but their rowcounts are not returned).
+        the primary update query. The "primary update query" is the first
+        non-empty query that is executed. Row counts for any subsequent,
+        related queries are not available.
         """
         cursor = super(UpdateQuery, self).execute_sql(result_type)
-        rows = cursor.rowcount
+        rows = cursor and cursor.rowcount or 0
+        is_empty = cursor is None
         del cursor
         for query in self.get_related_updates():
-            query.execute_sql(result_type)
+            aux_rows = query.execute_sql(result_type)
+            if is_empty:
+                rows = aux_rows
+                is_empty = False
         return rows
 
     def as_sql(self):
@@ -135,7 +142,11 @@ class UpdateQuery(Query):
         result.append('SET')
         values, update_params = [], []
         for name, val, placeholder in self.values:
-            if val is not None:
+            if hasattr(val, 'as_sql'):
+                sql, params = val.as_sql(qn)
+                values.append('%s = %s' % (qn(name), sql))
+                update_params.extend(params)
+            elif val is not None:
                 values.append('%s = %s' % (qn(name), placeholder))
                 update_params.append(val)
             else:
@@ -168,21 +179,9 @@ class UpdateQuery(Query):
         query = self.clone(klass=Query)
         query.bump_prefix()
         query.extra_select = {}
-        first_table = query.tables[0]
-        if query.alias_refcount[first_table] == 1:
-            # We can remove one table from the inner query.
-            query.unref_alias(first_table)
-            for i in xrange(1, len(query.tables)):
-                table = query.tables[i]
-                if query.alias_refcount[table]:
-                    break
-            join_info = query.alias_map[table]
-            query.select = [(join_info[RHS_ALIAS], join_info[RHS_JOIN_COL])]
-            must_pre_select = False
-        else:
-            query.select = []
-            query.add_fields([query.model._meta.pk.name])
-            must_pre_select = not self.connection.features.update_can_self_select
+        query.select = []
+        query.add_fields([query.model._meta.pk.name])
+        must_pre_select = count > 1 and not self.connection.features.update_can_self_select
 
         # Now we adjust the current query: reset the where clause and get rid
         # of all the tables we don't need (since they're in the sub-select).
@@ -212,7 +211,7 @@ class UpdateQuery(Query):
         for offset in range(0, len(pk_list), GET_ITERATOR_CHUNK_SIZE):
             self.where = self.where_class()
             f = self.model._meta.pk
-            self.where.add((None, f.column, f, 'in',
+            self.where.add((Constraint(None, f.column, f), 'in',
                     pk_list[offset : offset + GET_ITERATOR_CHUNK_SIZE]),
                     AND)
             self.values = [(related_field.column, None, '%s')]
@@ -240,9 +239,10 @@ class UpdateQuery(Query):
         """
         from django.db.models.base import Model
         for field, model, val in values_seq:
-            # FIXME: Some sort of db_prep_* is probably more appropriate here.
-            if field.rel and isinstance(val, Model):
-                val = val.pk
+            if hasattr(val, 'prepare_database_save'):
+                val = val.prepare_database_save(field)
+            else:
+                val = field.get_db_prep_save(val)
 
             # Getting the placeholder for the field.
             if hasattr(field, 'get_placeholder'):
@@ -250,6 +250,8 @@ class UpdateQuery(Query):
             else:
                 placeholder = '%s'
 
+            if hasattr(val, 'evaluate'):
+                val = SQLEvaluator(val, self, allow_joins=False)
             if model:
                 self.add_related_update(model, field.column, val, placeholder)
             else:
@@ -293,7 +295,8 @@ class InsertQuery(Query):
     def clone(self, klass=None, **kwargs):
         extras = {'columns': self.columns[:], 'values': self.values[:],
                 'params': self.params}
-        return super(InsertQuery, self).clone(klass, extras)
+        extras.update(kwargs)
+        return super(InsertQuery, self).clone(klass, **extras)
 
     def as_sql(self):
         # We don't need quote_name_unless_alias() here, since these are all
@@ -306,7 +309,7 @@ class InsertQuery(Query):
 
     def execute_sql(self, return_id=False):
         cursor = super(InsertQuery, self).execute_sql(None)
-        if return_id:
+        if return_id and cursor:
             return self.connection.ops.last_insert_id(cursor,
                     self.model._meta.db_table, self.model._meta.pk.column)
 
@@ -394,18 +397,29 @@ class DateQuery(Query):
         self.select = [select]
         self.select_fields = [None]
         self.select_related = False # See #7097.
+        self.extra_select = {}
         self.distinct = True
         self.order_by = order == 'ASC' and [1] or [-1]
 
-class CountQuery(Query):
+class AggregateQuery(Query):
     """
-    A CountQuery knows how to take a normal query which would select over
-    multiple distinct columns and turn it into SQL that can be used on a
-    variety of backends (it requires a select in the FROM clause).
+    An AggregateQuery takes another query as a parameter to the FROM
+    clause and only selects the elements in the provided list.
     """
-    def get_from_clause(self):
-        result, params = self._query.as_sql()
-        return ['(%s) A1' % result], params
+    def add_subquery(self, query):
+        self.subquery, self.sub_params = query.as_sql(with_col_aliases=True)
 
-    def get_ordering(self):
-        return ()
+    def as_sql(self, quote_func=None):
+        """
+        Creates the SQL for this query. Returns the SQL string and list of
+        parameters.
+        """
+        sql = ('SELECT %s FROM (%s) subquery' % (
+            ', '.join([
+                aggregate.as_sql()
+                for aggregate in self.aggregate_select.values()
+            ]),
+            self.subquery)
+        )
+        params = self.sub_params
+        return (sql, params)
