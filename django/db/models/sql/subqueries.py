@@ -291,10 +291,11 @@ class InsertQuery(Query):
         self.columns = []
         self.values = []
         self.params = ()
+        self.return_id = False
 
     def clone(self, klass=None, **kwargs):
         extras = {'columns': self.columns[:], 'values': self.values[:],
-                'params': self.params}
+                  'params': self.params, 'return_id': self.return_id}
         extras.update(kwargs)
         return super(InsertQuery, self).clone(klass, **extras)
 
@@ -302,16 +303,27 @@ class InsertQuery(Query):
         # We don't need quote_name_unless_alias() here, since these are all
         # going to be column names (so we can avoid the extra overhead).
         qn = self.connection.ops.quote_name
-        result = ['INSERT INTO %s' % qn(self.model._meta.db_table)]
+        opts = self.model._meta
+        result = ['INSERT INTO %s' % qn(opts.db_table)]
         result.append('(%s)' % ', '.join([qn(c) for c in self.columns]))
         result.append('VALUES (%s)' % ', '.join(self.values))
-        return ' '.join(result), self.params
+        params = self.params
+        if self.return_id and self.connection.features.can_return_id_from_insert:
+            col = "%s.%s" % (qn(opts.db_table), qn(opts.pk.column))
+            r_fmt, r_params = self.connection.ops.return_insert_id()
+            result.append(r_fmt % col)
+            params = params + r_params
+        return ' '.join(result), params
 
     def execute_sql(self, return_id=False):
+        self.return_id = return_id
         cursor = super(InsertQuery, self).execute_sql(None)
-        if return_id and cursor:
-            return self.connection.ops.last_insert_id(cursor,
-                    self.model._meta.db_table, self.model._meta.pk.column)
+        if not (return_id and cursor):
+            return
+        if self.connection.features.can_return_id_from_insert:
+            return self.connection.ops.fetch_returned_insert_id(cursor)
+        return self.connection.ops.last_insert_id(cursor,
+                self.model._meta.db_table, self.model._meta.pk.column)
 
     def insert_values(self, insert_values, raw_values=False):
         """

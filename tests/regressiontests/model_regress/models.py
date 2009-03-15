@@ -1,5 +1,9 @@
 # coding: utf-8
+import datetime
+
+from django.conf import settings
 from django.db import models
+from django.utils import tzinfo
 
 CHOICES = (
     (1, 'first'),
@@ -48,7 +52,10 @@ class Worker(models.Model):
 
 class BrokenUnicodeMethod(models.Model):
     name = models.CharField(max_length=7)
+
     def __unicode__(self):
+        # Intentionally broken (trying to insert a unicode value into a str
+        # object).
         return 'Názov: %s' % self.name
 
 
@@ -140,5 +147,24 @@ datetime.datetime(2000, 1, 1, 6, 1, 1)
 >>> BrokenUnicodeMethod.objects.all()
 [<BrokenUnicodeMethod: [Bad Unicode data]>]
 
+"""}
+
+if settings.DATABASE_ENGINE not in ("mysql", "oracle"):
+    __test__["timezone-tests"] = """
+# Saving an updating with timezone-aware datetime Python objects. Regression
+# test for #10443.
+
+# The idea is that all these creations and saving should work without crashing.
+# It's not rocket science.
+>>> Article.objects.all().delete()
+>>> dt1 = datetime.datetime(2008, 8, 31, 16, 20, tzinfo=tzinfo.FixedOffset(600))
+>>> dt2 = datetime.datetime(2008, 8, 31, 17, 20, tzinfo=tzinfo.FixedOffset(600))
+>>> obj = Article.objects.create(headline="A headline", pub_date=dt1, article_text="foo")
+
+>>> obj.pub_date = dt2
+>>> obj.save()
+>>> Article.objects.filter(headline="A headline").update(pub_date=dt1)
+1
+
 """
-}
+

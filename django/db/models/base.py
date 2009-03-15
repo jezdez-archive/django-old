@@ -69,6 +69,7 @@ class ModelBase(type):
 
         if getattr(new_class, '_default_manager', None):
             new_class._default_manager = None
+            new_class._base_manager = None
 
         # Bail out early if we have already created this class.
         m = get_model(new_class._meta.app_label, name, False)
@@ -369,14 +370,14 @@ class Model(object):
         pk_val = self._get_pk_val(meta)
         pk_set = pk_val is not None
         record_exists = True
-        manager = cls._default_manager
+        manager = cls._base_manager
         if pk_set:
             # Determine whether a record with the primary key already exists.
             if (force_update or (not force_insert and
                     manager.filter(pk=pk_val).extra(select={'a': 1}).values('a').order_by())):
                 # It does already exist, so do an UPDATE.
                 if force_update or non_pks:
-                    values = [(f, None, f.get_db_prep_save(raw and getattr(self, f.attname) or f.pre_save(self, False))) for f in non_pks]
+                    values = [(f, None, (raw and getattr(self, f.attname) or f.pre_save(self, False))) for f in non_pks]
                     rows = manager.filter(pk=pk_val)._update(values)
                     if force_update and not rows:
                         raise DatabaseError("Forced update did not affect any rows.")

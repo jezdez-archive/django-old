@@ -36,6 +36,8 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     needs_datetime_string_cast = False
     uses_custom_query_class = True
     interprets_empty_strings_as_nulls = True
+    uses_savepoints = True
+    can_return_id_from_insert = True
 
 
 class DatabaseOperations(BaseDatabaseOperations):
@@ -96,6 +98,9 @@ WHEN (new.%(col_name)s IS NULL)
     def drop_sequence_sql(self, table):
         return "DROP SEQUENCE %s;" % self.quote_name(get_sequence_name(table))
 
+    def fetch_returned_insert_id(self, cursor):
+        return long(cursor._insert_id_var.getvalue())
+
     def field_cast_sql(self, db_type):
         if db_type and db_type.endswith('LOB'):
             return "DBMS_LOB.SUBSTR(%s)"
@@ -117,6 +122,11 @@ WHEN (new.%(col_name)s IS NULL)
 
     def prep_for_iexact_query(self, x):
         return x
+
+    def process_clob(self, value):
+        if value is None:
+            return u''
+        return force_unicode(value.read())
 
     def query_class(self, DefaultQueryClass):
         return query.query_class(DefaultQueryClass, Database)
@@ -150,6 +160,15 @@ WHEN (new.%(col_name)s IS NULL)
         from django.db import connection
         connection.cursor()
         return connection.ops.regex_lookup(lookup_type)
+
+    def return_insert_id(self):
+        return "RETURNING %s INTO %%s", (InsertIdVar(),)
+
+    def savepoint_create_sql(self, sid):
+        return "SAVEPOINT " + self.quote_name(sid)
+
+    def savepoint_rollback_sql(self, sid):
+        return "ROLLBACK TO SAVEPOINT " + self.quote_name(sid)
 
     def sql_flush(self, style, tables, sequences):
         # Return a list of 'TRUNCATE x;', 'TRUNCATE y;',
@@ -255,7 +274,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
         self.features = DatabaseFeatures()
         self.ops = DatabaseOperations()
-        self.client = DatabaseClient()
+        self.client = DatabaseClient(self)
         self.creation = DatabaseCreation(self)
         self.introspection = DatabaseIntrospection(self)
         self.validation = BaseDatabaseValidation()
@@ -263,23 +282,24 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     def _valid_connection(self):
         return self.connection is not None
 
-    def _connect_string(self, settings):
-        if len(settings.DATABASE_HOST.strip()) == 0:
-            settings.DATABASE_HOST = 'localhost'
-        if len(settings.DATABASE_PORT.strip()) != 0:
-            dsn = Database.makedsn(settings.DATABASE_HOST,
-                                   int(settings.DATABASE_PORT),
-                                   settings.DATABASE_NAME)
+    def _connect_string(self):
+        settings_dict = self.settings_dict
+        if len(settings_dict['DATABASE_HOST'].strip()) == 0:
+            settings_dict['DATABASE_HOST'] = 'localhost'
+        if len(settings_dict['DATABASE_PORT'].strip()) != 0:
+            dsn = Database.makedsn(settings_dict['DATABASE_HOST'],
+                                   int(settings_dict['DATABASE_PORT']),
+                                   settings_dict['DATABASE_NAME'])
         else:
-            dsn = settings.DATABASE_NAME
-        return "%s/%s@%s" % (settings.DATABASE_USER,
-                             settings.DATABASE_PASSWORD, dsn)
+            dsn = settings_dict['DATABASE_NAME']
+        return "%s/%s@%s" % (settings_dict['DATABASE_USER'],
+                             settings_dict['DATABASE_PASSWORD'], dsn)
 
-    def _cursor(self, settings):
+    def _cursor(self):
         cursor = None
         if not self._valid_connection():
-            conn_string = self._connect_string(settings)
-            self.connection = Database.connect(conn_string, **self.options)
+            conn_string = self._connect_string()
+            self.connection = Database.connect(conn_string, **self.settings_dict['DATABASE_OPTIONS'])
             cursor = FormatStylePlaceholderCursor(self.connection)
             # Set oracle date to ansi date format.  This only needs to execute
             # once when we create a new connection. We also set the Territory
@@ -309,6 +329,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             cursor = FormatStylePlaceholderCursor(self.connection)
         return cursor
 
+    # Oracle doesn't support savepoint commits.  Ignore them.
+    def _savepoint_commit(self, sid):
+        pass
+
 
 class OracleParam(object):
     """
@@ -320,8 +344,11 @@ class OracleParam(object):
     parameter when executing the query.
     """
 
-    def __init__(self, param, charset, strings_only=False):
-        self.smart_str = smart_str(param, charset, strings_only)
+    def __init__(self, param, cursor, strings_only=False):
+        if hasattr(param, 'bind_parameter'):
+            self.smart_str = param.bind_parameter(cursor)
+        else:
+            self.smart_str = smart_str(param, cursor.charset, strings_only)
         if hasattr(param, 'input_size'):
             # If parameter has `input_size` attribute, use that.
             self.input_size = param.input_size
@@ -330,6 +357,19 @@ class OracleParam(object):
             self.input_size = Database.NCLOB
         else:
             self.input_size = None
+
+
+class InsertIdVar(object):
+    """
+    A late-binding cursor variable that can be passed to Cursor.execute
+    as a parameter, in order to receive the id of the row created by an
+    insert statement.
+    """
+
+    def bind_parameter(self, cursor):
+        param = cursor.var(Database.NUMBER)
+        cursor._insert_id_var = param
+        return param
 
 
 class FormatStylePlaceholderCursor(object):
@@ -351,7 +391,7 @@ class FormatStylePlaceholderCursor(object):
         self.cursor.arraysize = 100
 
     def _format_params(self, params):
-        return tuple([OracleParam(p, self.charset, True) for p in params])
+        return tuple([OracleParam(p, self, True) for p in params])
 
     def _guess_input_sizes(self, params_list):
         sizes = [None] * len(params_list[0])

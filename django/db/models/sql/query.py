@@ -329,7 +329,7 @@ class BaseQuery(object):
         Performs a COUNT() query using the current filter constraints.
         """
         obj = self.clone()
-        if len(self.select) > 1:
+        if len(self.select) > 1 or self.aggregate_select:
             # If a select clause exists, then the query has already started to
             # specify the columns that are to be returned.
             # In this case, we need to use a subquery to evaluate the count.
@@ -579,7 +579,7 @@ class BaseQuery(object):
                             aliases.add(c_alias)
                             col_aliases.add(c_alias)
                         else:
-                            result.append('%s AS %s' % (r, col[1]))
+                            result.append('%s AS %s' % (r, qn2(col[1])))
                             aliases.add(r)
                             col_aliases.add(col[1])
                     else:
@@ -1950,6 +1950,7 @@ class BaseQuery(object):
         # Clear out the select cache to reflect the new unmasked aggregates.
         self.aggregates = {None: count}
         self.set_aggregate_mask(None)
+        self.group_by = None
 
     def add_select_related(self, fields):
         """
