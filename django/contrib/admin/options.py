@@ -203,6 +203,7 @@ class ModelAdmin(BaseModelAdmin):
     action_form = helpers.ActionForm
     actions_on_top = True
     actions_on_bottom = False
+    actions_on_change_form = True
 
     def __init__(self, model, admin_site):
         self.model = model
@@ -652,7 +653,7 @@ class ModelAdmin(BaseModelAdmin):
             self.message_user(request, msg)
             return HttpResponseRedirect("../")
 
-    def response_action(self, request, queryset):
+    def response_action(self, request, queryset, obj=None):
         """
         Handle an admin action. This is called if a request is POSTed to the
         changelist; it returns an HttpResponse if the action was handled, and
@@ -688,16 +689,20 @@ class ModelAdmin(BaseModelAdmin):
             action = action_form.cleaned_data['action']
             func, name, description = self.get_actions(request)[action]
 
-            # Get the list of selected PKs. If nothing's selected, we can't
-            # perform an action on it, so bail.
-            selected = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
-            if not selected:
-                # Reminder that something needs to be selected or nothing will happen
-                msg = _("Items must be selected in order to perform actions on them. No items have been changed.")
-                self.message_user(request, msg)
-                return None
-
-            response = func(self, request, queryset.filter(pk__in=selected))
+            if obj:
+                defaults = dict(pk=obj.pk)
+            else:
+                # Get the list of selected PKs. If nothing's selected,
+                # we can't perform an action on it, so bail.
+                selected = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+                if not selected:
+                    # Reminder that something needs to be selected or
+                    # nothing will happen
+                    msg = _("Items must be selected in order to perform actions on them. No items have been changed.")
+                    self.message_user(request, msg)
+                    return None
+                defaults = dict(pk__in=selected)
+            response = func(self, request, queryset.filter(**defaults))
 
             # Actions may return an HttpResponse, which will be used as the
             # response from the POST. If not, we'll be a good little HTTP
@@ -705,7 +710,10 @@ class ModelAdmin(BaseModelAdmin):
             if isinstance(response, HttpResponse):
                 return response
             else:
-                return HttpResponseRedirect(".")
+                if obj:
+                    return HttpResponseRedirect("..")
+                else:
+                    return HttpResponseRedirect(".")
         else:
             msg = _("No action selected.")
             self.message_user(request, msg)
@@ -801,6 +809,9 @@ class ModelAdmin(BaseModelAdmin):
         model = self.model
         opts = model._meta
 
+        # Check actions to see if any are available on this changelist
+        actions = self.get_actions(request)
+
         try:
             obj = self.queryset(request).get(pk=unquote(object_id))
         except model.DoesNotExist:
@@ -817,6 +828,14 @@ class ModelAdmin(BaseModelAdmin):
 
         if request.method == 'POST' and request.POST.has_key("_saveasnew"):
             return self.add_view(request, form_url='../add/')
+
+        # If the request was POSTed, this might be a bulk action or a bulk edit.
+        # Try to look up an action first, but if this isn't an action the POST
+        # will fall through to the bulk edit check, below.
+        if actions and request.method == 'POST':
+            response = self.response_action(request, queryset=self.queryset(request), obj=obj)
+            if response:
+                return response
 
         ModelForm = self.get_form(request, obj)
         formsets = []
@@ -859,6 +878,13 @@ class ModelAdmin(BaseModelAdmin):
                 formset = FormSet(instance=obj, prefix=prefix)
                 formsets.append(formset)
 
+        # Build the action form and populate it with available actions.
+        if actions:
+            action_form = self.action_form(auto_id=None)
+            action_form.fields['action'].choices = self.get_action_choices(request)
+        else:
+            action_form = None
+
         adminForm = helpers.AdminForm(form, self.get_fieldsets(request, obj), self.prepopulated_fields)
         media = self.media + adminForm.media
 
@@ -880,6 +906,8 @@ class ModelAdmin(BaseModelAdmin):
             'errors': helpers.AdminErrorList(form, formsets),
             'root_path': self.admin_site.root_path,
             'app_label': opts.app_label,
+            'action_form': action_form,
+            'actions_on_change_form': self.actions_on_change_form,
         }
         context.update(extra_context or {})
         return self.render_change_form(request, context, change=True, obj=obj)
