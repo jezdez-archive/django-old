@@ -1193,7 +1193,7 @@ class InlineModelAdmin(BaseModelAdmin):
 
     def _media(self):
         from django.conf import settings
-        js = []
+        js = ['js/jquery-1.4.min.js', 'js/inlines.min.js']
         if self.prepopulated_fields:
             js.append('js/urlify.js')
         if self.filter_vertical or self.filter_horizontal:
