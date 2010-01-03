@@ -233,10 +233,6 @@ fieldset.monospace textarea {
     width: 8em;
 }
 
-.inline-related {
-    position: relative;
-}
-
 .inline-related h3 {
     margin: 0;
     color: #666;
@@ -247,10 +243,7 @@ fieldset.monospace textarea {
 }
 
 .inline-related h3 span.delete {
-    padding-left: 20px;
-    position: absolute;
-    top: 2px;
-    right: 10px;
+    float: right;
 }
 
 .inline-related h3 span.delete label {
@@ -274,7 +267,7 @@ fieldset.monospace textarea {
     color: #fff;
 }
 
-.inline-related.tabular fieldset.module table {
+.tabular.inline-group fieldset.module table {
     width: 100%;
 }
 
@@ -282,26 +275,26 @@ fieldset.monospace textarea {
     border: none;
 }
 
-.inline-group .tabular tr.has_original td {
+.tabular.inline-group tr.has_original td {
     padding-top: 2em;
 }
 
-.inline-group .tabular tr td.original {
+.tabular.inline-group tr td.original {
     padding: 2px 0 0 0;
     width: 0;
     _position: relative;
 }
 
-.inline-group .tabular th.original {
+.tabular.inline-group th.original {
     width: 0px;
     padding: 0;
 }
 
-.inline-group .tabular td.original p {
+.tabular.inline-group td.original p {
     position: absolute;
     left: 0;
     height: 1.1em;
-    padding: 2px 7px;
+    padding: 2px 25px;
     overflow: hidden;
     font-size: 9px;
     font-weight: bold;
@@ -325,3 +318,57 @@ fieldset.monospace textarea {
     padding-left: 14px;
 }
 
+.add_inline {
+    display: none;
+}
+
+ul.inline-selector {
+    float: left;
+    width: 19%;
+    padding: 0;
+}
+
+.inline-selector a, .inline-selector a:visited {
+    color: #000;
+}
+
+li.inline-selector-item {
+    background-color: #F6F6F6;
+    border: 1px solid #E7E7E7;
+    padding: 5px;
+    margin: 7px 0px 7px 5px;
+    font-size: 0.9em;
+    list-style-type: none;
+}
+
+li.inline-selector-item:hover {
+    background-color: #C1DBFD;
+}
+
+.selector-error {
+    font-weight: bold;
+    border: 2px solid #F00000 !important;
+}
+
+
+.inline-detail {
+    float: right;
+    width: 80%;
+    border-left: 1px solid #EEE;
+}
+
+.inline-selector-delete {
+    float: right;
+}
+
+li.inline-selected {
+    background-color: #9EB7D5;
+}
+
+.inline-selected a, .inline-selected a:visited {
+    color: #FFF;
+}
+
+.clear {
+    clear: both;
+}
