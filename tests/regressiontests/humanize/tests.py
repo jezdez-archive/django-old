@@ -2,8 +2,9 @@ import unittest
 from datetime import timedelta, date
 from django.template import Template, Context, add_to_builtins
 from django.utils.dateformat import DateFormat
-from django.utils.translation import ugettext as _
+from django.utils.translation import ugettext as _, activate, deactivate
 from django.utils.html import escape
+from django.conf import settings
 
 add_to_builtins('django.contrib.humanize.templatetags.humanize')
 
@@ -37,6 +38,23 @@ class HumanizeTests(unittest.TestCase):
 
         self.humanize_tester(test_list, result_list, 'intcomma')
 
+    def test_i18n_intcomma(self):
+        test_list = (100, 1000, 10123, 10311, 1000000, 1234567.25,
+                     '100', '1000', '10123', '10311', '1000000', '1234567.1234567')
+        result_list = ('100', '1.000', '10.123', '10.311', '1.000.000', '1.234.567,25',
+                       '100', '1.000', '10.123', '10.311', '1.000.000', '1.234.567,1234567')
+        _use_l10n = settings.USE_L10N
+        _use_thousand_separator = settings.USE_THOUSAND_SEPARATOR
+        settings.USE_L10N = True
+        settings.USE_THOUSAND_SEPARATOR = True
+        try:
+            activate('de')
+            self.humanize_tester(test_list, result_list, 'intcomma')
+        finally:
+            settings.USE_L10N = _use_l10n
+            settings.USE_THOUSAND_SEPARATOR = _use_thousand_separator
+            deactivate()
+
     def test_intword(self):
         test_list = ('100', '1000000', '1200000', '1290000',
                      '1000000000','2000000000','6000000000000')
@@ -44,6 +62,23 @@ class HumanizeTests(unittest.TestCase):
                        '1.0 billion', '2.0 billion', '6.0 trillion')
 
         self.humanize_tester(test_list, result_list, 'intword')
+
+    def test_i18n_intword(self):
+        test_list = ('100', '1000000', '1200000', '1290000',
+                     '1000000000','2000000000','6000000000000')
+        result_list = ('100', '1,0 million', '1,2 million', '1,3 million',
+                       '1,0 billion', '2,0 billion', '6,0 trillion')
+        _use_l10n = settings.USE_L10N
+        _use_thousand_separator = settings.USE_THOUSAND_SEPARATOR
+        settings.USE_L10N = True
+        settings.USE_THOUSAND_SEPARATOR = True
+        try:
+            activate('de')
+            self.humanize_tester(test_list, result_list, 'intword')
+        finally:
+            settings.USE_L10N = _use_l10n
+            settings.USE_THOUSAND_SEPARATOR = _use_thousand_separator
+            deactivate()
 
     def test_apnumber(self):
         test_list = [str(x) for x in range(1, 11)]
