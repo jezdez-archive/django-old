@@ -22,7 +22,7 @@ def next_redirect(data, default, default_view, **get_kwargs):
     Returns an ``HttpResponseRedirect``.
     """
     next = data.get("next", default)
-    if next is None:
+    if not next or '//' in next or ' ' in next:
         next = urlresolvers.reverse(default_view)
     if get_kwargs:
         joiner = ('?' in next) and '&' or '?'
