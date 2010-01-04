@@ -332,7 +332,7 @@ class BaseForm(StrAndUnicode):
             # it as untouched
             if self.empty_permitted and order_fields:
                 difference = filter(lambda x: x not in self._changed_data, order_fields)
-                if difference:
+                if not difference:
                     self._changed_data = []
         
         return self._changed_data
