@@ -1,5 +1,5 @@
 {% load i18n %}
-<div class="tabular inline-group" id="{{ inline_admin_formset.opts.verbose_name}}-group">
+<div class="tabular inline-group" id="{{ inline_admin_formset.formset.prefix }}-group">
 {{ inline_admin_formset.formset.management_form }}
 <fieldset class="module">
    <h2>{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}</h2>
@@ -20,7 +20,7 @@
         <tr><td colspan="{{ inline_admin_form.field_count }}">{{ inline_admin_form.form.non_field_errors }}</td></tr>
         {% endif %}
         <tr class="inline-related {% if forloop.last %}empty_form{% endif %} {% if not inline_admin_formset.opts.order_field %}{% cycle 'row1' 'row2' %} {% endif %}{% if inline_admin_form.original or inline_admin_form.show_url %}has_original{% endif %}"
-             id="{{ inline_admin_formset.opts.verbose_name}}{% if not forloop.last %}{{ forloop.counter }}{% else %}-empty{% endif %}">
+             id="{{ inline_admin_formset.formset.prefix }}{% if not forloop.last %}{{ forloop.counter }}{% else %}-empty{% endif %}">
 
         <td class="original">
           {% if inline_admin_form.original or inline_admin_form.show_url %}<p>
@@ -67,8 +67,8 @@
 
 </fieldset>
 
-<ul class="tools add_inline" id="{{ inline_admin_formset.opts.verbose_name}}-addinline">
-    <li><a id="{{ inline_admin_formset.opts.verbose_name }}-add" class="add" href="#">Add a {{ inline_admin_formset.opts.verbose_name }}</a></li>
+<ul class="tools add_inline" id="{{ inline_admin_formset.formset.prefix }}-addinline">
+    <li><a id="{{ inline_admin_formset.formset.prefix }}-add" class="add" href="#">Add a {{ inline_admin_formset.opts.verbose_name }}</a></li>
 </ul>
 
 </div>
@@ -77,7 +77,7 @@
 $(function() {
     /* Add inline */
     // TODO: this block of code is the same for all inlines, so move it out into a separate file
-    var prefix = "{{ inline_admin_formset.opts.verbose_name }}";
+    var prefix = "{{ inline_admin_formset.formset.prefix }}";
     var id_prefix = "#" + prefix;
     var total_forms = $(id_prefix + '-group input[id$="TOTAL_FORMS"]');
     var initial_forms = $(id_prefix + '-group').find('input[id$="INITIAL_FORMS"]');

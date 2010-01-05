@@ -1,12 +1,12 @@
 {% load i18n %}
-<div class="inline-group" id="{{ inline_admin_formset.opts.verbose_name}}-group">
+<div class="inline-group" id="{{ inline_admin_formset.formset.prefix }}-group">
   <h2>{{ inline_admin_formset.opts.verbose_name_plural|title }}</h2>
 {{ inline_admin_formset.formset.management_form }}
 {{ inline_admin_formset.formset.non_form_errors }}
 
 {% for inline_admin_form in inline_admin_formset %}
-<div class="inline-related{% if forloop.last %} last-related{% endif %}">
-  <h3><b>{{ inline_admin_formset.opts.verbose_name|title }}:</b>&nbsp;{% if inline_admin_form.original %}{{ inline_admin_form.original }}{% else %} #{{ forloop.counter }}{% endif %}
+<div class="inline-related{% if forloop.last %} empty_form last-related{% endif %}" id="{{ inline_admin_formset.formset.prefix }}{% if not forloop.last %}{{ forloop.counter }}{% else %}-empty{% endif %}">
+  <h3><b>{{ inline_admin_formset.opts.verbose_name|title }}:</b>&nbsp;<span class="inline_label">{% if inline_admin_form.original %}{{ inline_admin_form.original }}{% else %} #{{ forloop.counter }}{% endif %}</span>
     {% if inline_admin_form.show_url %}<a href="../../../r/{{ inline_admin_form.original_content_type_id }}/{{ inline_admin_form.original.id }}/">{% trans "View on site" %}</a>{% endif %}
     {% if inline_admin_formset.formset.can_delete and inline_admin_form.original %}<span class="delete">{{ inline_admin_form.deletion_field.field }} {{ inline_admin_form.deletion_field.label_tag }}</span>{% endif %}
   </h3>
@@ -20,15 +20,15 @@
 </div>
 {% endfor %}
 
-<ul class="tools add_inline" id="{{ inline_admin_formset.opts.verbose_name}}-addinline">
-  <li><a id="{{ inline_admin_formset.opts.verbose_name }}-add" class="add" href="#">Add a {{ inline_admin_formset.opts.verbose_name }}</a></li>
+<ul class="tools add_inline" id="{{ inline_admin_formset.formset.prefix }}-addinline">
+  <li><a id="{{ inline_admin_formset.formset.prefix }}-add" class="add" href="#">Add a {{ inline_admin_formset.opts.verbose_name }}</a></li>
 </ul>
 
 </div>
 
 <script type="text/javascript">
 $(function() {
-    var prefix = "{{ inline_admin_formset.opts.verbose_name }}";
+    var prefix = "{{ inline_admin_formset.formset.prefix }}";
     var id_prefix = "#" + prefix;
     var total_forms = $(id_prefix + '-group input[id$="TOTAL_FORMS"]');
     var initial_forms = $(id_prefix + '-group').find('input[id$="INITIAL_FORMS"]');
