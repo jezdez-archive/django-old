@@ -327,8 +327,8 @@ table thead th.descending a {
 
 /* ORDERABLE TABLES */
 
-table.orderable tbody tr.hover {
-    background-color: #F6F6F6;
+table.orderable tbody tr:hover {
+    background-color: #ffffcc;
 }
 
 table.orderable tbody tr td:nth-child(2) {
@@ -346,18 +346,17 @@ table.orderable-initalized .order-cell, body>tr>td.order-cell {
 }
 
 .tDnD_whileDrag {
-    border: 2px dashed #CCC;
-    background-color: #F6F6F6;
+    background-color: #C9DBED;
 }
 
 .dragHandle {
     height: 20px;
     width: 20px;
     float: right;
-	cursor: move;
-	background-color: #fff;
-	border: 1px solid #f00;
-	display: block;
+    cursor: move;
+    background-color: #fff;
+    /*border: 1px solid #f00;*/
+    display: block;
 }
 
 .empty_form {

@@ -113,16 +113,6 @@ $(function() {
     {% if inline_admin_formset.opts.order_field %}
     /* Reordering Inlines */
     
-    // highlight each row on hover
-    $("table.orderable tbody tr").hover(
-        function() {
-            $(this).addClass('hover');
-        }, 
-        function() {
-            $(this).removeClass('hover');
-        }
-    );
-
     $('table.orderable').tableDnD({
         onDragStart: function(table, row_obj) {
             // once you start dragging a row, stop the hover() highlighting. 
