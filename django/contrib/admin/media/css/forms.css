@@ -324,6 +324,7 @@ fieldset.monospace textarea {
 
 .add_inline {
     display: none;
+    padding: 5px;
 }
 
 .clear {
