@@ -267,6 +267,10 @@ fieldset.monospace textarea {
     color: #fff;
 }
 
+.tabular.inline-group fieldset.module {
+    border: none;
+}
+
 .tabular.inline-group fieldset.module table {
     width: 100%;
 }
