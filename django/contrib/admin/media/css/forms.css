@@ -233,6 +233,10 @@ fieldset.monospace textarea {
     width: 8em;
 }
 
+.inline-related {
+    position: relative;
+}
+
 .inline-related h3 {
     margin: 0;
     color: #666;
@@ -267,11 +271,11 @@ fieldset.monospace textarea {
     color: #fff;
 }
 
-.tabular.inline-group fieldset.module {
+.inline-group .tabular fieldset.module {
     border: none;
 }
 
-.tabular.inline-group fieldset.module table {
+.inline-related.tabular fieldset.module table {
     width: 100%;
 }
 
@@ -279,22 +283,22 @@ fieldset.monospace textarea {
     border: none;
 }
 
-.tabular.inline-group tr.has_original td {
+.inline-group .tabular tr.has_original td {
     padding-top: 2em;
 }
 
-.tabular.inline-group tr td.original {
+.inline-group .tabular tr td.original {
     padding: 2px 0 0 0;
     width: 0;
     _position: relative;
 }
 
-.tabular.inline-group th.original {
+.inline-group .tabular th.original {
     width: 0px;
     padding: 0;
 }
 
-.tabular.inline-group td.original p {
+.inline-group .tabular td.original p {
     position: absolute;
     left: 0;
     height: 1.1em;
@@ -320,11 +324,6 @@ fieldset.monospace textarea {
 .inline-group ul.tools a.add {
     background: url(../img/admin/icon_addlink.gif) 0 50% no-repeat;
     padding-left: 14px;
-}
-
-.add_inline {
-    display: none;
-    padding: 5px;
 }
 
 .clear {

@@ -11,11 +11,11 @@
         // hide the extras, but only if there were no form errors
         if (!$('.errornote').html()) {
             if (parseInt(initial_forms.val()) > 0) {
-                $(id_prefix + '-group .inline-related:gt(' + (initial_forms.val() - 1) + ')')
+                $(id_prefix + '-group .inline-item:gt(' + (initial_forms.val() - 1) + ')')
                     .not('.empty_form').remove();
             }
             else {
-                $(id_prefix + '-group .inline-related').not('.empty_form').remove();
+                $(id_prefix + '-group .inline-item').not('.empty_form').remove();
             }
             total_forms.val(parseInt(initial_forms.val()));
         }
@@ -31,7 +31,6 @@
                                  .replace(/__prefix__/g, total_value))
                 .attr('id', prefix + total_value)
                 .removeClass()
-                .addClass('inline-related')
                 .find('.inline_label')
                     .html('#' + total_value)
                     .end()
