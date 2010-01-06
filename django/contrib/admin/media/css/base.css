@@ -327,37 +327,18 @@ table thead th.descending a {
 
 /* ORDERABLE TABLES */
 
-table.orderable tbody tr.hover {
-    background-color: #F6F6F6;
+table.orderable tbody tr td:hover {
+    cursor: move;
 }
 
-table.orderable tbody tr td:nth-child(2) {
-    padding-left: 15px;
+table.orderable tbody tr td:first-child {
+    padding-left: 14px;
     background-image: url(../img/admin/nav-bg-grabber.gif);
     background-repeat: repeat-y;
 }
 
-table.orderable tbody tr td.original p {
-    margin-left: 9px;
-}
-
 table.orderable-initalized .order-cell, body>tr>td.order-cell {
     display: none;
-}
-
-.tDnD_whileDrag {
-    border: 2px dashed #CCC;
-    background-color: #F6F6F6;
-}
-
-.dragHandle {
-    height: 20px;
-    width: 20px;
-    float: right;
-	cursor: move;
-	background-color: #fff;
-	border: 1px solid #f00;
-	display: block;
 }
 
 .empty_form {
