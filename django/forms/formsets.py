@@ -283,7 +283,7 @@ class BaseFormSet(StrAndUnicode):
         """A hook for adding extra fields on to each form instance."""
         if self.can_order:
             # Only pre-fill the ordering field for initial forms.
-            if index != None and index < self.initial_form_count():
+            if index is not None and index < self.initial_form_count():
                 form.fields[ORDERING_FIELD_NAME] = IntegerField(label=_(u'Order'), initial=index+1, required=False)
             else:
                 form.fields[ORDERING_FIELD_NAME] = IntegerField(label=_(u'Order'), required=False)
