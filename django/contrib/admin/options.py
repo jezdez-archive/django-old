@@ -726,16 +726,20 @@ class ModelAdmin(BaseModelAdmin):
             action = action_form.cleaned_data['action']
             func, name, description = self.get_actions(request)[action]
 
-            # Get the list of selected PKs. If nothing's selected, we can't
-            # perform an action on it, so bail.
-            selected = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
-            if not selected:
+            selected = None
+            if not action_form.cleaned_data.get('select_across'):
+                queryset = queryset.filter(pk__in=selected)
+            else:
+                # Get the list of selected PKs. If nothing's selected, we can't
+                # perform an action on it, so bail.
+                selected = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+            if not selected or not queryset:
                 # Reminder that something needs to be selected or nothing will happen
                 msg = _("Items must be selected in order to perform actions on them. No items have been changed.")
                 self.message_user(request, msg)
                 return None
 
-            response = func(self, request, queryset.filter(pk__in=selected))
+            response = func(self, request, queryset)
 
             # Actions may return an HttpResponse, which will be used as the
             # response from the POST. If not, we'll be a good little HTTP
