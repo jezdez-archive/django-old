@@ -1,26 +1,42 @@
 var Actions = {
     init: function() {
         counterSpans = document.getElementsBySelector('span._acnt');
-        counterContainer = document.getElementsBySelector('span.action_counter');
+        counterContainer = document.getElementsBySelector('span.action-counter');
+        allContainer = document.getElementsBySelector('div.actions span.all');
+        actionContainer = document.getElementsBySelector('div.actions');
         actionCheckboxes = document.getElementsBySelector('tr input.action-select');
+        acrossInputs = document.getElementsBySelector('div.actions input.select-across');
+        acrossQuestions = document.getElementsBySelector('div.actions span.question');
+        acrossClears = document.getElementsBySelector('div.actions span.clear');
+        acrossQuestionLinks = document.getElementsBySelector('div.actions span.question a');
+        acrossClearsLinks = document.getElementsBySelector('div.actions span.clear a');
+
+        Actions.setDisplay(counterContainer, 'inline');
         selectAll = document.getElementById('action-toggle');
-        lastChecked = null;
-        for(var i = 0; i < counterContainer.length; i++) {
-            counterContainer[i].style.display = 'inline';
-        }
         if (selectAll) {
-            selectAll.style.display = 'inline';
+            Actions.setDisplay([selectAll], 'inline');
             addEvent(selectAll, 'click', function() {
                 Actions.checker(selectAll.checked);
                 Actions.counter();
             });
-            addEvent(document.getElementById('actions-question-select-link'), 'click', function() {
-                Actions.selectAllAcrossPages();
-            });
-            addEvent(document.getElementById('actions-question-select-link-clear'), 'click', function() {
-                Actions.clearSelectAllAcrossPages();
-            });
+            for(var i = 0; i < acrossQuestionLinks.length; i++) {
+                addEvent(acrossQuestionLinks[i], 'click', function() {
+                    Actions.setAcrossInputs(1);
+                    Actions.showClear()
+                    return false;
+                });
+            }
+            for(var i = 0; i < acrossClearsLinks.length; i++) {
+                addEvent(acrossClearsLinks[i], 'click', function() {
+                    selectAll.checked = false;
+                    Actions.clearAcross();
+                    Actions.checker(0);
+                    Actions.counter();
+                    return false;
+                });
+            }
         }
+        lastChecked = null;
         for(var i = 0; i < actionCheckboxes.length; i++) {
             addEvent(actionCheckboxes[i], 'click', function(e) {
                 if (!e) { var e = window.event; }
@@ -63,28 +79,53 @@ var Actions = {
             tr.className = tr.className.replace(' selected', '');
         }  
     },
-    checked: function() {
-        selectAll.checked = false;
-        document.getElementById('actions-question-select').style.display = 'none';
-        document.getElementById('actions-question-clear').style.display = 'none';
-        document.getElementById('action-select-all').value = '0';
+    setAcrossInputs: function(checked) {
+        for(var i = 0; i < acrossInputs.length; i++) {
+            acrossInputs[i].value = checked;
+        }
     },
     checker: function(checked) {
-        document.getElementById('actions-question-select').style.display = 'block';
+        if (checked) {
+            Actions.showQuestion()
+        } else {
+            Actions.reset();
+        }
         for(var i = 0; i < actionCheckboxes.length; i++) {
             actionCheckboxes[i].checked = checked;
             Actions.toggleRow(actionCheckboxes[i].parentNode.parentNode, checked);
         }
     },
-    selectAllAcrossPages: function() {
-        document.getElementById('actions-question-select').style.display = 'none';
-        document.getElementById('actions-question-clear').style.display = 'block';
-        document.getElementById('action-select-all').value = '1';
+    setDisplay: function(elements, value) {
+        for(var i = 0; i < elements.length; i++) {
+            elements[i].style.display = value;
+        }
     },
-    clearSelectAllAcrossPages: function() {
-        document.getElementById('actions-question-select').style.display = 'none';
-        document.getElementById('actions-question-clear').style.display = 'none';
-        document.getElementById('action-select-all').value = '0';
+    showQuestion: function() {
+        Actions.setDisplay(acrossQuestions, 'inline');
+        Actions.setDisplay(acrossClears, 'none');
+        Actions.setDisplay(allContainer, 'none');
+    },
+    showClear: function() {
+        Actions.setDisplay(acrossQuestions, 'none');
+        Actions.setDisplay(acrossClears, 'inline');
+        Actions.setDisplay(counterContainer, 'none');
+        Actions.setDisplay(allContainer, 'inline');
+        for(var i = 0; i < actionContainer.length; i++) {
+            Actions.toggleRow(actionContainer[i], true)
+        }
+    },
+    reset: function() {
+        Actions.setDisplay(allContainer, 'none')
+        Actions.setDisplay(acrossQuestions, 'none');
+        Actions.setDisplay(acrossClears, 'none');
+        Actions.setDisplay(counterContainer, 'inline');
+    },
+    clearAcross: function() {
+        Actions.reset()
+        Actions.setAcrossInputs(0);
+        for(var i = 0; i < actionContainer.length; i++) {
+            Actions.toggleRow(actionContainer[i], false)
+        }
     },
     counter: function() {
         counter = 0;
@@ -96,7 +137,13 @@ var Actions = {
         for(var i = 0; i < counterSpans.length; i++) {
             counterSpans[i].innerHTML = counter;
         }
-        selectAll.checked = (counter == actionCheckboxes.length);
+        if (counter == actionCheckboxes.length) {
+            selectAll.checked = true;
+            Actions.showQuestion()
+        } else {
+            selectAll.checked = false;
+            Actions.clearAcross()
+        }
     }
 };
 

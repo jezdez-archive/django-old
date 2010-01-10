@@ -228,12 +228,6 @@
     border-right: 1px solid #ddd;
 }
 
-.action_counter{
-    font-size: 11px;
-    margin: 0 0.5em;
-    display: none;
-}
-
 #changelist table input {
     margin: 0;
 }
@@ -250,10 +244,18 @@
     background: white url(../img/admin/nav-bg-reverse.gif) 0 -10px repeat-x;
 }
 
-#changelist .actions.actions-question{
-    padding: 0.5em 0.7em;
-    background-color: #FFFCCF;
-    background-image: none;
+#changelist .actions.selected {
+    background: #fffccf;
+    border-top: 1px solid #fffee8;
+    border-bottom: 1px solid #edecd6;
+}
+
+#changelist .actions span.all,
+#changelist .actions span.action-counter,
+#changelist .actions span.clear,
+#changelist .actions span.question {
+    font-size: 11px;
+    margin: 0 0.5em;
     display: none;
 }
 
