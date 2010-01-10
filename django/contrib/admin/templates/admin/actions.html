@@ -8,3 +8,17 @@
     </span>
     {% endif %}
 </div>
+
+{% if actions_on_top %}
+  {% ifnotequal cl.result_count cl.result_list|length %}
+  <input type="text" name="action-select-all" id="action-select-all" value="0">
+  <div class="actions actions-question" id="actions-question-select">
+      All {{ cl.result_list|length }} {{ cl.opts.verbose_name_plural }} on this page are selected.
+      <a href="#" id="actions-question-select-link">Select all {{ cl.result_list|length }} {{ cl.opts.verbose_name_plural }}</a>
+  </div>
+  <div class="actions actions-question" id="actions-question-clear">
+      All {{ cl.result_list|length }} {{ cl.opts.verbose_name_plural }} are selected.
+      <a href="#"id="actions-question-select-link-clear">Clear selection</a>
+  </div>
+  {% endifnotequal %}
+{% endif %}

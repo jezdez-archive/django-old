@@ -250,6 +250,13 @@
     background: white url(../img/admin/nav-bg-reverse.gif) 0 -10px repeat-x;
 }
 
+#changelist .actions.actions-question{
+    padding: 0.5em 0.7em;
+    background-color: #FFFCCF;
+    background-image: none;
+    display: none;
+}
+
 #changelist .actions:last-child {
     border-bottom: none;
 }
