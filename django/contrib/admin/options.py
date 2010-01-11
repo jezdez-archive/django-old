@@ -724,20 +724,22 @@ class ModelAdmin(BaseModelAdmin):
         # If the form's valid we can handle the action.
         if action_form.is_valid():
             action = action_form.cleaned_data['action']
+            select_across = action_form.cleaned_data['select_across']
             func, name, description = self.get_actions(request)[action]
 
             # Get the list of selected PKs. If nothing's selected, we can't
-            # perform an action on it, so bail.
+            # perform an action on it, so bail. Except we want to perform
+            # the action explicitely on all objects.
             selected = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
-
-            if not action_form.cleaned_data.get('select_across'):
-                queryset = queryset.filter(pk__in=selected)
-
-            if not selected or not queryset.exists():
+            if not selected and not select_across:
                 # Reminder that something needs to be selected or nothing will happen
                 msg = _("Items must be selected in order to perform actions on them. No items have been changed.")
                 self.message_user(request, msg)
                 return None
+
+            if not select_across:
+                # Perform the action only on the selected objects
+                queryset = queryset.filter(pk__in=selected)
 
             response = func(self, request, queryset)
 
