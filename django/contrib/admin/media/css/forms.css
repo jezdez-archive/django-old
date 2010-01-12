@@ -302,7 +302,7 @@ fieldset.monospace textarea {
     position: absolute;
     left: 0;
     height: 1.1em;
-    padding: 2px 25px;
+    padding: 2px 7px;
     overflow: hidden;
     font-size: 9px;
     font-weight: bold;
@@ -321,9 +321,20 @@ fieldset.monospace textarea {
     padding: 0 5px;
 }
 
-.inline-group ul.tools a.add {
+.inline-group div.add-row {
+    padding: 5px;
+}
+
+.inline-group div span.delete-row {
+    float: right;
+}
+
+.inline-group ul.tools a.add,
+.inline-group div.add-row a,
+.inline-group .tabular tr.add-row td a {
     background: url(../img/admin/icon_addlink.gif) 0 50% no-repeat;
     padding-left: 14px;
+    font-size: 12px;
 }
 
 .clear {

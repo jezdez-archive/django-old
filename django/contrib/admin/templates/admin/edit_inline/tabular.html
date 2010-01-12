@@ -1,6 +1,6 @@
 {% load i18n %}
-<div class="inline-group">
-<div class="tabular inline-related {% if forloop.last %}last-related{% endif %}" id="{{ inline_admin_formset.formset.prefix }}-group">
+<div class="inline-group" id="{{ inline_admin_formset.formset.prefix }}-group">
+  <div class="tabular inline-related {% if forloop.last %}last-related{% endif %}">
 {{ inline_admin_formset.formset.management_form }}
 <fieldset class="module">
    <h2>{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}</h2>
@@ -20,7 +20,9 @@
         {% if inline_admin_form.form.non_field_errors %}
         <tr><td colspan="{{ inline_admin_form.field_count }}">{{ inline_admin_form.form.non_field_errors }}</td></tr>
         {% endif %}
-        <tr class="inline-item {% if forloop.last %}empty_form{% endif %} {% cycle 'row1' 'row2' %} {% if inline_admin_form.original or inline_admin_form.show_url %}has_original{% endif %}"
+
+        {# <tr class="{% cycle row1,row2 %} {% if inline_admin_form.original or inline_admin_form.show_url %}has_original{% endif %}"> #}
+        <tr class="inline-item{% if forloop.last %} empty_form{% endif %} {% cycle 'row1' 'row2' %} {% if inline_admin_form.original or inline_admin_form.show_url %}has_original{% endif %}"
              id="{{ inline_admin_formset.formset.prefix }}{% if not forloop.last %}{{ forloop.counter }}{% else %}-empty{% endif %}">
 
         <td class="original">
@@ -67,15 +69,24 @@
    </table>
 
 </fieldset>
-
-<ul class="tools" id="{{ inline_admin_formset.formset.prefix }}-addinline">
-    <li><a id="{{ inline_admin_formset.formset.prefix }}-add" class="add" href="#">{% blocktrans with inline_admin_formset.opts.verbose_name as verbose_name %}Add a {{ verbose_name }}{% endblocktrans %}</a></li>
-</ul>
-</div>
+  </div>
 </div>
 
 <script type="text/javascript">
-jQuery(document).ready(function() {
-    jQuery().djAdminInlines('{{ inline_admin_formset.formset.prefix }}');
-});
+$(function() {
+    var rows = '#{{ inline_admin_formset.formset.prefix }}-group .tabular.inline-related tbody tr';
+    alternatingRows = function(row) {
+        $(rows).not('.add-row').removeClass('row1 row2')
+            .filter(':even').addClass('row1').end()
+            .filter(rows + ':odd').addClass('row2');
+    }
+    $(rows).formset({
+        prefix: '{{ inline_admin_formset.formset.prefix }}',
+        addText: '{% blocktrans with inline_admin_formset.opts.verbose_name|title as verbose_name %}Add another {{ verbose_name }}{% endblocktrans %}',
+        formCssClass: 'dynamic-{{ inline_admin_formset.formset.prefix }}',
+        deleteText: '{% trans "Remove" %}',
+        removed: alternatingRows,
+        added: alternatingRows,
+    })
+})
 </script>
