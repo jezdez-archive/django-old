@@ -77,6 +77,17 @@ class Media(StrAndUnicode):
         if data:
             self._js.extend([path for path in data if path not in self._js])
 
+    def del_js(self, data):
+        if data:
+            self._js = [path for path in self._js if path not in data]
+
+    def del_css(self, data):
+        if data:
+            dump = {}
+            for medium, paths in self._css.items():
+                dump.setdefault(medium, []).extend([path for path in paths if path not in data[medium]])
+            self._css = dump
+
     def add_css(self, data):
         if data:
             for medium, paths in data.items():
@@ -88,6 +99,13 @@ class Media(StrAndUnicode):
             getattr(combined, 'add_' + name)(getattr(self, '_' + name, None))
             getattr(combined, 'add_' + name)(getattr(other, '_' + name, None))
         return combined
+
+    def __sub__(self, other):
+        subtracted = Media()
+        for name in MEDIA_TYPES:
+            getattr(subtracted, 'add_' + name)(getattr(self, '_' + name, None))
+            getattr(subtracted, 'del_' + name)(getattr(other, '_' + name, None))
+        return subtracted
 
 def media_property(cls):
     def _media(self):

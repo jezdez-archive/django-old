@@ -140,6 +140,17 @@ media_tests = r"""
 <script type="text/javascript" src="/some/js"></script>
 <script type="text/javascript" src="/other/js"></script>
 
+# Media properties can remove the media of their parents
+>>> class MyWidget5a(MyWidget5):
+...     def _media(self):
+...         return super(MyWidget5a, self).media - Media(css={'all': ('/some/path',)}, js = ('/some/js',))
+...     media = property(_media)
+
+>>> w5a = MyWidget5a()
+>>> print w5a.media
+<link href="/other/path" type="text/css" media="all" rel="stylesheet" />
+<script type="text/javascript" src="/other/js"></script>
+
 # Media properties can reference the media of their parents,
 # even if the parent media was defined using a class
 >>> class MyWidget6(MyWidget1):
