@@ -84,9 +84,10 @@ $(function() {
         prefix: '{{ inline_admin_formset.formset.prefix }}',
         addText: '{% blocktrans with inline_admin_formset.opts.verbose_name|title as verbose_name %}Add another {{ verbose_name }}{% endblocktrans %}',
         formCssClass: 'dynamic-{{ inline_admin_formset.formset.prefix }}',
+        deleteCssClass: 'inline-deletelink',
         deleteText: '{% trans "Remove" %}',
         removed: alternatingRows,
-        added: alternatingRows,
+        added: alternatingRows
     })
 })
 </script>

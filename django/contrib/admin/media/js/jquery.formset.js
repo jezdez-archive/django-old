@@ -6,6 +6,8 @@
  * Copyright (c) 2009, Stanislaus Madueke
  * All rights reserved.
  *
+ * Modified for the Django by Jannis Leidel
+ *
  * Licensed under the New BSD License
  * See: http://www.opensource.org/licenses/bsd-license.php
  */
@@ -46,27 +48,22 @@
                 $(row).html($(row).html().replace(/__prefix__/g, formCount));
                 $(row).addClass(options.formCssClass).attr('id', options.prefix + formCount);
 
-                // $(row).find('.inline_label').each(function() {
-                //     var hash_regex = new RegExp('(#\\d+)');
-                //     $(this).html($(this).html().replace(hash_regex, '#' + formCount));
-                // });
-
                 if ($(row).is('TR')) {
                     // If the forms are laid out in table rows, insert
                     // the remove button into the last table cell:
-                    $(row).children(':last').append('<div class="' + options.deleteCssClass +'"><a href="javascript:void(0)">' + options.deleteText + '</a></div>');
+                    $(row).children(':last').append('<div><a class="' + options.deleteCssClass +'" href="javascript:void(0)">' + options.deleteText + '</a></div>');
                 } else if ($(row).is('UL') || $(row).is('OL')) {
                     // If they're laid out as an ordered/unordered list,
                     // insert an <li> after the last list item:
-                    $(row).append('<li class="' + options.deleteCssClass + '"><a href="javascript:void(0)">' + options.deleteText +'</a></li>');
+                    $(row).append('<li><a class="' + options.deleteCssClass +'" href="javascript:void(0)">' + options.deleteText +'</a></li>');
                 } else {
                     // Otherwise, just insert the remove button as the
                     // last child element of the form's container:
-                    $(row).children(':first').append('<span class="' + options.deleteCssClass + '"><a href="javascript:void(0)">' + options.deleteText +'</a></span>');
+                    $(row).children(':first').append('<span><a class="' + options.deleteCssClass + '" href="javascript:void(0)">' + options.deleteText +'</a></span>');
                 }
                 // Update number of total forms
                 $('#id_' + options.prefix + '-TOTAL_FORMS').val(formCount);
-                $(row).find('.' + options.deleteCssClass + ' a').click(function() {
+                $(row).find('a.' + options.deleteCssClass).click(function() {
                     // Remove the parent form containing this button:
                     var row = $(this).parents('.' + options.formCssClass);
                     row.remove();

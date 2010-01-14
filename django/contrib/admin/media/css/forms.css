@@ -321,12 +321,11 @@ fieldset.monospace textarea {
     padding: 0 5px;
 }
 
-.inline-group div.add-row {
-    padding: 5px;
-}
-
-.inline-group div span.delete-row {
-    float: right;
+.inline-group div.add-row,
+.inline-group .tabular tr.add-row td {
+    color: #666;
+    padding: 3px 5px;
+    background: #e1e1e1 url(../img/admin/nav-bg.gif) top left repeat-x;
 }
 
 .inline-group ul.tools a.add,
@@ -334,7 +333,7 @@ fieldset.monospace textarea {
 .inline-group .tabular tr.add-row td a {
     background: url(../img/admin/icon_addlink.gif) 0 50% no-repeat;
     padding-left: 14px;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .clear {
