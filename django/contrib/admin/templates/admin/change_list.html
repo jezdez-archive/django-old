@@ -15,6 +15,12 @@
       #changelist table thead th:first-child {width: inherit}
     </style>
   {% endif %}
+  <script type="text/javascript">
+  $(function() {
+      $('tr input.action-select').actions();
+  })
+  </script>
+
 {% endblock %}
 
 {% block bodyclass %}change-list{% endblock %}

@@ -132,4 +132,4 @@
         added: null,                     // Function called each time a new form is added
         removed: null                    // Function called each time a form is deleted
     }
-})(jQuery)
+})(jQuery);

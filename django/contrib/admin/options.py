@@ -268,7 +268,7 @@ class ModelAdmin(BaseModelAdmin):
 
         js = ['js/core.js', 'js/admin/RelatedObjectLookups.js']
         if self.actions is not None:
-            js.extend(['js/getElementsBySelector.js', 'js/actions.js'])
+            js.extend(['js/jquery-1.4.min.js', 'js/actions.min.js'])
         if self.prepopulated_fields:
             js.append('js/urlify.js')
         if self.opts.get_ordered_objects():
