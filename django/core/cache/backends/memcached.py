@@ -20,7 +20,9 @@ except ImportError:
 class CacheClass(BaseCache):
     def __init__(self, server, params, key_prefix='', version=1, key_func=None):
         BaseCache.__init__(self, params, key_prefix, version, key_func)
-        self._cache = memcache.Client(server.split(';'))
+        if isinstance(server, basestring):
+            server = server.split(';')
+        self._cache = memcache.Client(server)
 
     def _get_memcache_timeout(self, timeout):
         """

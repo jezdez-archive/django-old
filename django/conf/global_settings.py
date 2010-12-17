@@ -431,6 +431,9 @@ SESSION_FILE_PATH = None                                # Directory to store ses
 # CACHE #
 #########
 
+# New format
+CACHES = {
+}
 # The cache backend to use.  See the docstring in django.core.cache for the
 # possible values.
 CACHE_BACKEND = 'locmem://'

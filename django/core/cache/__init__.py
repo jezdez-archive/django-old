@@ -12,7 +12,7 @@ get_cache() function made available here. get_cache() takes a backend URI
 (e.g. "memcached://127.0.0.1:11211/") and returns an instance of a backend
 cache class.
 
-See docs/cache.txt for information on the public API.
+See docs/topics/cache.txt for information on the public API.
 """
 
 try:
@@ -43,6 +43,26 @@ BACKENDS = {
     'dummy': 'dummy',
 }
 
+DEFAULT_CACHE_ALIAS = 'default'
+
+if not settings.CACHES:
+    import warnings
+    warnings.warn(
+        "settings.CACHE_* is deprecated; use settings.CACHES instead.",
+        PendingDeprecationWarning
+    )
+    settings.CACHES[DEFAULT_CACHE_ALIAS] = {
+        'ENGINE': 'django.core.cache.backends.locmem',
+        'LOCATION': '',
+        'OPTIONS': {},
+        'VERSION': settings.CACHE_VERSION,
+        'KEY_PREFIX': settings.CACHE_KEY_PREFIX,
+        'KEY_FUNCTION': settings.CACHE_KEY_FUNCTION,
+    }
+
+if DEFAULT_CACHE_ALIAS not in settings.CACHES:
+    raise ImproperlyConfigured("You must define a '%s' cache" % DEFAULT_CACHE_ALIAS)
+
 def parse_backend_uri(backend_uri):
     """
     Converts the "backend_uri" into a cache scheme ('db', 'memcached', etc), a
@@ -67,32 +87,48 @@ def parse_backend_uri(backend_uri):
 
     return scheme, host, params
 
-def get_cache(backend_uri, key_prefix=None, version=None, key_func=None):
+def get_key_params(key_prefix=None, version=None, key_func=None):
+    """
+    Helper function to handle key related cache options,
+    returning a dictionary with the correct values.
+    """
     if key_prefix is None:
         key_prefix = settings.CACHE_KEY_PREFIX
     if version is None:
         version = settings.CACHE_VERSION
     if key_func is None:
         key_func = settings.CACHE_KEY_FUNCTION
-
     if key_func is not None and not callable(key_func):
         key_func_module_path, key_func_name = key_func.rsplit('.', 1)
         key_func_module = importlib.import_module(key_func_module_path)
         key_func = getattr(key_func_module, key_func_name)
+    return {'key_prefix': key_prefix, 'version': version, 'key_func': key_func}
 
-    scheme, host, params = parse_backend_uri(backend_uri)
-    if scheme in BACKENDS:
-        name = 'django.core.cache.backends.%s' % BACKENDS[scheme]
+def get_cache(backend, key_prefix=None, version=None, key_func=None):
+    key_params = get_key_params(key_prefix, version, key_func)
+    if '://' in backend:
+        scheme, host, params = parse_backend_uri(backend)
+        if scheme in BACKENDS:
+            name = 'django.core.cache.backends.%s' % BACKENDS[scheme]
+        else:
+            name = scheme
     else:
-        name = scheme
+        # Get the CACHES entry for the wanted backend
+        cache_conf = settings.CACHES.get(backend, None)
+        if cache_conf is None:
+            InvalidCacheBackendError("Couldn't find a cache backend named '%s'" % backend)
+        # Update the key_params from cache specific settings
+        for key_param in key_params:
+            if key_param.upper() in cache_conf:
+                key_params[key_param] = cache_conf[key_param.upper()]
+        host, name, params = cache_conf['LOCATION'], cache_conf['ENGINE'], cache_conf['OPTIONS']
     module = importlib.import_module(name)
-    return module.CacheClass(host, params, key_prefix=key_prefix, version=version, key_func=key_func)
+    return module.CacheClass(host, params, **key_params)
 
-cache = get_cache(settings.CACHE_BACKEND)
+cache = get_cache(DEFAULT_CACHE_ALIAS)
 
 # Some caches -- python-memcached in particular -- need to do a cleanup at the
 # end of a request cycle. If the cache provides a close() method, wire it up
 # here.
 if hasattr(cache, 'close'):
     signals.request_finished.connect(cache.close)
-
