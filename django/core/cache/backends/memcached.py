@@ -18,8 +18,8 @@ except ImportError:
         raise InvalidCacheBackendError("Memcached cache backend requires either the 'memcache' or 'cmemcache' library")
 
 class CacheClass(BaseCache):
-    def __init__(self, server, params, key_prefix='', version=1, key_func=None):
-        BaseCache.__init__(self, params, key_prefix, version, key_func)
+    def __init__(self, server, params):
+        BaseCache.__init__(self, params)
         if isinstance(server, basestring):
             server = server.split(';')
         self._cache = memcache.Client(server)

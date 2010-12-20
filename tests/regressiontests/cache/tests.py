@@ -705,10 +705,10 @@ class DBCacheTests(unittest.TestCase, BaseCacheTests):
         self._table_name = 'test cache table'
         management.call_command('createcachetable', self._table_name, verbosity=0, interactive=False)
         self.cache = get_cache('db://%s?max_entries=30' % self._table_name)
-        self.prefix_cache = get_cache('db://%s' % self._table_name, key_prefix='cacheprefix')
-        self.v2_cache = get_cache('db://%s' % self._table_name, version=2)
-        self.custom_key_cache = get_cache('db://%s' % self._table_name, key_func=custom_key_func)
-        self.custom_key_cache2 = get_cache('db://%s' % self._table_name, key_func='regressiontests.cache.tests.custom_key_func')
+        self.prefix_cache = get_cache('db://%s' % self._table_name, KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache('db://%s' % self._table_name, VERSION=2)
+        self.custom_key_cache = get_cache('db://%s' % self._table_name, KEY_FUNC=custom_key_func)
+        self.custom_key_cache2 = get_cache('db://%s' % self._table_name, KEY_FUNC='regressiontests.cache.tests.custom_key_func')
 
     def tearDown(self):
         from django.db import connection
@@ -725,10 +725,10 @@ class DBCacheTests(unittest.TestCase, BaseCacheTests):
 class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
     def setUp(self):
         self.cache = get_cache('locmem://?max_entries=30')
-        self.prefix_cache = get_cache('locmem://', key_prefix='cacheprefix')
-        self.v2_cache = get_cache('locmem://', version=2)
-        self.custom_key_cache = get_cache('locmem://?max_entries=30', key_func=custom_key_func)
-        self.custom_key_cache2 = get_cache('locmem://?max_entries=30', key_func='regressiontests.cache.tests.custom_key_func')
+        self.prefix_cache = get_cache('locmem://', KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache('locmem://', VERSION=2)
+        self.custom_key_cache = get_cache('locmem://?max_entries=30', KEY_FUNC=custom_key_func)
+        self.custom_key_cache2 = get_cache('locmem://?max_entries=30', KEY_FUNC='regressiontests.cache.tests.custom_key_func')
 
         # LocMem requires a hack to make the other caches
         # share a data store with the 'normal' cache.
@@ -758,10 +758,10 @@ class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
 class MemcachedCacheTests(unittest.TestCase, BaseCacheTests):
     def setUp(self):
         self.cache = get_cache(settings.CACHE_BACKEND)
-        self.prefix_cache = get_cache(settings.CACHE_BACKEND, key_prefix='cacheprefix')
-        self.v2_cache = get_cache(settings.CACHE_BACKEND, version=2)
-        self.custom_key_cache = get_cache(settings.CACHE_BACKEND, key_func=custom_key_func)
-        self.custom_key_cache2 = get_cache(settings.CACHE_BACKEND, key_func='regressiontests.cache.tests.custom_key_func')
+        self.prefix_cache = get_cache(settings.CACHE_BACKEND, KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache(settings.CACHE_BACKEND, VERSION=2)
+        self.custom_key_cache = get_cache(settings.CACHE_BACKEND, KEY_FUNC=custom_key_func)
+        self.custom_key_cache2 = get_cache(settings.CACHE_BACKEND, KEY_FUNC='regressiontests.cache.tests.custom_key_func')
 
     def tearDown(self):
         self.cache.clear()
@@ -790,10 +790,10 @@ class FileBasedCacheTests(unittest.TestCase, BaseCacheTests):
     def setUp(self):
         self.dirname = tempfile.mkdtemp()
         self.cache = get_cache('file://%s?max_entries=30' % self.dirname)
-        self.prefix_cache = get_cache('file://%s' % self.dirname, key_prefix='cacheprefix')
-        self.v2_cache = get_cache('file://%s' % self.dirname, version=2)
-        self.custom_key_cache = get_cache('file://%s' % self.dirname, key_func=custom_key_func)
-        self.custom_key_cache2 = get_cache('file://%s' % self.dirname, key_func='regressiontests.cache.tests.custom_key_func')
+        self.prefix_cache = get_cache('file://%s' % self.dirname, KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache('file://%s' % self.dirname, VERSION=2)
+        self.custom_key_cache = get_cache('file://%s' % self.dirname, KEY_FUNC=custom_key_func)
+        self.custom_key_cache2 = get_cache('file://%s' % self.dirname, KEY_FUNC='regressiontests.cache.tests.custom_key_func')
 
     def tearDown(self):
         self.cache.clear()

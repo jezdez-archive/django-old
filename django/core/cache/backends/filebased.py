@@ -12,8 +12,8 @@ from django.core.cache.backends.base import BaseCache
 from django.utils.hashcompat import md5_constructor
 
 class CacheClass(BaseCache):
-    def __init__(self, dir, params, key_prefix='', version=1, key_func=None):
-        BaseCache.__init__(self, params, key_prefix, version, key_func)
+    def __init__(self, dir, params):
+        BaseCache.__init__(self, params)
         self._dir = dir
         if not os.path.exists(self._dir):
             self._createdir()

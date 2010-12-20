@@ -310,51 +310,47 @@ Note: Without a really compelling reason, such as a host that doesn't support
 them, you should stick to the cache backends included with Django. They've
 been well-tested and are easy to use.
 
-Cache ENGINE arguments
-----------------------
+Options passed to all backends
+------------------------------
 
 Each cache backend may take arguments. They're given in the
 :setting:`CACHES-OPTIONS` dictionary of the the :setting:`CACHES` setting.
 Valid arguments are as follows:
 
-    * ``timeout``: The default timeout, in seconds, to use for the cache.
+    * ``TIMEOUT``: The default timeout, in seconds, to use for the cache.
       This argument defaults to 300 seconds (5 minutes).
 
-    * ``max_entries``: For the ``locmem``, ``filesystem`` and ``database``
+    * ``MAX_ENTRIES``: For the ``locmem``, ``filesystem`` and ``database``
       backends, the maximum number of entries allowed in the cache before old
       values are deleted. This argument defaults to ``300``.
 
-    * ``cull_frequency``: The fraction of entries that are culled when
-      ``max_entries`` is reached. The actual ratio is ``1/cull_frequency``, so
-      set ``cull_frequency=2`` to cull half of the entries when ``max_entries``
-      is reached.
+    * ``CULL_FREQUENCY``: The fraction of entries that are culled when
+      ``MAX_ENTRIES`` is reached. The actual ratio is ``1/CULL_FREQUENCY``, so
+      set ``CULL_FREQUENCY`` to ``2`` to cull half of the entries when
+      ``MAX_ENTRIES`` is reached.
 
-      A value of ``0`` for ``cull_frequency`` means that the entire cache will
-      be dumped when ``max_entries`` is reached. This makes culling *much*
+      A value of ``0`` for ``CULL_FREQUENCY`` means that the entire cache will
+      be dumped when ``MAX_ENTRIES`` is reached. This makes culling *much*
       faster at the expense of more cache misses.
 
-In this example, ``timeout`` is set to ``60``::
+In this example, ``TIMEOUT`` is set to ``60``::
 
     CACHES = {
         'default': {
             'ENGINE': 'django.core.cache.backends.memcached',
             'NAME': '127.0.0.1:11211',
-            'OPTIONS': {
-                'timeout': 60,
-            }
+            'TIMEOUT': 60,
         }
     }
 
 
-In this example, ``timeout`` is ``30`` and ``max_entries`` is ``400``::
+In this example, ``TIMEOUT`` is ``30`` and ``MAX_ENTRIES`` is ``400``::
 
     CACHES = {
         'default': {
             'ENGINE': 'django.core.cache.backends.locmem',
-            'OPTIONS': {
-                'timeout': 30,
-                'max_entries': 400,
-            }
+            'TIMEOUT': 30,
+            'MAX_ENTRIES': 400,
         }
     }
 

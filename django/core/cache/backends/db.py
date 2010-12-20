@@ -26,8 +26,8 @@ class Options(object):
         self.proxy = False
 
 class BaseDatabaseCacheClass(BaseCache):
-    def __init__(self, table, params, key_prefix='', version=1, key_func=None):
-        BaseCache.__init__(self, params, key_prefix, version, key_func)
+    def __init__(self, table, params):
+        BaseCache.__init__(self, params)
         self._table = table
 
         class CacheEntry(object):

@@ -75,17 +75,18 @@ if not settings.CACHES:
         "settings.CACHE_* is deprecated; use settings.CACHES instead.",
         PendingDeprecationWarning
     )
-    scheme, host, params = parse_backend_uri(settings.CACHE_BACKEND)
-    if scheme in BACKENDS:
-        scheme = 'django.core.cache.backends.%s' % BACKENDS[scheme]
-    settings.CACHES[DEFAULT_CACHE_ALIAS] = {
-        'ENGINE': scheme,
+    engine, host, params = parse_backend_uri(settings.CACHE_BACKEND)
+    if engine in BACKENDS:
+        engine = 'django.core.cache.backends.%s' % BACKENDS[engine]
+    defaults = {
+        'ENGINE': engine,
         'NAME': host,
-        'OPTIONS': params,
         'VERSION': settings.CACHE_VERSION,
         'KEY_PREFIX': settings.CACHE_KEY_PREFIX,
-        'KEY_FUNCTION': settings.CACHE_KEY_FUNCTION,
+        'KEY_FUNC': settings.CACHE_KEY_FUNCTION,
     }
+    defaults.update(params)
+    settings.CACHES[DEFAULT_CACHE_ALIAS] = defaults
 
 if DEFAULT_CACHE_ALIAS not in settings.CACHES:
     raise ImproperlyConfigured("You must define a '%s' cache" % DEFAULT_CACHE_ALIAS)
@@ -98,10 +99,9 @@ def parse_backend_conf(backend, **kwargs):
     # Try to get the CACHES entry for the given backend name first
     conf = settings.CACHES.get(backend, None)
     if conf is not None:
-        engine = conf.get('ENGINE')
-        name = conf.get('NAME', '')
-        params = conf.get('OPTIONS', {})
-        return engine, name, params, conf
+        engine = conf.pop('ENGINE')
+        name = conf.pop('NAME', '')
+        return engine, name, conf
     else:
         # Trying to import the given backend, in case it's a dotted path
         try:
@@ -109,30 +109,12 @@ def parse_backend_conf(backend, **kwargs):
         except ImportError, e:
             raise InvalidCacheBackendError(
                 "Could not import backend named '%s'" % backend)
-        else:
-            name = kwargs.pop('name', '')
-            return backend, name, kwargs, {}
+        name = kwargs.pop('NAME', '')
+        return backend, name, kwargs
     raise InvalidCacheBackendError(
         "Couldn't find a cache backend named '%s'" % backend)
 
-def handle_key_params(key_prefix=None, version=None, key_func=None):
-    """
-    Helper function to handle key related cache options,
-    returning a dictionary with the correct values.
-    """
-    if key_prefix is None:
-        key_prefix = settings.CACHE_KEY_PREFIX
-    if version is None:
-        version = settings.CACHE_VERSION
-    if key_func is None:
-        key_func = settings.CACHE_KEY_FUNCTION
-    if key_func is not None and not callable(key_func):
-        key_func_module_path, key_func_name = key_func.rsplit('.', 1)
-        key_func_module = importlib.import_module(key_func_module_path)
-        key_func = getattr(key_func_module, key_func_name)
-    return dict(key_prefix=key_prefix, version=version, key_func=key_func)
-
-def get_cache(backend, key_prefix=None, version=None, key_func=None, **kwargs):
+def get_cache(backend, **kwargs):
     """
     Function to load a cache backend dynamically. This is flexible by design
     to allow different use cases:
@@ -148,28 +130,21 @@ def get_cache(backend, key_prefix=None, version=None, key_func=None, **kwargs):
     To load a backend with its dotted import path,
     including arbitrary options::
 
-        cache = get_cache('django.core.cache.backends.memcached', name='127.0.0.1:11211', timeout=30)
+        cache = get_cache('django.core.cache.backends.memcached', **{
+            'NAME': '127.0.0.1:11211', 'TIMEOUT': 30,
+        })
 
     """
-    key_params = handle_key_params(key_prefix, version, key_func)
     if '://' in backend:
-        scheme, name, params = parse_backend_uri(backend)
-        if scheme in BACKENDS:
-            engine = 'django.core.cache.backends.%s' % BACKENDS[scheme]
-        else:
-            engine = scheme
+        engine, name, params = parse_backend_uri(backend)
+        if engine in BACKENDS:
+            engine = 'django.core.cache.backends.%s' % BACKENDS[engine]
+        params.update(kwargs)
     else:
-        engine, name, params, conf = parse_backend_conf(backend, **kwargs)
-        # Update the key_params from cache specific settings
-        for key_param in key_params:
-            if key_param == 'key_func':
-                param_name = 'key_function' # even setting with param name
-            else:
-                param_name = key_param
-            if param_name.upper() in conf:
-                key_params[key_param] = conf[param_name.upper()]
+        engine, name, params = parse_backend_conf(backend, **kwargs)
+        # backwards compat
     module = importlib.import_module(engine)
-    return module.CacheClass(name, params, **key_params)
+    return module.CacheClass(name, params)
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)
 

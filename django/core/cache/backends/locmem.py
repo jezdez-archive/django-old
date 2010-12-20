@@ -10,8 +10,8 @@ from django.core.cache.backends.base import BaseCache
 from django.utils.synch import RWLock
 
 class CacheClass(BaseCache):
-    def __init__(self, _, params, key_prefix='', version=1, key_func=None):
-        BaseCache.__init__(self, params, key_prefix, version, key_func)
+    def __init__(self, _, params):
+        BaseCache.__init__(self, params)
         self._cache = {}
         self._expire_info = {}
         self._lock = RWLock()
