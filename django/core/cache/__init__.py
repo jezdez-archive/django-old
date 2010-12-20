@@ -53,7 +53,7 @@ if not settings.CACHES:
     )
     settings.CACHES[DEFAULT_CACHE_ALIAS] = {
         'ENGINE': 'django.core.cache.backends.locmem',
-        'LOCATION': '',
+        'NAME': '',
         'OPTIONS': {},
         'VERSION': settings.CACHE_VERSION,
         'KEY_PREFIX': settings.CACHE_KEY_PREFIX,
@@ -87,7 +87,7 @@ def parse_backend_uri(backend_uri):
 
     return scheme, host, params
 
-def get_key_params(key_prefix=None, version=None, key_func=None):
+def handle_key_params(key_prefix=None, version=None, key_func=None):
     """
     Helper function to handle key related cache options,
     returning a dictionary with the correct values.
@@ -102,28 +102,28 @@ def get_key_params(key_prefix=None, version=None, key_func=None):
         key_func_module_path, key_func_name = key_func.rsplit('.', 1)
         key_func_module = importlib.import_module(key_func_module_path)
         key_func = getattr(key_func_module, key_func_name)
-    return {'key_prefix': key_prefix, 'version': version, 'key_func': key_func}
+    return dict(key_prefix=key_prefix, version=version, key_func=key_func)
 
 def get_cache(backend, key_prefix=None, version=None, key_func=None):
-    key_params = get_key_params(key_prefix, version, key_func)
+    key_params = handle_key_params(key_prefix, version, key_func)
     if '://' in backend:
-        scheme, host, params = parse_backend_uri(backend)
+        scheme, name, params = parse_backend_uri(backend)
         if scheme in BACKENDS:
-            name = 'django.core.cache.backends.%s' % BACKENDS[scheme]
+            engine = 'django.core.cache.backends.%s' % BACKENDS[scheme]
         else:
-            name = scheme
+            engine = scheme
     else:
         # Get the CACHES entry for the wanted backend
         cache_conf = settings.CACHES.get(backend, None)
         if cache_conf is None:
             InvalidCacheBackendError("Couldn't find a cache backend named '%s'" % backend)
+        name, engine, params = cache_conf['NAME'], cache_conf['ENGINE'], cache_conf['OPTIONS']
         # Update the key_params from cache specific settings
         for key_param in key_params:
             if key_param.upper() in cache_conf:
                 key_params[key_param] = cache_conf[key_param.upper()]
-        host, name, params = cache_conf['LOCATION'], cache_conf['ENGINE'], cache_conf['OPTIONS']
-    module = importlib.import_module(name)
-    return module.CacheClass(host, params, **key_params)
+    module = importlib.import_module(engine)
+    return module.CacheClass(name, params, **key_params)
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)
 
