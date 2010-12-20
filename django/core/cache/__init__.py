@@ -120,6 +120,8 @@ def get_cache(backend, key_prefix=None, version=None, key_func=None):
         name, engine, params = cache_conf['NAME'], cache_conf['ENGINE'], cache_conf['OPTIONS']
         # Update the key_params from cache specific settings
         for key_param in key_params:
+            if key_param == 'key_func':
+                key_param = 'key_function' # even setting with param name
             if key_param.upper() in cache_conf:
                 key_params[key_param] = cache_conf[key_param.upper()]
     module = importlib.import_module(engine)
