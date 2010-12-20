@@ -137,14 +137,14 @@ CACHES
 Default: ``{}`` (Empty dictionary)
 
 A dictionary containing the settings for all caches to be used with
-Django. It is a nested dictionary whose contents maps database aliases
+Django. It is a nested dictionary whose contents maps cache aliases
 to a dictionary containing the options for an individual cache.
 
 The :setting:`CACHES` setting must configure a ``default`` cache;
 any number of additional caches may also be specified.
 
-The simplest possible settings file is for a single-database setup using
-SQLite. This can be configured using the following::
+The simplest possible settings file is for a single-cache setup using
+local memory. This can be configured using the following::
 
     CACHES = {
         'default': {
@@ -162,7 +162,7 @@ ENGINE
 
 Default: ``''`` (Empty string)
 
-The database backend to use. The built-in database backends are:
+The cache backend to use. The built-in cache backends are:
 
     * ``'django.core.cache.backends.db'``
     * ``'django.core.cache.backends.dummy'``
