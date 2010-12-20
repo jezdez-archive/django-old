@@ -55,9 +55,6 @@ if not settings.CACHES:
         'ENGINE': 'django.core.cache.backends.locmem',
         'NAME': '',
         'OPTIONS': {},
-        'VERSION': settings.CACHE_VERSION,
-        'KEY_PREFIX': settings.CACHE_KEY_PREFIX,
-        'KEY_FUNCTION': settings.CACHE_KEY_FUNCTION,
     }
 
 if DEFAULT_CACHE_ALIAS not in settings.CACHES:
