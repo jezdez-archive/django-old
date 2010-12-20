@@ -127,14 +127,115 @@ Default: Not defined
 The site-specific user profile model used by this site. See
 :ref:`auth-profiles`.
 
-.. setting:: CACHE_BACKEND
+.. setting:: CACHES
 
-CACHE_BACKEND
--------------
+CACHES
+------
 
-Default: ``'locmem://'``
+.. versionadded:: 1.3
 
-The cache backend to use. See :doc:`/topics/cache`.
+Default: ``{}`` (Empty dictionary)
+
+A dictionary containing the settings for all caches to be used with
+Django. It is a nested dictionary whose contents maps database aliases
+to a dictionary containing the options for an individual cache.
+
+The :setting:`CACHES` setting must configure a ``default`` cache;
+any number of additional caches may also be specified.
+
+The simplest possible settings file is for a single-database setup using
+SQLite. This can be configured using the following::
+
+    CACHES = {
+        'default': {
+            'ENGINE': 'django.core.cache.backends.locmem',
+        }
+    }
+
+For other cache backends, other options will be required.
+The following inner options are available.
+
+.. setting:: CACHES-ENGINE
+
+ENGINE
+~~~~~~
+
+Default: ``''`` (Empty string)
+
+The database backend to use. The built-in database backends are:
+
+    * ``'django.core.cache.backends.db'``
+    * ``'django.core.cache.backends.dummy'``
+    * ``'django.core.cache.backends.filebased'``
+    * ``'django.core.cache.backends.locmem'``
+    * ``'django.core.cache.backends.memcached'``
+
+You can use a cache backend that doesn't ship with Django by setting
+``ENGINE`` to a fully-qualified path (i.e.
+``mypackage.backends.whatever``). Writing a whole new cache backend from
+scratch is left as an exercise to the reader; see the other backends for
+examples.
+
+.. note::
+    Prior to Django 1.2, you could use a URI based version of the backend
+    name to reference the built-in cache backends (e.g., you could use
+    ``'db://tablename'`` to refer to the database backend). This format has
+    been deprecated, and will be removed in Django 1.5.
+
+.. setting:: CACHES-NAME
+
+NAME
+~~~~
+
+Default: ``''`` (Empty string)
+
+The name of the cache to use. For the file system cache backend, it's the
+full path to where cached items are stored, e.g.::
+
+    CACHES = {
+        'default': {
+            'ENGINE': 'django.core.cache.backends.filebased',
+            'NAME': '/var/tmp/django_cache',
+        }
+    }
+
+.. setting:: CACHES-OPTIONS
+
+OPTIONS
+~~~~~~~
+
+Default: ``{}`` (Empty dictionary)
+
+Extra parameters to pass to the cache backend. Available parameters
+vary depending on your cache backend.
+
+Some information on available parameters can be found in the
+:doc:`Cache Backends </topic/cache>` documentation. For more information,
+consult your backend module's own documentation.
+
+.. setting:: CACHES-KEY_FUNCTION
+
+KEY_FUNCTION
+~~~~~~~~~~~~
+
+This is similar to the :setting:`CACHE_KEY_FUNCTION` and can be used to
+override this value on per-cache backend basis.
+
+.. setting:: CACHES-KEY_PREFIX
+
+KEY_PREFIX
+~~~~~~~~~~
+
+This is similar to the :setting:`CACHE_KEY_PREFIX` and can be used to
+override this value on per-cache backend basis.
+
+.. setting:: CACHES-VERSION
+
+VERSION
+~~~~~~~
+
+This is similar to the :setting:`CACHE_VERSION` and can be used to
+override this value on per-cache backend basis.
 
 .. setting:: CACHE_KEY_FUNCTION
 
@@ -166,6 +267,15 @@ A string that will be automatically included (prepended by default) to
 all cache keys used by the Django server.
 
 See the :ref:`cache documentation <cache_key_prefixing>` for more information.
+
+.. setting:: CACHE_BACKEND
+
+CACHE_BACKEND
+-------------
+
+.. deprecated:: 1.3
+   This setting has been replaced by :setting:`ENGINE <CACHES-ENGINE>` in
+   :setting:`CACHES`.
 
 .. setting:: CACHE_MIDDLEWARE_ANONYMOUS_ONLY
 
@@ -293,7 +403,7 @@ SQLite. This can be configured using the following::
 For other database backends, or more complex SQLite configurations, other options
 will be required. The following inner options are available.
 
-.. setting:: ENGINE
+.. setting:: DATABASE-ENGINE
 
 ENGINE
 ~~~~~~
