@@ -172,12 +172,19 @@ The cache backend to use. The built-in cache backends are:
 
 You can use a cache backend that doesn't ship with Django by setting
 ``ENGINE`` to a fully-qualified path (i.e.
-``mypackage.backends.whatever``). Writing a whole new cache backend from
-scratch is left as an exercise to the reader; see the other backends for
-examples.
+``mypackage.backends.whatever``) of a module that contains a ``CacheClass``.
+Alternatively you can provide a fully-qualified path to a subclass of one of
+the built-in ``CacheClass`` classes, e.g.::
+
+    ``'example.cache.MagicCache'``
+
+where ``MagicCache`` is a subclass of one of the built-in cache backends.
+
+Writing a whole new cache backend from scratch is left as an exercise to
+the reader; see the other backends for examples.
 
 .. note::
-    Prior to Django 1.2, you could use a URI based version of the backend
+    Prior to Django 1.3, you could use a URI based version of the backend
     name to reference the built-in cache backends (e.g., you could use
     ``'db://tablename'`` to refer to the database backend). This format has
     been deprecated, and will be removed in Django 1.5.

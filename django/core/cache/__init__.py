@@ -29,7 +29,8 @@ except ImportError:
 
 from django.conf import settings
 from django.core import signals
-from django.core.cache.backends.base import InvalidCacheBackendError, CacheKeyWarning
+from django.core.cache.backends.base import (
+    InvalidCacheBackendError, CacheKeyWarning, BaseCache)
 from django.utils import importlib
 
 # Name for use in settings file --> name of module in "backends" directory.
@@ -143,8 +144,10 @@ def get_cache(backend, **kwargs):
     else:
         engine, name, params = parse_backend_conf(backend, **kwargs)
         # backwards compat
-    module = importlib.import_module(engine)
-    return module.CacheClass(name, params)
+    imported_engine = importlib.import_module(engine)
+    if issubclass(imported_engine, BaseCache):
+        return imported_engine(name, params)
+    return imported_engine.CacheClass(name, params)
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)
 
