@@ -253,20 +253,21 @@ This setting is only honored by cache backends that implement their
 own culling scheme. It may be ignored by some backends (most notably,
 the memcache backend)
 
-.. setting:: CACHES-NAME
+.. setting:: CACHES-LOCATION
 
-NAME
-~~~~
+LOCATION
+~~~~~~~~
 
 Default: ``''`` (Empty string)
 
-The name of the cache to use. For the file system cache backend, it's the
-full path to where cached items are stored, e.g.::
+The location of the cache to use. This might be the directory for a
+file system cache, a host and port for a memcache server, or simply an
+identifying name for a local memory cache. e.g.::
 
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.filebased',
-            'NAME': '/var/tmp/django_cache',
+            'LOCATION': '/var/tmp/django_cache',
         }
     }
 

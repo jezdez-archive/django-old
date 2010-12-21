@@ -77,7 +77,7 @@ This is available at ftp://ftp.tummy.com/pub/python-memcached/
     ``cmemcache`` will be removed completely in Django 1.4.
 
 To use Memcached with Django, set :setting:`BACKEND <CACHES-BACKEND>` to
-``django.core.cache.backends.memcached`` and :setting:`NAME <CACHES-NAME>`
+``django.core.cache.backends.memcached`` and :setting:`LOCATION <CACHES-LOCATION>`
 to ``ip:port`` values, where ``ip`` is the IP address of the Memcached
 daemon and ``port`` is the port on which Memcached is running.
 
@@ -86,7 +86,7 @@ In this example, Memcached is running on localhost (127.0.0.1) port 11211::
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.memcached',
-            'NAME': '127.0.0.1:11211',
+            'LOCATION': '127.0.0.1:11211',
         }
     }
 
@@ -103,7 +103,7 @@ address 172.19.26.240 and 172.19.26.242, both on port 11211::
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.memcached',
-            'NAME': [
+            'LOCATION': [
                 '172.19.26.240:11211',
                 '172.19.26.242:11211',
             ]
@@ -117,7 +117,7 @@ on the IP addresses 172.19.26.240 (port 11211), 172.19.26.242 (port 11212), and
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.memcached',
-            'NAME': [
+            'LOCATION': [
                 '172.19.26.240:11211',
                 '172.19.26.242:11211',
                 '172.19.26.244:11213',
@@ -150,14 +150,14 @@ system expects.
 
 Once you've created that database table, set your
 :setting:`BACKEND <CACHES-BACKEND>` setting to
-``"django.core.cache.backends.db"``, and :setting:`NAME <CACHES-NAME>` to
+``"django.core.cache.backends.db"``, and :setting:`LOCATION <CACHES-LOCATION>` to
 ``tablename`` -- the name of the database table. In this example, the cache
 table's name is ``my_cache_table``::
 
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.db',
-            'NAME': 'my_cache_table',
+            'LOCATION': 'my_cache_table',
         }
     }
 
@@ -220,7 +220,7 @@ For example, to store cached data in ``/var/tmp/django_cache``, use this setting
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.filebased',
-            'NAME': '/var/tmp/django_cache',
+            'LOCATION': '/var/tmp/django_cache',
         }
     }
 
@@ -231,7 +231,7 @@ like this::
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.filebased',
-            'NAME': 'c:/foo/bar',
+            'LOCATION': 'c:/foo/bar',
         }
     }
 
@@ -261,13 +261,13 @@ For example::
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem',
-            'NAME': 'unique-snowflake'
+            'LOCATION': 'unique-snowflake'
         }
     }
 
-The cache :setting:`NAME <CACHES-NAME>` is used to identify individual
+The cache :setting:`LOCATION <CACHES-LOCATION>` is used to identify individual
 memory stores. If you only have one locmem cache, you can omit the
-:setting:`NAME <CACHES-NAME>`; however, if you have more that one local
+:setting:`LOCATION <CACHES-LOCATION>`; however, if you have more that one local
 memory cache, you will need to assign a name to at least one of them in
 order to keep them separate.
 
@@ -362,7 +362,7 @@ In this example, ``TIMEOUT`` is set to ``60``::
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.memcached',
-            'NAME': '127.0.0.1:11211',
+            'LOCATION': '127.0.0.1:11211',
             'TIMEOUT': 60,
         }
     }

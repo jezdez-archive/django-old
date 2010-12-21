@@ -80,7 +80,7 @@ if not settings.CACHES:
         backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
     defaults = {
         'BACKEND': backend,
-        'NAME': host,
+        'LOCATION': host,
     }
     defaults.update(params)
     settings.CACHES[DEFAULT_CACHE_ALIAS] = defaults
@@ -98,7 +98,7 @@ def parse_backend_conf(backend, **kwargs):
     if conf is not None:
         args = conf.copy()
         backend = args.pop('BACKEND')
-        name = args.pop('NAME', '')
+        name = args.pop('LOCATION', '')
         return backend, name, args
     else:
         # Trying to import the given backend, in case it's a dotted path
@@ -107,7 +107,7 @@ def parse_backend_conf(backend, **kwargs):
         except ImportError, e:
             raise InvalidCacheBackendError(
                 "Could not import cache backend named '%s'" % backend)
-        name = kwargs.pop('NAME', '')
+        name = kwargs.pop('LOCATION', '')
         return backend, name, kwargs
     raise InvalidCacheBackendError(
         "Couldn't find a cache backend named '%s'" % backend)
@@ -129,7 +129,7 @@ def get_cache(backend, **kwargs):
     including arbitrary options::
 
         cache = get_cache('django.core.cache.backends.memcached', **{
-            'NAME': '127.0.0.1:11211', 'TIMEOUT': 30,
+            'LOCATION': '127.0.0.1:11211', 'TIMEOUT': 30,
         })
 
     """
