@@ -142,19 +142,23 @@ def get_cache(backend, **kwargs):
         })
 
     """
-    if '://' in backend:
-        # for backwards compatibility
-        backend, location, params = parse_backend_uri(backend)
-        if backend in BACKENDS:
-            backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
-        params.update(kwargs)
-        mod = importlib.import_module(backend)
-        backend_cls = mod.CacheClass
-    else:
-        backend, location, params = parse_backend_conf(backend, **kwargs)
-        mod_path, cls_name = backend.rsplit('.', 1)
-        mod = importlib.import_module(mod_path)
-        backend_cls = getattr(mod, cls_name)
+    try:
+        if '://' in backend:
+            # for backwards compatibility
+            backend, location, params = parse_backend_uri(backend)
+            if backend in BACKENDS:
+                backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
+            params.update(kwargs)
+            mod = importlib.import_module(backend)
+            backend_cls = mod.CacheClass
+        else:
+            backend, location, params = parse_backend_conf(backend, **kwargs)
+            mod_path, cls_name = backend.rsplit('.', 1)
+            mod = importlib.import_module(mod_path)
+            backend_cls = getattr(mod, cls_name)
+    except (AttributeError, ImportError), e:
+        raise InvalidCacheBackendError(
+            "Could not find backend '%s': %s" % (backend, e))
     return backend_cls(location, params)
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)
