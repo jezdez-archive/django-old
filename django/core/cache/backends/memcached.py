@@ -12,13 +12,13 @@ class CacheClass(BaseCache):
         self._local = local()
         if isinstance(server, basestring):
             self._servers = server.split(';')
-        
+
         # The exception type to catch from the underlying library for a key
         # that was not found. This is a ValueError for python-memcache,
         # pylibmc.NotFound for pylibmc, and cmemcache will return None without
         # raising an exception.
         self.LibraryValueNotFoundException = ValueError
-        
+
         binding = params.get('BINDING', None)
         if binding:
             memcache = importlib.import_module(binding)
@@ -41,7 +41,7 @@ class CacheClass(BaseCache):
                     )
         self._behaviors = params.get('BEHAVIORS', None)
         self._lib = memcache
-    
+
     @property
     def _cache(self):
         """
@@ -58,7 +58,7 @@ class CacheClass(BaseCache):
 
         self._local.client = client
         return client
-            
+
     def _get_memcache_timeout(self, timeout):
         """
         Memcached deals with long (> 30 days) timeouts in a special
@@ -117,7 +117,7 @@ class CacheClass(BaseCache):
 
         # python-memcache responds to incr on non-existent keys by
         # raising a ValueError, pylibmc by raising a pylibmc.NotFound
-        # and Cmemcache returns None. In both cases, 
+        # and Cmemcache returns None. In both cases,
         # we should raise a ValueError though.
         except self.LibraryValueNotFoundException:
             val = None
@@ -132,14 +132,14 @@ class CacheClass(BaseCache):
 
         # python-memcache responds to incr on non-existent keys by
         # raising a ValueError, pylibmc by raising a pylibmc.NotFound
-        # and Cmemcache returns None. In both cases, 
+        # and Cmemcache returns None. In both cases,
         # we should raise a ValueError though.
         except self.LibraryValueNotFoundException:
             val = None
         if val is None:
             raise ValueError("Key '%s' not found" % key)
         return val
-        
+
     def set_many(self, data, timeout=0, version=None):
         safe_data = {}
         for key, value in data.items():
