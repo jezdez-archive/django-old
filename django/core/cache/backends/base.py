@@ -50,13 +50,14 @@ class BaseCache(object):
             timeout = 300
         self.default_timeout = timeout
 
-        max_entries = params.get('max_entries', params.get('MAX_ENTRIES', 300))
+        options = params.get('OPTIONS', {})
+        max_entries = params.get('max_entries', options.get('MAX_ENTRIES', 300))
         try:
             self._max_entries = int(max_entries)
         except (ValueError, TypeError):
             self._max_entries = 300
 
-        cull_frequency = params.get('cull_frequency', params.get('CULL_FREQUENCY', 3))
+        cull_frequency = params.get('cull_frequency', options.get('CULL_FREQUENCY', 3))
         try:
             self._cull_frequency = int(cull_frequency)
         except (ValueError, TypeError):

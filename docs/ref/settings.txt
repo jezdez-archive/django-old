@@ -193,22 +193,6 @@ which may be a wrapper around ``memcached`` or ``pylibmc``. The
 the library that will be used to support cache operations. The value
 should be a module name on the import path.
 
-.. setting:: CACHES-CULL_FREQUENCY
-
-CULL_FREQUENCY
-~~~~~~~~~~~~~~
-
-Default: 3
-
-The fraction of entries that are culled when :setting:`MAX_ENTRIES
-<CACHES-MAX_ENTRIES>` is reached. The actual ratio is
-``1/CULL_FREQUENCY``, so set ``cull_frequency=2`` to cull half of the
-entries when :setting:`MAX_ENTRIES <CACHES-MAX_ENTRIES>` is reached.
-
-This setting is only honored by cache backends that implement their
-own culling scheme. It may be ignored by some backends (most notably,
-the memcache backend)
-
 .. setting:: CACHES-KEY_FUNCTION
 
 KEY_FUNCTION
@@ -237,21 +221,6 @@ A string that will be automatically included (prepended by default) to
 all cache keys used by the Django server.
 
 See the :ref:`cache documentation <cache_key_prefixing>` for more information.
-
-
-.. setting:: CACHES-MAX_ENTRIES
-
-MAX_ENTRIES
-~~~~~~~~~~~
-
-Default: 300
-
-The maximum number of entries to allow in the cache before dropping the
-least recently used entries.
-
-This setting is only honored by cache backends that implement their
-own culling scheme. It may be ignored by some backends (most notably,
-the memcache backend)
 
 .. setting:: CACHES-LOCATION
 
