@@ -138,7 +138,7 @@ Default::
 
     {
         'default': {
-            'ENGINE': 'django.core.cache.backends.locmem.LocMemCache',
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         }
     }
 
@@ -151,6 +151,33 @@ any number of additional caches may also be specified. If you
 are using a cache backend other than the local memory cache, or
 you need to define multiple caches, other options will be required.
 The following cache options are available.
+
+.. setting:: CACHES-BACKEND
+
+BACKEND
+~~~~~~~
+
+Default: ``''`` (Empty string)
+
+The cache backend to use. The built-in cache backends are:
+
+    * ``'django.core.cache.backends.db.DatabaseCache'``
+    * ``'django.core.cache.backends.dummy.DummyCache'``
+    * ``'django.core.cache.backends.filebased.FileBasedCache'``
+    * ``'django.core.cache.backends.locmem.LocMemCache'``
+    * ``'django.core.cache.backends.memcached.MemcachedCache'``
+
+You can use a cache backend that doesn't ship with Django by setting
+:setting:`BACKEND <CACHE-BACKEND>` to a fully-qualified path of a cache
+backend class (i.e. ``mypackage.backends.whatever.WhateverCache``).
+Writing a whole new cache backend from scratch is left as an exercise
+to the reader; see the other backends for examples.
+
+.. note::
+    Prior to Django 1.3, you could use a URI based version of the backend
+    name to reference the built-in cache backends (e.g., you could use
+    ``'db://tablename'`` to refer to the database backend). This format has
+    been deprecated, and will be removed in Django 1.5.
 
 .. setting:: CACHES-BINDING
 
@@ -181,33 +208,6 @@ entries when :setting:`MAX_ENTRIES <CACHES-MAX_ENTRIES>` is reached.
 This setting is only honored by cache backends that implement their
 own culling scheme. It may be ignored by some backends (most notably,
 the memcache backend)
-
-.. setting:: CACHES-ENGINE
-
-ENGINE
-~~~~~~
-
-Default: ``''`` (Empty string)
-
-The cache backend to use. The built-in cache backends are:
-
-    * ``'django.core.cache.backends.db.DatabaseCache'``
-    * ``'django.core.cache.backends.dummy.DummyCache'``
-    * ``'django.core.cache.backends.filebased.FileBasedCache'``
-    * ``'django.core.cache.backends.locmem.LocMemCache'``
-    * ``'django.core.cache.backends.memcached.MemcachedCache'``
-
-You can use a cache backend that doesn't ship with Django by setting
-``ENGINE`` to a fully-qualified path of a cache backend class (i.e.
-``mypackage.backends.whatever.WhateverCache``). Writing a whole new cache
-backend from scratch is left as an exercise to the reader;
-see the other backends for examples.
-
-.. note::
-    Prior to Django 1.3, you could use a URI based version of the backend
-    name to reference the built-in cache backends (e.g., you could use
-    ``'db://tablename'`` to refer to the database backend). This format has
-    been deprecated, and will be removed in Django 1.5.
 
 .. setting:: CACHES-KEY_FUNCTION
 
@@ -253,20 +253,21 @@ This setting is only honored by cache backends that implement their
 own culling scheme. It may be ignored by some backends (most notably,
 the memcache backend)
 
-.. setting:: CACHES-NAME
+.. setting:: CACHES-LOCATION
 
-NAME
-~~~~
+LOCATION
+~~~~~~~~
 
 Default: ``''`` (Empty string)
 
-The name of the cache to use. For the file system cache backend, it's the
-full path to where cached items are stored, e.g.::
+The location of the cache to use. This might be the directory for a
+file system cache, a host and port for a memcache server, or simply an
+identifying name for a local memory cache. e.g.::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.filebased.FileBasedCache',
-            'NAME': '/var/tmp/django_cache',
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/var/tmp/django_cache',
         }
     }
 
@@ -2036,7 +2037,7 @@ CACHE_BACKEND
 -------------
 
 .. deprecated:: 1.3
-   This setting has been replaced by :setting:`ENGINE <CACHES-ENGINE>` in
+   This setting has been replaced by :setting:`BACKEND <CACHES-BACKEND>` in
    :setting:`CACHES`.
 
 .. setting:: DATABASE_ENGINE

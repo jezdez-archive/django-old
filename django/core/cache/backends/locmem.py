@@ -9,12 +9,19 @@ except ImportError:
 from django.core.cache.backends.base import BaseCache
 from django.utils.synch import RWLock
 
+# Global in-memory store of cache data. Keyed by name, to provide
+# multiple named local memory caches.
+_caches = {}
+_expire_info = {}
+_locks = {}
+
 class LocMemCache(BaseCache):
-    def __init__(self, _, params):
+    def __init__(self, name, params):
         BaseCache.__init__(self, params)
-        self._cache = {}
-        self._expire_info = {}
-        self._lock = RWLock()
+        global _caches, _expire_info, _locks
+        self._cache = _caches.setdefault(name, {})
+        self._expire_info = _expire_info.setdefault(name, {})
+        self._lock = _locks.setdefault(name, RWLock())
 
     def add(self, key, value, timeout=None, version=None):
         key = self.make_key(key, version=version)

@@ -87,8 +87,8 @@ if not settings.CACHES:
     if engine in backend_classes:
         engine = 'django.core.cache.backends.%s' % backend_classes[engine]
     defaults = {
-        'ENGINE': engine,
-        'NAME': host,
+        'BACKEND': engine,
+        'LOCATION': host,
     }
     defaults.update(params)
     settings.CACHES[DEFAULT_CACHE_ALIAS] = defaults
@@ -105,9 +105,9 @@ def parse_backend_conf(backend, **kwargs):
     conf = settings.CACHES.get(backend, None)
     if conf is not None:
         args = conf.copy()
-        engine = args.pop('ENGINE')
-        name = args.pop('NAME', '')
-        return engine, name, args
+        backend = args.pop('BACKEND')
+        location = args.pop('LOCATION', '')
+        return backend, location, args
     else:
         # Trying to import the given backend, in case it's a dotted path
         mod_path, cls_name = backend.rsplit('.', 1)
@@ -116,8 +116,8 @@ def parse_backend_conf(backend, **kwargs):
             backend_cls = getattr(mod, cls_name)
         except (AttributeError, ImportError):
             raise InvalidCacheBackendError("Could not find backend '%s'" % backend)
-        name = kwargs.pop('NAME', '')
-        return backend, name, kwargs
+        location = kwargs.pop('LOCATION', '')
+        return backend, location, kwargs
     raise InvalidCacheBackendError(
         "Couldn't find a cache backend named '%s'" % backend)
 
@@ -138,24 +138,24 @@ def get_cache(backend, **kwargs):
     including arbitrary options::
 
         cache = get_cache('django.core.cache.backends.memcached.MemcachedCache', **{
-            'NAME': '127.0.0.1:11211', 'TIMEOUT': 30,
+            'LOCATION': '127.0.0.1:11211', 'TIMEOUT': 30,
         })
 
     """
     if '://' in backend:
         # for backwards compatibility
-        engine, name, params = parse_backend_uri(backend)
-        if engine in BACKENDS:
-            engine = 'django.core.cache.backends.%s' % BACKENDS[engine]
+        backend, location, params = parse_backend_uri(backend)
+        if backend in BACKENDS:
+            backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
         params.update(kwargs)
-        mod = importlib.import_module(engine)
+        mod = importlib.import_module(backend)
         backend_cls = mod.CacheClass
     else:
-        engine, name, params = parse_backend_conf(backend, **kwargs)
-        mod_path, cls_name = engine.rsplit('.', 1)
+        backend, location, params = parse_backend_conf(backend, **kwargs)
+        mod_path, cls_name = backend.rsplit('.', 1)
         mod = importlib.import_module(mod_path)
         backend_cls = getattr(mod, cls_name)
-    return backend_cls(name, params)
+    return backend_cls(location, params)
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)
 
