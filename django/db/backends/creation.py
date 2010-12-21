@@ -359,12 +359,14 @@ class BaseDatabaseCreation(object):
         # (unless you really ask to be flooded)
         call_command('syncdb', verbosity=max(verbosity - 1, 0), interactive=False, database=self.connection.alias)
 
-        from django.core.cache import cache
+        from django.core.cache import get_cache
         from django.core.cache.backends.db import BaseDatabaseCacheClass
-        if isinstance(cache, BaseDatabaseCacheClass):
-            from django.db import router
-            if router.allow_syncdb(self.connection.alias, cache.cache_model_class):
-                call_command('createcachetable', cache._table, database=self.connection.alias)
+        for cache_alias in settings.CACHES:
+            cache = get_cache(cache_alias)
+            if isinstance(cache, BaseDatabaseCacheClass):
+                from django.db import router
+                if router.allow_syncdb(self.connection.alias, cache.cache_model_class):
+                    call_command('createcachetable', cache._table, database=self.connection.alias)
 
         # Get a cursor (even though we don't need one yet). This has
         # the side effect of initializing the test database.

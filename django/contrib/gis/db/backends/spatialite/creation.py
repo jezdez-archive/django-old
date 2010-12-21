@@ -1,6 +1,6 @@
 import os
 from django.conf import settings
-from django.core.cache import cache
+from django.core.cache import get_cache
 from django.core.cache.backends.db import BaseDatabaseCacheClass
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
@@ -30,8 +30,12 @@ class SpatiaLiteCreation(DatabaseCreation):
         self.load_spatialite_sql()
         call_command('syncdb', verbosity=verbosity, interactive=False, database=self.connection.alias)
 
-        if isinstance(cache, BaseDatabaseCacheClass):
-            call_command('createcachetable', cache._table, database=self.connection.alias)
+        for cache_alias in settings.CACHES:
+            cache = get_cache(cache_alias)
+            if isinstance(cache, BaseDatabaseCacheClass):
+                from django.db import router
+                if router.allow_syncdb(self.connection.alias, cache.cache_model_class):
+                    call_command('createcachetable', cache._table, database=self.connection.alias)
         # Get a cursor (even though we don't need one yet). This has
         # the side effect of initializing the test database.
         cursor = self.connection.cursor()
