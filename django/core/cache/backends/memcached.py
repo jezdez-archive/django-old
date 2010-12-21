@@ -6,10 +6,9 @@ from threading import local
 from django.core.cache.backends.base import BaseCache, InvalidCacheBackendError
 from django.utils import importlib
 
-class MemcachedCache(BaseCache):
-    def __init__(self, server, params):
-        BaseCache.__init__(self, params)
-        self._local = local()
+class BaseMemcachedCache(BaseCache):
+    def __init__(self, server, params, library, value_not_found_exception):
+        super(BaseMemcachedCache, self).__init__(params)
         if isinstance(server, basestring):
             self._servers = server.split(';')
         else:
@@ -19,47 +18,17 @@ class MemcachedCache(BaseCache):
         # that was not found. This is a ValueError for python-memcache,
         # pylibmc.NotFound for pylibmc, and cmemcache will return None without
         # raising an exception.
-        self.LibraryValueNotFoundException = ValueError
+        self.LibraryValueNotFoundException = value_not_found_exception
 
-        binding = params.get('BINDING', None)
-        if binding:
-            memcache = importlib.import_module(binding)
-            if hasattr(memcache, 'NotFound'):
-                self.LibraryValueNotFoundException = memcache.NotFound
-        else:
-            try:
-                import cmemcache as memcache
-                import warnings
-                warnings.warn(
-                    "Support for the 'cmemcache' library has been deprecated. Please use python-memcached or pyblimc instead.",
-                    DeprecationWarning
-                )
-            except ImportError:
-                try:
-                    import memcache
-                except:
-                    raise InvalidCacheBackendError(
-                        "Memcached cache backend requires either the 'memcache,' 'pylibmc,' or 'cmemcache' library"
-                    )
+        self._lib = library
         self._options = params.get('OPTIONS', None)
-        self._lib = memcache
 
-    @property
-    def _cache(self):
+    def get_cache(self):
         """
         Implements transparent thread-safe access to a memcached client.
         """
-        client = getattr(self._local, 'client', None)
-        if client:
-            return client
-
-        client = self._lib.Client(self._servers)
-
-        if hasattr(client, 'behaviors') and self._options:
-            client.behaviors = self._options
-
-        self._local.client = client
-        return client
+        return self._lib.Client(self._servers)
+    _cache = property(get_cache)
 
     def _get_memcache_timeout(self, timeout):
         """
@@ -158,6 +127,58 @@ class MemcachedCache(BaseCache):
     def clear(self):
         self._cache.flush_all()
 
-# For backwards compatibility
-class CacheClass(MemcachedCache):
-    pass
+# For backwards compatibility -- the default cache class tries a
+# cascading lookup of cmemcache, then memcache.
+class CacheClass(BaseMemcachedCache):
+    def __init__(self, server, params):
+        try:
+            import cmemcache as memcache
+            import warnings
+            warnings.warn(
+                "Support for the 'cmemcache' library has been deprecated. Please use python-memcached or pyblimc instead.",
+                DeprecationWarning
+            )
+        except ImportError:
+            try:
+                import memcache
+            except:
+                raise InvalidCacheBackendError(
+                    "Memcached cache backend requires either the 'memcache' or 'cmemcache' library"
+                    )
+        super(CacheClass, self).__init__(server, params,
+                                         library=memcache,
+                                         value_not_found_exception=ValueError)
+
+class MemcachedCache(BaseMemcachedCache):
+    "An implementation of a cache binding using python-memcached"
+    def __init__(self, server, params):
+        import memcache
+        super(MemcachedCache, self).__init__(server, params,
+                                             library=memcache,
+                                             value_not_found_exception=ValueError)
+
+class PyLibMCCache(BaseMemcachedCache):
+    "An implementation of a cache binding using pylibmc"
+    def __init__(self, server, params):
+        import pylibmc
+        self._local = local()
+        super(PyLibMCCache, self).__init__(server, params,
+                                           library=pylibmc,
+                                           value_not_found_exception=pylibmc.NotFound)
+
+    def get_cache(self):
+        # PylibMC uses cache options as the 'behaviors' attribute.
+        # It also needs to use threadlocals, because some versions of
+        # PylibMC don't play well with the GIL.
+        client = getattr(self._local, 'client', None)
+        if client:
+            return client
+
+        client = self._lib.Client(self._servers)
+        if self._options:
+            client.behaviors = self._options
+
+        self._local.client = client
+
+        return client
+    _cache = property(get_cache)

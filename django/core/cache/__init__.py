@@ -81,7 +81,7 @@ if not settings.CACHES:
     )
     # Mapping for new-style cache backend api
     backend_classes = {
-        'memcached': 'memcached.MemcachedCache',
+        'memcached': 'memcached.CacheClass',
         'locmem': 'locmem.LocMemCache',
         'file': 'filebased.FileBasedCache',
         'db': 'db.DatabaseCache',

@@ -790,7 +790,7 @@ class MemcachedCacheTests(unittest.TestCase, BaseCacheTests):
         # memcached limits key length to 250
         self.assertRaises(Exception, self.cache.set, 'a' * 251, 'value')
 
-MemcachedCacheTests = unittest.skipUnless(settings.CACHES[DEFAULT_CACHE_ALIAS]['BACKEND'] == 'django.core.cache.backends.memcached.MemcachedCache', "memcached not available")(MemcachedCacheTests)
+MemcachedCacheTests = unittest.skipUnless(settings.CACHES[DEFAULT_CACHE_ALIAS]['BACKEND'].startswith('django.core.cache.backends.memcached.'), "memcached not available")(MemcachedCacheTests)
 
 class FileBasedCacheTests(unittest.TestCase, BaseCacheTests):
     """
