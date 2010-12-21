@@ -748,6 +748,9 @@ class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
         self.custom_key_cache2._cache = self.cache._cache
         self.custom_key_cache2._expire_info = self.cache._expire_info
 
+    def tearDown(self):
+        self.cache.clear()
+
     def test_cull(self):
         self.perform_cull_test(50, 29)
 
@@ -1062,8 +1065,12 @@ class CacheI18nTest(unittest.TestCase):
             return UpdateCacheMiddleware().process_response(request, response)
 
         settings.CACHE_MIDDLEWARE_SECONDS = 60
-        settings.CACHE_MIDDLEWARE_KEY_PREFIX="test"
-        settings.CACHE_BACKEND='locmem:///'
+        settings.CACHE_MIDDLEWARE_KEY_PREFIX = "test"
+        settings.CACHES = {
+            'default': {
+                'ENGINE': 'django.core.cache.backends.locmem'
+            }
+        }
         settings.USE_ETAGS = True
         settings.USE_I18N = True
         en_message ="Hello world!"
@@ -1104,7 +1111,7 @@ class PrefixedCacheI18nTest(CacheI18nTest):
 
     def tearDown(self):
         super(PrefixedCacheI18nTest, self).tearDown()
-        if self.old_cache_key_prefix is None:
+        if self.old_cache_key_prefix is not None:
             del settings.CACHES['default']['KEY_PREFIX']
         else:
             settings.CACHES['default']['KEY_PREFIX'] = self.old_cache_key_prefix
