@@ -14,6 +14,12 @@ cache class.
 
 See docs/topics/cache.txt for information on the public API.
 """
+import types
+from django.conf import settings
+from django.core import signals
+from django.core.cache.backends.base import (
+    InvalidCacheBackendError, CacheKeyWarning, BaseCache)
+from django.utils import importlib
 
 try:
     # The mod_python version is more efficient, so try importing it first.
@@ -27,11 +33,6 @@ except ImportError:
         # PendingDeprecationWarning
         from cgi import parse_qsl
 
-from django.conf import settings
-from django.core import signals
-from django.core.cache.backends.base import (
-    InvalidCacheBackendError, CacheKeyWarning, BaseCache)
-from django.utils import importlib
 
 # Name for use in settings file --> name of module in "backends" directory.
 # Any backend scheme that is not in this dictionary is treated as a Python
@@ -145,7 +146,7 @@ def get_cache(backend, **kwargs):
         engine, name, params = parse_backend_conf(backend, **kwargs)
         # backwards compat
     imported_engine = importlib.import_module(engine)
-    if issubclass(imported_engine, BaseCache):
+    if isinstance(imported_engine, types.ClassType) and issubclass(imported_engine, BaseCache):
         return imported_engine(name, params)
     return imported_engine.CacheClass(name, params)
 
