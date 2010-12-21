@@ -21,7 +21,7 @@ def default_key_func(key, key_prefix, version):
     Default function to generate keys.
 
     Constructs the key used by all other methods. By default it prepends
-    the `key_prefix'. CACHE_KEY_FUNCTION can be used to specify an alternate
+    the `key_prefix'. KEY_FUNCTION can be used to specify an alternate
     function with custom key making behavior.
     """
     return ':'.join([key_prefix, str(version), smart_str(key)])
@@ -62,9 +62,9 @@ class BaseCache(object):
         except (ValueError, TypeError):
             self._cull_frequency = 3
 
-        self.key_prefix = smart_str(params.get('KEY_PREFIX', settings.CACHE_KEY_PREFIX))
-        self.version = params.get('VERSION', settings.CACHE_VERSION)
-        self.key_func = get_key_func(params.get('KEY_FUNC', settings.CACHE_KEY_FUNCTION))
+        self.key_prefix = smart_str(params.get('KEY_PREFIX', ''))
+        self.version = params.get('VERSION', 1)
+        self.key_func = get_key_func(params.get('KEY_FUNCTION', None))
 
     def make_key(self, key, version=None):
         """Constructs the key used by all other methods. By default it

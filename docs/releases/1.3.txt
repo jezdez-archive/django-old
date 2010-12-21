@@ -154,6 +154,29 @@ it is needed, later in the response process.
 For more details, see the :ref:`documentation </ref/template-response>`
 on the :class:`~django.template.TemplateResponse` class.
 
+Caching changes
+~~~~~~~~~~~~~~~
+
+Django 1.3 sees the introduction of several improvements to the
+Django's caching infrastructure.
+
+Firstly, Django now supports multiple named caches. In the same way
+that Django 1.2 introduced support for multiple database connections,
+Django 1.3 allows you to use the new :setting:`CACHES` setting to
+define multiple named cache connections.
+
+Secondly, :ref:`Versioning <cache_versioning>`, :ref:`site-wide
+prefixing <cache_key_prefixing>` and :ref:`transformation
+<cache_key_transformation>` has been added to the cache API.
+
+Lastly, support for pylibmc_ has been added to the memcached cache
+backend.
+
+For more details, see the :ref:`documentation on
+caching in Django<topics/cache>`.
+
+.. _pylibmc: http://sendapatch.se/projects/pylibmc/
+
 Everything else
 ~~~~~~~~~~~~~~~
 
@@ -176,19 +199,21 @@ requests. These include:
       :meth:`~django.test.client.Client.assertNumQueries` -- making it
       easier to test the database activity associated with a view.
 
-    * :ref:`Versioning <cache_versioning>`, :ref:`site-wide prefixing
-      <cache_key_prefixing>` and :ref:`transformation
-      <cache_key_transformation>` has been added to the cache API.
-
     * Support for lookups spanning relations in admin's ``list_filter``.
 
     * Support for _HTTPOnly cookies.
 
-    * mail_admins() and mail_managers() now support easily attaching
-      HTML content to messages.
+    * :meth:`mail_admins()` and :meth:`mail_managers()` now support
+      easily attaching HTML content to messages.
+
+    * :class:`EmailMessage` now supports CC's.
 
     * Error emails now include more of the detail and formatting of
       the debug server error page.
+
+    * :meth:`simple_tag` now accepts a :attr:`takes_context` argument,
+      making it easier to write simple template tags that require
+      access to template context.
 
 .. _HTTPOnly: http://www.owasp.org/index.php/HTTPOnly
 

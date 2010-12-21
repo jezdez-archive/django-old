@@ -674,46 +674,37 @@ class Variable(object):
         instead.
         """
         current = context
-        for bit in self.lookups:
-            try: # dictionary lookup
-                current = current[bit]
-            except (TypeError, AttributeError, KeyError):
-                try: # attribute lookup
-                    current = getattr(current, bit)
-                    if callable(current):
-                        if getattr(current, 'alters_data', False):
-                            current = settings.TEMPLATE_STRING_IF_INVALID
-                        else:
-                            try: # method call (assuming no args required)
-                                current = current()
-                            except TypeError: # arguments *were* required
-                                # GOTCHA: This will also catch any TypeError
-                                # raised in the function itself.
-                                current = settings.TEMPLATE_STRING_IF_INVALID # invalid method call
-                            except Exception, e:
-                                if getattr(e, 'silent_variable_failure', False):
-                                    current = settings.TEMPLATE_STRING_IF_INVALID
-                                else:
-                                    raise
-                except (TypeError, AttributeError):
-                    try: # list-index lookup
-                        current = current[int(bit)]
-                    except (IndexError, # list index out of range
-                            ValueError, # invalid literal for int()
-                            KeyError,   # current is a dict without `int(bit)` key
-                            TypeError,  # unsubscriptable object
-                            ):
-                        raise VariableDoesNotExist("Failed lookup for key [%s] in %r", (bit, current)) # missing attribute
-                except Exception, e:
-                    if getattr(e, 'silent_variable_failure', False):
+        try: # catch-all for silent variable failures
+            for bit in self.lookups:
+                try: # dictionary lookup
+                    current = current[bit]
+                except (TypeError, AttributeError, KeyError):
+                    try: # attribute lookup
+                        current = getattr(current, bit)
+                    except (TypeError, AttributeError):
+                        try: # list-index lookup
+                            current = current[int(bit)]
+                        except (IndexError, # list index out of range
+                                ValueError, # invalid literal for int()
+                                KeyError,   # current is a dict without `int(bit)` key
+                                TypeError,  # unsubscriptable object
+                                ):
+                            raise VariableDoesNotExist("Failed lookup for key [%s] in %r", (bit, current)) # missing attribute
+                if callable(current):
+                    if getattr(current, 'alters_data', False):
                         current = settings.TEMPLATE_STRING_IF_INVALID
                     else:
-                        raise
-            except Exception, e:
-                if getattr(e, 'silent_variable_failure', False):
-                    current = settings.TEMPLATE_STRING_IF_INVALID
-                else:
-                    raise
+                        try: # method call (assuming no args required)
+                            current = current()
+                        except TypeError: # arguments *were* required
+                            # GOTCHA: This will also catch any TypeError
+                            # raised in the function itself.
+                            current = settings.TEMPLATE_STRING_IF_INVALID # invalid method call
+        except Exception, e:
+            if getattr(e, 'silent_variable_failure', False):
+                current = settings.TEMPLATE_STRING_IF_INVALID
+            else:
+                raise
 
         return current
 
@@ -872,21 +863,40 @@ class Library(object):
         self.filters[getattr(func, "_decorated_function", func).__name__] = func
         return func
 
-    def simple_tag(self,func):
-        params, xx, xxx, defaults = getargspec(func)
+    def simple_tag(self, func=None, takes_context=None):
+        def dec(func):
+            params, xx, xxx, defaults = getargspec(func)
+            if takes_context:
+                if params[0] == 'context':
+                    params = params[1:]
+                else:
+                    raise TemplateSyntaxError("Any tag function decorated with takes_context=True must have a first argument of 'context'")
 
-        class SimpleNode(Node):
-            def __init__(self, vars_to_resolve):
-                self.vars_to_resolve = map(Variable, vars_to_resolve)
+            class SimpleNode(Node):
+                def __init__(self, vars_to_resolve):
+                    self.vars_to_resolve = map(Variable, vars_to_resolve)
 
-            def render(self, context):
-                resolved_vars = [var.resolve(context) for var in self.vars_to_resolve]
-                return func(*resolved_vars)
+                def render(self, context):
+                    resolved_vars = [var.resolve(context) for var in self.vars_to_resolve]
+                    if takes_context:
+                        func_args = [context] + resolved_vars
+                    else:
+                        func_args = resolved_vars
+                    return func(*func_args)
 
-        compile_func = curry(generic_tag_compiler, params, defaults, getattr(func, "_decorated_function", func).__name__, SimpleNode)
-        compile_func.__doc__ = func.__doc__
-        self.tag(getattr(func, "_decorated_function", func).__name__, compile_func)
-        return func
+            compile_func = curry(generic_tag_compiler, params, defaults, getattr(func, "_decorated_function", func).__name__, SimpleNode)
+            compile_func.__doc__ = func.__doc__
+            self.tag(getattr(func, "_decorated_function", func).__name__, compile_func)
+            return func
+
+        if func is None:
+            # @register.simple_tag(...)
+            return dec
+        elif callable(func):
+            # @register.simple_tag
+            return dec(func)
+        else:
+            raise TemplateSyntaxError("Invalid arguments provided to simple_tag")
 
     def inclusion_tag(self, file_name, context_class=Context, takes_context=False):
         def dec(func):

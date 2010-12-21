@@ -12,6 +12,8 @@ class CacheClass(BaseCache):
         self._local = local()
         if isinstance(server, basestring):
             self._servers = server.split(';')
+        else:
+            self._servers = server
 
         # The exception type to catch from the underlying library for a key
         # that was not found. This is a ValueError for python-memcache,
@@ -39,7 +41,7 @@ class CacheClass(BaseCache):
                     raise InvalidCacheBackendError(
                         "Memcached cache backend requires either the 'memcache,' 'pylibmc,' or 'cmemcache' library"
                     )
-        self._behaviors = params.get('BEHAVIORS', None)
+        self._options = params.get('OPTIONS', None)
         self._lib = memcache
 
     @property
@@ -54,7 +56,7 @@ class CacheClass(BaseCache):
         client = self._lib.Client(self._servers)
 
         if hasattr(client, 'behaviors'):
-            client.behaviors = self._behaviors
+            client.behaviors = self._options
 
         self._local.client = client
         return client
@@ -117,7 +119,7 @@ class CacheClass(BaseCache):
 
         # python-memcache responds to incr on non-existent keys by
         # raising a ValueError, pylibmc by raising a pylibmc.NotFound
-        # and Cmemcache returns None. In both cases,
+        # and Cmemcache returns None. In all cases,
         # we should raise a ValueError though.
         except self.LibraryValueNotFoundException:
             val = None
@@ -132,7 +134,7 @@ class CacheClass(BaseCache):
 
         # python-memcache responds to incr on non-existent keys by
         # raising a ValueError, pylibmc by raising a pylibmc.NotFound
-        # and Cmemcache returns None. In both cases,
+        # and Cmemcache returns None. In all cases,
         # we should raise a ValueError though.
         except self.LibraryValueNotFoundException:
             val = None

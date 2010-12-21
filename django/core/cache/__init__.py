@@ -33,7 +33,6 @@ except ImportError:
         # PendingDeprecationWarning
         from cgi import parse_qsl
 
-
 # Name for use in settings file --> name of module in "backends" directory.
 # Any backend scheme that is not in this dictionary is treated as a Python
 # import path to a custom backend.
@@ -83,9 +82,6 @@ if not settings.CACHES:
     defaults = {
         'ENGINE': engine,
         'NAME': host,
-        'VERSION': settings.CACHE_VERSION,
-        'KEY_PREFIX': settings.CACHE_KEY_PREFIX,
-        'KEY_FUNC': settings.CACHE_KEY_FUNCTION,
     }
     defaults.update(params)
     settings.CACHES[DEFAULT_CACHE_ALIAS] = defaults
@@ -101,9 +97,10 @@ def parse_backend_conf(backend, **kwargs):
     # Try to get the CACHES entry for the given backend name first
     conf = settings.CACHES.get(backend, None)
     if conf is not None:
-        engine = conf.pop('ENGINE')
-        name = conf.pop('NAME', '')
-        return engine, name, conf
+        args = conf.copy()
+        engine = args.pop('ENGINE')
+        name = args.pop('NAME', '')
+        return engine, name, args
     else:
         # Trying to import the given backend, in case it's a dotted path
         try:
