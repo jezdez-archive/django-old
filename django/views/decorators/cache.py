@@ -40,7 +40,7 @@ def cache_page(*args, **kwargs):
 
     # We also add some asserts to give better error messages in case people are
     # using other ways to call cache_page that no longer work.
-    cache_alias = kwargs.pop('cache', 'default')
+    cache_alias = kwargs.pop('cache', None)
     key_prefix = kwargs.pop('key_prefix', None)
     assert not kwargs, "The only keyword arguments are cache and key_prefix"
     if len(args) > 1:

@@ -148,22 +148,33 @@ class CacheMiddleware(UpdateCacheMiddleware, FetchFromCacheMiddleware):
     Also used as the hook point for the cache decorator, which is generated
     using the decorator-from-middleware utility.
     """
-    def __init__(self, cache_timeout=None, key_prefix=None, cache_anonymous_only=None, cache_alias=None):
+    def __init__(self, cache_timeout=None, cache_anonymous_only=None, **kwargs):
         self.cache_timeout = cache_timeout
         if cache_timeout is None:
             self.cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
 
-        if key_prefix is None:
-            self.key_prefix = settings.CACHE_MIDDLEWARE_KEY_PREFIX
-        else:
-            self.key_prefix = key_prefix
+        # We need to differentiate between "provided, but using default value",
+        # and "not provided". If the value is provided using a default, then
+        # we fall back to system defaults. If it is not provided at all,
+        # we need to use middleware defaults.
+        try:
+            cache_alias = kwargs.get('cache_alias')
+            if cache_alias is None:
+                cache_alias = DEFAULT_CACHE_ALIAS
+        except KeyError:
+            cache_alias = settings.CACHE_MIDDLEWARE_ALIAS
+
+        cache_kwargs = {}
+        try:
+            key_prefix = kwargs.get('key_prefix')
+            if key_prefix is not None:
+                cache_kwargs['KEY_PREFIX'] = key_prefix
+        except KeyError:
+            cache_kwargs['KEY_PREFIX'] = settings.CACHE_MIDDLEWARE_KEY_PREFIX
 
         if cache_anonymous_only is None:
             self.cache_anonymous_only = getattr(settings, 'CACHE_MIDDLEWARE_ANONYMOUS_ONLY', False)
         else:
             self.cache_anonymous_only = cache_anonymous_only
 
-        if cache_alias is None:
-            self.cache = get_cache(settings.CACHE_MIDDLEWARE_ALIAS, key_prefix=self.key_prefix)
-        else:
-            self.cache = get_cache(cache_alias, key_prefix=self.key_prefix)
+        self.cache = get_cache(cache_alias, **cache_kwargs)
