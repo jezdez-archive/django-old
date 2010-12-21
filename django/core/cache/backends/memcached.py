@@ -1,29 +1,64 @@
 "Memcached cache backend"
 
 import time
+from threading import local
 
 from django.core.cache.backends.base import BaseCache, InvalidCacheBackendError
-
-try:
-    import cmemcache as memcache
-    import warnings
-    warnings.warn(
-        "Support for the 'cmemcache' library has been deprecated. Please use python-memcached instead.",
-        DeprecationWarning
-    )
-except ImportError:
-    try:
-        import memcache
-    except:
-        raise InvalidCacheBackendError("Memcached cache backend requires either the 'memcache' or 'cmemcache' library")
+from django.utils import importlib
 
 class CacheClass(BaseCache):
     def __init__(self, server, params):
         BaseCache.__init__(self, params)
+        self._local = local()
         if isinstance(server, basestring):
-            server = server.split(';')
-        self._cache = memcache.Client(server)
+            self._servers = server.split(';')
+        
+        # The exception type to catch from the underlying library for a key
+        # that was not found. This is a ValueError for python-memcache,
+        # pylibmc.NotFound for pylibmc, and cmemcache will return None without
+        # raising an exception.
+        self.LibraryValueNotFoundException = ValueError
+        
+        binding = params.get('BINDING', None)
+        if binding:
+            memcache = importlib.import_module(binding)
+            if hasattr(memcache, 'NotFound'):
+                self.LibraryValueNotFoundException = memcache.NotFound
+        else:
+            try:
+                import cmemcache as memcache
+                import warnings
+                warnings.warn(
+                    "Support for the 'cmemcache' library has been deprecated. Please use python-memcached or pyblimc instead.",
+                    DeprecationWarning
+                )
+            except ImportError:
+                try:
+                    import memcache
+                except:
+                    raise InvalidCacheBackendError(
+                        "Memcached cache backend requires either the 'memcache,' 'pylibmc,' or 'cmemcache' library"
+                    )
+        self._behaviors = params.get('BEHAVIORS', None)
+        self._lib = memcache
+    
+    @property
+    def _cache(self):
+        """
+        Implements transparent thread-safe access to a memcached client.
+        """
+        client = getattr(self._local, 'client', None)
+        if client:
+            return client
 
+        client = self._lib.Client(self._servers)
+
+        if hasattr(client, 'behaviors'):
+            client.behaviors = self._behaviors
+
+        self._local.client = client
+        return client
+            
     def _get_memcache_timeout(self, timeout):
         """
         Memcached deals with long (> 30 days) timeouts in a special
@@ -81,13 +116,13 @@ class CacheClass(BaseCache):
             val = self._cache.incr(key, delta)
 
         # python-memcache responds to incr on non-existent keys by
-        # raising a ValueError. Cmemcache returns None. In both
-        # cases, we should raise a ValueError though.
-        except ValueError:
+        # raising a ValueError, pylibmc by raising a pylibmc.NotFound
+        # and Cmemcache returns None. In both cases, 
+        # we should raise a ValueError though.
+        except self.LibraryValueNotFoundException:
             val = None
         if val is None:
             raise ValueError("Key '%s' not found" % key)
-
         return val
 
     def decr(self, key, delta=1, version=None):
@@ -95,15 +130,16 @@ class CacheClass(BaseCache):
         try:
             val = self._cache.decr(key, delta)
 
-        # python-memcache responds to decr on non-existent keys by
-        # raising a ValueError. Cmemcache returns None. In both
-        # cases, we should raise a ValueError though.
-        except ValueError:
+        # python-memcache responds to incr on non-existent keys by
+        # raising a ValueError, pylibmc by raising a pylibmc.NotFound
+        # and Cmemcache returns None. In both cases, 
+        # we should raise a ValueError though.
+        except self.LibraryValueNotFoundException:
             val = None
         if val is None:
             raise ValueError("Key '%s' not found" % key)
         return val
-
+        
     def set_many(self, data, timeout=0, version=None):
         safe_data = {}
         for key, value in data.items():
