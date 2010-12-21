@@ -9,7 +9,7 @@ except ImportError:
 from django.core.cache.backends.base import BaseCache
 from django.utils.synch import RWLock
 
-class CacheClass(BaseCache):
+class LocMemCache(BaseCache):
     def __init__(self, _, params):
         BaseCache.__init__(self, params)
         self._cache = {}
@@ -133,3 +133,7 @@ class CacheClass(BaseCache):
     def clear(self):
         self._cache.clear()
         self._expire_info.clear()
+
+# For backwards compatibility
+class CacheClass(LocMemCache):
+    pass

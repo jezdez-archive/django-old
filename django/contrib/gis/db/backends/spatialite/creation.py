@@ -1,7 +1,7 @@
 import os
 from django.conf import settings
 from django.core.cache import get_cache
-from django.core.cache.backends.db import BaseDatabaseCacheClass
+from django.core.cache.backends.db import BaseDatabaseCache
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.db.backends.sqlite3.creation import DatabaseCreation
@@ -32,7 +32,7 @@ class SpatiaLiteCreation(DatabaseCreation):
 
         for cache_alias in settings.CACHES:
             cache = get_cache(cache_alias)
-            if isinstance(cache, BaseDatabaseCacheClass):
+            if isinstance(cache, BaseDatabaseCache):
                 from django.db import router
                 if router.allow_syncdb(self.connection.alias, cache.cache_model_class):
                     call_command('createcachetable', cache._table, database=self.connection.alias)

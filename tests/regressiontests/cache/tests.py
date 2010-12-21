@@ -33,7 +33,7 @@ class DummyCacheTests(unittest.TestCase):
     # The Dummy cache backend doesn't really behave like a test backend,
     # so it has different test requirements.
     def setUp(self):
-        self.cache = get_cache('django.core.cache.backends.dummy')
+        self.cache = get_cache('django.core.cache.backends.dummy.DummyCache')
 
     def test_simple(self):
         "Dummy cache backend ignores cache set calls"
@@ -704,11 +704,11 @@ class DBCacheTests(unittest.TestCase, BaseCacheTests):
         # Spaces are used in the table name to ensure quoting/escaping is working
         self._table_name = 'test cache table'
         management.call_command('createcachetable', self._table_name, verbosity=0, interactive=False)
-        self.cache = get_cache('django.core.cache.backends.db', NAME=self._table_name, MAX_ENTRIES=30)
-        self.prefix_cache = get_cache('django.core.cache.backends.db', NAME=self._table_name, KEY_PREFIX='cacheprefix')
-        self.v2_cache = get_cache('django.core.cache.backends.db', NAME=self._table_name, VERSION=2)
-        self.custom_key_cache = get_cache('django.core.cache.backends.db', NAME=self._table_name, KEY_FUNCTION=custom_key_func)
-        self.custom_key_cache2 = get_cache('django.core.cache.backends.db', NAME=self._table_name, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
+        self.cache = get_cache('django.core.cache.backends.db.DatabaseCache', NAME=self._table_name, MAX_ENTRIES=30)
+        self.prefix_cache = get_cache('django.core.cache.backends.db.DatabaseCache', NAME=self._table_name, KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache('django.core.cache.backends.db.DatabaseCache', NAME=self._table_name, VERSION=2)
+        self.custom_key_cache = get_cache('django.core.cache.backends.db.DatabaseCache', NAME=self._table_name, KEY_FUNCTION=custom_key_func)
+        self.custom_key_cache2 = get_cache('django.core.cache.backends.db.DatabaseCache', NAME=self._table_name, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
 
     def tearDown(self):
         from django.db import connection
@@ -719,7 +719,7 @@ class DBCacheTests(unittest.TestCase, BaseCacheTests):
         self.perform_cull_test(50, 29)
 
     def test_zero_cull(self):
-        self.cache = get_cache('django.core.cache.backends.db', NAME=self._table_name, MAX_ENTRIES=30, CULL_FREQUENCY=0)
+        self.cache = get_cache('django.core.cache.backends.db.DatabaseCache', NAME=self._table_name, MAX_ENTRIES=30, CULL_FREQUENCY=0)
         self.perform_cull_test(50, 18)
 
     def test_old_initialization(self):
@@ -728,11 +728,11 @@ class DBCacheTests(unittest.TestCase, BaseCacheTests):
 
 class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
     def setUp(self):
-        self.cache = get_cache('django.core.cache.backends.locmem', MAX_ENTRIES=30)
-        self.prefix_cache = get_cache('django.core.cache.backends.locmem', KEY_PREFIX='cacheprefix')
-        self.v2_cache = get_cache('django.core.cache.backends.locmem', VERSION=2)
-        self.custom_key_cache = get_cache('django.core.cache.backends.locmem', MAX_ENTRIES=30, KEY_FUNCTION=custom_key_func)
-        self.custom_key_cache2 = get_cache('django.core.cache.backends.locmem', MAX_ENTRIES=30, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
+        self.cache = get_cache('django.core.cache.backends.locmem.LocMemCache', MAX_ENTRIES=30)
+        self.prefix_cache = get_cache('django.core.cache.backends.locmem.LocMemCache', KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache('django.core.cache.backends.locmem.LocMemCache', VERSION=2)
+        self.custom_key_cache = get_cache('django.core.cache.backends.locmem.LocMemCache', MAX_ENTRIES=30, KEY_FUNCTION=custom_key_func)
+        self.custom_key_cache2 = get_cache('django.core.cache.backends.locmem.LocMemCache', MAX_ENTRIES=30, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
 
         # LocMem requires a hack to make the other caches
         # share a data store with the 'normal' cache.
@@ -752,7 +752,7 @@ class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
         self.perform_cull_test(50, 29)
 
     def test_zero_cull(self):
-        self.cache = get_cache('django.core.cache.backends.locmem', MAX_ENTRIES=30, CULL_FREQUENCY=0)
+        self.cache = get_cache('django.core.cache.backends.locmem.LocMemCache', MAX_ENTRIES=30, CULL_FREQUENCY=0)
         self.perform_cull_test(50, 19)
 
     def test_old_initialization(self):
@@ -766,11 +766,11 @@ class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
 class MemcachedCacheTests(unittest.TestCase, BaseCacheTests):
     def setUp(self):
         name = settings.CACHES[DEFAULT_CACHE_ALIAS]['NAME']
-        self.cache = get_cache('django.core.cache.backends.memcached', NAME=name)
-        self.prefix_cache = get_cache('django.core.cache.backends.memcached', NAME=name, KEY_PREFIX='cacheprefix')
-        self.v2_cache = get_cache('django.core.cache.backends.memcached', NAME=name, VERSION=2)
-        self.custom_key_cache = get_cache('django.core.cache.backends.memcached', NAME=name, KEY_FUNCTION=custom_key_func)
-        self.custom_key_cache2 = get_cache('django.core.cache.backends.memcached', NAME=name, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
+        self.cache = get_cache('django.core.cache.backends.memcached.MemcachedCache', NAME=name)
+        self.prefix_cache = get_cache('django.core.cache.backends.memcached.MemcachedCache', NAME=name, KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache('django.core.cache.backends.memcached.MemcachedCache', NAME=name, VERSION=2)
+        self.custom_key_cache = get_cache('django.core.cache.backends.memcached.MemcachedCache', NAME=name, KEY_FUNCTION=custom_key_func)
+        self.custom_key_cache2 = get_cache('django.core.cache.backends.memcached.MemcachedCache', NAME=name, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
 
     def tearDown(self):
         self.cache.clear()
@@ -790,7 +790,7 @@ class MemcachedCacheTests(unittest.TestCase, BaseCacheTests):
         # memcached limits key length to 250
         self.assertRaises(Exception, self.cache.set, 'a' * 251, 'value')
 
-MemcachedCacheTests = unittest.skipUnless(settings.CACHES[DEFAULT_CACHE_ALIAS]['ENGINE'] == 'django.core.cache.backends.memcached', "memcached not available")(MemcachedCacheTests)
+MemcachedCacheTests = unittest.skipUnless(settings.CACHES[DEFAULT_CACHE_ALIAS]['ENGINE'] == 'django.core.cache.backends.memcached.MemcachedCache', "memcached not available")(MemcachedCacheTests)
 
 class FileBasedCacheTests(unittest.TestCase, BaseCacheTests):
     """
@@ -798,11 +798,11 @@ class FileBasedCacheTests(unittest.TestCase, BaseCacheTests):
     """
     def setUp(self):
         self.dirname = tempfile.mkdtemp()
-        self.cache = get_cache('django.core.cache.backends.filebased', NAME=self.dirname, MAX_ENTRIES=30)
-        self.prefix_cache = get_cache('django.core.cache.backends.filebased', NAME=self.dirname, KEY_PREFIX='cacheprefix')
-        self.v2_cache = get_cache('django.core.cache.backends.filebased', NAME=self.dirname, VERSION=2)
-        self.custom_key_cache = get_cache('django.core.cache.backends.filebased', NAME=self.dirname, KEY_FUNCTION=custom_key_func)
-        self.custom_key_cache2 = get_cache('django.core.cache.backends.filebased', NAME=self.dirname, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
+        self.cache = get_cache('django.core.cache.backends.filebased.FileBasedCache', NAME=self.dirname, MAX_ENTRIES=30)
+        self.prefix_cache = get_cache('django.core.cache.backends.filebased.FileBasedCache', NAME=self.dirname, KEY_PREFIX='cacheprefix')
+        self.v2_cache = get_cache('django.core.cache.backends.filebased.FileBasedCache', NAME=self.dirname, VERSION=2)
+        self.custom_key_cache = get_cache('django.core.cache.backends.filebased.FileBasedCache', NAME=self.dirname, KEY_FUNCTION=custom_key_func)
+        self.custom_key_cache2 = get_cache('django.core.cache.backends.filebased.FileBasedCache', NAME=self.dirname, KEY_FUNCTION='regressiontests.cache.tests.custom_key_func')
 
     def tearDown(self):
         self.cache.clear()

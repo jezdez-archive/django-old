@@ -25,7 +25,7 @@ class Options(object):
         self.managed = True
         self.proxy = False
 
-class BaseDatabaseCacheClass(BaseCache):
+class BaseDatabaseCache(BaseCache):
     def __init__(self, table, params):
         BaseCache.__init__(self, params)
         self._table = table
@@ -34,7 +34,7 @@ class BaseDatabaseCacheClass(BaseCache):
             _meta = Options(table)
         self.cache_model_class = CacheEntry
 
-class CacheClass(BaseDatabaseCacheClass):
+class DatabaseCache(BaseDatabaseCache):
     def get(self, key, default=None, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
@@ -140,3 +140,7 @@ class CacheClass(BaseDatabaseCacheClass):
         table = connections[db].ops.quote_name(self._table)
         cursor = connections[db].cursor()
         cursor.execute('DELETE FROM %s' % table)
+
+# For backwards compatibility
+class CacheClass(DatabaseCache):
+    pass
