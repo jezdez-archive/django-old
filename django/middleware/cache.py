@@ -49,7 +49,7 @@ More details about how the caching works:
 """
 
 from django.conf import settings
-from django.core.cache import get_cache
+from django.core.cache import get_cache, DEFAULT_CACHE_ALIAS
 from django.utils.cache import get_cache_key, learn_cache_key, patch_response_headers, get_max_age
 
 class UpdateCacheMiddleware(object):
