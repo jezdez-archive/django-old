@@ -138,7 +138,7 @@ Default::
 
     {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem',
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         }
     }
 
@@ -161,20 +161,20 @@ Default: ``''`` (Empty string)
 
 The cache backend to use. The built-in cache backends are:
 
-    * ``'django.core.cache.backends.db'``
-    * ``'django.core.cache.backends.dummy'``
-    * ``'django.core.cache.backends.filebased'``
-    * ``'django.core.cache.backends.locmem'``
-    * ``'django.core.cache.backends.memcached'``
+    * ``'django.core.cache.backends.db.DatabaseCache'``
+    * ``'django.core.cache.backends.dummy.DummyCache'``
+    * ``'django.core.cache.backends.filebased.FileBasedCache'``
+    * ``'django.core.cache.backends.locmem.LocMemCache'``
+    * ``'django.core.cache.backends.memcached.MemcachedCache'``
 
 You can use a cache backend that doesn't ship with Django by setting
-:setting:`BACKEND <CACHE-BACKEND>` to a fully-qualified path (i.e.
-``mypackage.backends.whatever``). Writing a whole new cache backend from
-scratch is left as an exercise to the reader; see the other backends for
-examples.
+:setting:`BACKEND <CACHE-BACKEND>` to a fully-qualified path of a cache
+backend class (i.e. ``mypackage.backends.whatever.WhateverCache``).
+Writing a whole new cache backend from scratch is left as an exercise
+to the reader; see the other backends for examples.
 
 .. note::
-    Prior to Django 1.2, you could use a URI based version of the backend
+    Prior to Django 1.3, you could use a URI based version of the backend
     name to reference the built-in cache backends (e.g., you could use
     ``'db://tablename'`` to refer to the database backend). This format has
     been deprecated, and will be removed in Django 1.5.
@@ -235,7 +235,7 @@ identifying name for a local memory cache. e.g.::
 
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.filebased',
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
             'LOCATION': '/var/tmp/django_cache',
         }
     }

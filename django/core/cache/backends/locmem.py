@@ -15,7 +15,7 @@ _caches = {}
 _expire_info = {}
 _locks = {}
 
-class CacheClass(BaseCache):
+class LocMemCache(BaseCache):
     def __init__(self, name, params):
         BaseCache.__init__(self, params)
         global _caches, _expire_info, _locks
@@ -140,3 +140,7 @@ class CacheClass(BaseCache):
     def clear(self):
         self._cache.clear()
         self._expire_info.clear()
+
+# For backwards compatibility
+class CacheClass(LocMemCache):
+    pass

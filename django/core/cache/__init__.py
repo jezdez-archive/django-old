@@ -14,6 +14,11 @@ cache class.
 
 See docs/topics/cache.txt for information on the public API.
 """
+from django.conf import settings
+from django.core import signals
+from django.core.cache.backends.base import (
+    InvalidCacheBackendError, CacheKeyWarning, BaseCache)
+from django.utils import importlib
 
 try:
     # The mod_python version is more efficient, so try importing it first.
@@ -26,11 +31,6 @@ except ImportError:
         # Python 2.5, 2.4.  Works on Python 2.6 but raises
         # PendingDeprecationWarning
         from cgi import parse_qsl
-
-from django.conf import settings
-from django.core import signals
-from django.core.cache.backends.base import InvalidCacheBackendError, CacheKeyWarning
-from django.utils import importlib
 
 __all__ = [
     'get_cache', 'cache', 'DEFAULT_CACHE_ALIAS'
@@ -79,11 +79,19 @@ if not settings.CACHES:
         "settings.CACHE_* is deprecated; use settings.CACHES instead.",
         PendingDeprecationWarning
     )
-    backend, host, params = parse_backend_uri(settings.CACHE_BACKEND)
-    if backend in BACKENDS:
-        backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
+    # Mapping for new-style cache backend api
+    backend_classes = {
+        'memcached': 'memcached.MemcachedCache',
+        'locmem': 'locmem.LocMemCache',
+        'file': 'filebased.FileBasedCache',
+        'db': 'db.DatabaseCache',
+        'dummy': 'dummy.DummyCache',
+    }
+    engine, host, params = parse_backend_uri(settings.CACHE_BACKEND)
+    if engine in backend_classes:
+        engine = 'django.core.cache.backends.%s' % backend_classes[engine]
     defaults = {
-        'BACKEND': backend,
+        'BACKEND': engine,
         'LOCATION': host,
     }
     defaults.update(params)
@@ -102,17 +110,18 @@ def parse_backend_conf(backend, **kwargs):
     if conf is not None:
         args = conf.copy()
         backend = args.pop('BACKEND')
-        name = args.pop('LOCATION', '')
-        return backend, name, args
+        location = args.pop('LOCATION', '')
+        return backend, location, args
     else:
         # Trying to import the given backend, in case it's a dotted path
+        mod_path, cls_name = backend.rsplit('.', 1)
         try:
-            importlib.import_module(backend)
-        except ImportError, e:
-            raise InvalidCacheBackendError(
-                "Could not import cache backend named '%s'" % backend)
-        name = kwargs.pop('LOCATION', '')
-        return backend, name, kwargs
+            mod = importlib.import_module(mod_path)
+            backend_cls = getattr(mod, cls_name)
+        except (AttributeError, ImportError):
+            raise InvalidCacheBackendError("Could not find backend '%s'" % backend)
+        location = kwargs.pop('LOCATION', '')
+        return backend, location, kwargs
     raise InvalidCacheBackendError(
         "Couldn't find a cache backend named '%s'" % backend)
 
@@ -132,21 +141,25 @@ def get_cache(backend, **kwargs):
     To load a backend with its dotted import path,
     including arbitrary options::
 
-        cache = get_cache('django.core.cache.backends.memcached', **{
+        cache = get_cache('django.core.cache.backends.memcached.MemcachedCache', **{
             'LOCATION': '127.0.0.1:11211', 'TIMEOUT': 30,
         })
 
     """
     if '://' in backend:
-        backend, name, params = parse_backend_uri(backend)
+        # for backwards compatibility
+        backend, location, params = parse_backend_uri(backend)
         if backend in BACKENDS:
             backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
         params.update(kwargs)
+        mod = importlib.import_module(backend)
+        backend_cls = mod.CacheClass
     else:
-        backend, name, params = parse_backend_conf(backend, **kwargs)
-        # backwards compat
-    module = importlib.import_module(backend)
-    return module.CacheClass(name, params)
+        backend, location, params = parse_backend_conf(backend, **kwargs)
+        mod_path, cls_name = backend.rsplit('.', 1)
+        mod = importlib.import_module(mod_path)
+        backend_cls = getattr(mod, cls_name)
+    return backend_cls(location, params)
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)
 

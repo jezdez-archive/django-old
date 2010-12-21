@@ -6,7 +6,7 @@ from threading import local
 from django.core.cache.backends.base import BaseCache, InvalidCacheBackendError
 from django.utils import importlib
 
-class CacheClass(BaseCache):
+class MemcachedCache(BaseCache):
     def __init__(self, server, params):
         BaseCache.__init__(self, params)
         self._local = local()
@@ -157,3 +157,7 @@ class CacheClass(BaseCache):
 
     def clear(self):
         self._cache.flush_all()
+
+# For backwards compatibility
+class CacheClass(MemcachedCache):
+    pass
