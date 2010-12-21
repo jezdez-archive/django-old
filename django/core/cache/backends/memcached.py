@@ -55,7 +55,7 @@ class CacheClass(BaseCache):
 
         client = self._lib.Client(self._servers)
 
-        if hasattr(client, 'behaviors'):
+        if hasattr(client, 'behaviors') and self._options:
             client.behaviors = self._options
 
         self._local.client = client
