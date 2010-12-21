@@ -137,12 +137,12 @@ def get_cache(backend, **kwargs):
     """
     if '://' in backend:
         engine, name, params = parse_backend_uri(backend)
-        if engine in BACKENDS:
-            engine = 'django.core.cache.backends.%s' % BACKENDS[engine]
         params.update(kwargs)
     else:
         engine, name, params = parse_backend_conf(backend, **kwargs)
         # backwards compat
+    if engine in BACKENDS:
+        engine = 'django.core.cache.backends.%s' % BACKENDS[engine]
     module = importlib.import_module(engine)
     return module.CacheClass(name, params)
 
