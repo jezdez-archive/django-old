@@ -75,11 +75,11 @@ if not settings.CACHES:
         "settings.CACHE_* is deprecated; use settings.CACHES instead.",
         PendingDeprecationWarning
     )
-    engine, host, params = parse_backend_uri(settings.CACHE_BACKEND)
-    if engine in BACKENDS:
-        engine = 'django.core.cache.backends.%s' % BACKENDS[engine]
+    backend, host, params = parse_backend_uri(settings.CACHE_BACKEND)
+    if backend in BACKENDS:
+        backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
     defaults = {
-        'ENGINE': engine,
+        'BACKEND': backend,
         'NAME': host,
     }
     defaults.update(params)
@@ -97,16 +97,16 @@ def parse_backend_conf(backend, **kwargs):
     conf = settings.CACHES.get(backend, None)
     if conf is not None:
         args = conf.copy()
-        engine = args.pop('ENGINE')
+        backend = args.pop('BACKEND')
         name = args.pop('NAME', '')
-        return engine, name, args
+        return backend, name, args
     else:
         # Trying to import the given backend, in case it's a dotted path
         try:
             importlib.import_module(backend)
         except ImportError, e:
             raise InvalidCacheBackendError(
-                "Could not import backend named '%s'" % backend)
+                "Could not import cache backend named '%s'" % backend)
         name = kwargs.pop('NAME', '')
         return backend, name, kwargs
     raise InvalidCacheBackendError(
@@ -134,14 +134,14 @@ def get_cache(backend, **kwargs):
 
     """
     if '://' in backend:
-        engine, name, params = parse_backend_uri(backend)
-        if engine in BACKENDS:
-            engine = 'django.core.cache.backends.%s' % BACKENDS[engine]
+        backend, name, params = parse_backend_uri(backend)
+        if backend in BACKENDS:
+            backend = 'django.core.cache.backends.%s' % BACKENDS[backend]
         params.update(kwargs)
     else:
-        engine, name, params = parse_backend_conf(backend, **kwargs)
+        backend, name, params = parse_backend_conf(backend, **kwargs)
         # backwards compat
-    module = importlib.import_module(engine)
+    module = importlib.import_module(backend)
     return module.CacheClass(name, params)
 
 cache = get_cache(DEFAULT_CACHE_ALIAS)

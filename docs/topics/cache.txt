@@ -76,7 +76,7 @@ This is available at ftp://ftp.tummy.com/pub/python-memcached/
     a lack of maintenance on the ``cmemcache`` library itself. Support for
     ``cmemcache`` will be removed completely in Django 1.4.
 
-To use Memcached with Django, set :setting:`ENGINE <CACHES-ENGINE>` to
+To use Memcached with Django, set :setting:`BACKEND <CACHES-BACKEND>` to
 ``django.core.cache.backends.memcached`` and :setting:`NAME <CACHES-NAME>`
 to ``ip:port`` values, where ``ip`` is the IP address of the Memcached
 daemon and ``port`` is the port on which Memcached is running.
@@ -85,7 +85,7 @@ In this example, Memcached is running on localhost (127.0.0.1) port 11211::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.memcached',
+            'BACKEND': 'django.core.cache.backends.memcached',
             'NAME': '127.0.0.1:11211',
         }
     }
@@ -94,7 +94,7 @@ One excellent feature of Memcached is its ability to share cache over multiple
 servers. This means you can run Memcached daemons on multiple machines, and the
 program will treat the group of machines as a *single* cache, without the need
 to duplicate cache values on each machine. To take advantage of this feature,
-include all server addresses in :setting:`ENGINE <CACHES-ENGINE>`, either
+include all server addresses in :setting:`BACKEND <CACHES-BACKEND>`, either
 separated by semicolons or as a list.
 
 In this example, the cache is shared over Memcached instances running on IP
@@ -102,7 +102,7 @@ address 172.19.26.240 and 172.19.26.242, both on port 11211::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.memcached',
+            'BACKEND': 'django.core.cache.backends.memcached',
             'NAME': [
                 '172.19.26.240:11211',
                 '172.19.26.242:11211',
@@ -116,7 +116,7 @@ on the IP addresses 172.19.26.240 (port 11211), 172.19.26.242 (port 11212), and
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.memcached',
+            'BACKEND': 'django.core.cache.backends.memcached',
             'NAME': [
                 '172.19.26.240:11211',
                 '172.19.26.242:11211',
@@ -149,14 +149,14 @@ in your database that is in the proper format that Django's database-cache
 system expects.
 
 Once you've created that database table, set your
-:setting:`ENGINE <CACHES-ENGINE>` setting to
+:setting:`BACKEND <CACHES-BACKEND>` setting to
 ``"django.core.cache.backends.db"``, and :setting:`NAME <CACHES-NAME>` to
 ``tablename`` -- the name of the database table. In this example, the cache
 table's name is ``my_cache_table``::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.db',
+            'BACKEND': 'django.core.cache.backends.db',
             'NAME': 'my_cache_table',
         }
     }
@@ -214,12 +214,12 @@ Filesystem caching
 ------------------
 
 To store cached items on a filesystem, use
-``"django.core.cache.backends.filebased"`` for :setting:`ENGINE <CACHES-ENGINE>`.
+``"django.core.cache.backends.filebased"`` for :setting:`BACKEND <CACHES-BACKEND>`.
 For example, to store cached data in ``/var/tmp/django_cache``, use this setting::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.filebased',
+            'BACKEND': 'django.core.cache.backends.filebased',
             'NAME': '/var/tmp/django_cache',
         }
     }
@@ -230,7 +230,7 @@ like this::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.filebased',
+            'BACKEND': 'django.core.cache.backends.filebased',
             'NAME': 'c:/foo/bar',
         }
     }
@@ -255,14 +255,21 @@ Local-memory caching
 If you want the speed advantages of in-memory caching but don't have the
 capability of running Memcached, consider the local-memory cache backend. This
 cache is multi-process and thread-safe. To use it, set
-:setting:`ENGINE <CACHES-ENGINE>` to ``"django.core.cache.backends.locmem"``.
+:setting:`BACKEND <CACHES-BACKEND>` to ``"django.core.cache.backends.locmem"``.
 For example::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.locmem',
+            'BACKEND': 'django.core.cache.backends.locmem',
+            'NAME': 'unique-snowflake'
         }
     }
+
+The cache :setting:`NAME <CACHES-NAME>` is used to identify individual
+memory stores. If you only have one locmem cache, you can omit the
+:setting:`NAME <CACHES-NAME>`; however, if you have more that one local
+memory cache, you will need to assign a name to at least one of them in
+order to keep them separate.
 
 Note that each process will have its own private cache instance, which means no
 cross-process caching is possible. This obviously also means the local memory
@@ -278,11 +285,11 @@ just implements the cache interface without doing anything.
 This is useful if you have a production site that uses heavy-duty caching in
 various places but a development/test environment where you don't want to cache
 and don't want to have to change your code to special-case the latter. To
-activate dummy caching, set :setting:`ENGINE <CACHES-ENGINE>` like so::
+activate dummy caching, set :setting:`BACKEND <CACHES-BACKEND>` like so::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.dummy',
+            'BACKEND': 'django.core.cache.backends.dummy',
         }
     }
 
@@ -294,11 +301,11 @@ Using a custom cache backend
 While Django includes support for a number of cache backends out-of-the-box,
 sometimes you might want to use a customized cache backend. To use an external
 cache backend with Django, use the Python import path as the
-:setting:`ENGINE <CACHES-ENGINE>` of the :setting:`CACHES` setting, like so::
+:setting:`BACKEND <CACHES-BACKEND>` of the :setting:`CACHES` setting, like so::
 
     CACHES = {
         'default': {
-            'ENGINE': 'path.to.backend',
+            'BACKEND': 'path.to.backend',
         }
     }
 
@@ -354,7 +361,7 @@ In this example, ``TIMEOUT`` is set to ``60``::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.memcached',
+            'BACKEND': 'django.core.cache.backends.memcached',
             'NAME': '127.0.0.1:11211',
             'TIMEOUT': 60,
         }
@@ -365,7 +372,7 @@ In this example, ``TIMEOUT`` is ``30`` and ``MAX_ENTRIES`` is ``400``::
 
     CACHES = {
         'default': {
-            'ENGINE': 'django.core.cache.backends.locmem',
+            'BACKEND': 'django.core.cache.backends.locmem',
             'TIMEOUT': 30,
             'MAX_ENTRIES': 400,
         }
@@ -881,7 +888,7 @@ instance, to do this for the ``locmem`` backend, put this code in a module::
             # ...
 
 ...and use the dotted Python path to this module in the
-:setting:`ENGINE <CACHES-ENGINE>` portion of your :setting:`CACHES` setting.
+:setting:`BACKEND <CACHES-BACKEND>` portion of your :setting:`CACHES` setting.
 
 Upstream caches
 ===============
