@@ -75,7 +75,7 @@ filesystem usage.
 
 After installing Memcached itself, you'll need to install a memcached
 binding. There are several python memcached bindings available; the
-two most common are `python-memcached`_ and ``pylibmc``_.
+two most common are `python-memcached`_ and `pylibmc`_.
 
 .. _`python-memcached`: ftp://ftp.tummy.com/pub/python-memcached/
 .. _`pylibmc`: http://sendapatch.se/projects/pylibmc/
