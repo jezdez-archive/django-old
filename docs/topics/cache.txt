@@ -401,6 +401,7 @@ entire site. You'll need to add
 
 Then, add the following required settings to your Django settings file:
 
+* :setting:`CACHE_MIDDLEWARE_ALIAS` -- The cache alias to use for storage.
 * :setting:`CACHE_MIDDLEWARE_SECONDS` -- The number of seconds each page should
   be cached.
 * :setting:`CACHE_MIDDLEWARE_KEY_PREFIX` -- If the cache is shared across
@@ -491,13 +492,27 @@ then requests to ``/foo/1/`` and ``/foo/23/`` will be cached separately, as
 you may expect. But once a particular URL (e.g., ``/foo/23/``) has been
 requested, subsequent requests to that URL will use the cache.
 
-``cache_page`` can also take an optional keyword argument, ``key_prefix``,
+``cache_page`` can also take an optional keyword argument, ``cache``,
+which directs the decorator to use a specific cache alias when caching view
+results. By default, the ``default`` alias will be used, but you can specify
+any cache alias you want::
+
+    @cache_page(60 * 15, cache="special_cache")
+    def my_view(request):
+        ...
+
+You can also override the cache prefix on a per-view basis. ``cache_page``
+takes an optional keyword argument, ``key_prefix``,
 which works in the same way as the :setting:`CACHE_MIDDLEWARE_KEY_PREFIX`
 setting for the middleware.  It can be used like this::
 
     @cache_page(60 * 15, key_prefix="site1")
     def my_view(request):
         ...
+
+The two settings can also be combined. If you specify a ``cache`` *and*
+a ``key_prefix``, you will get all the settings of the requested cache
+alias, but with the key_prefix overridden.
 
 Specifying per-view cache in the URLconf
 ----------------------------------------

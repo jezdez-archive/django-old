@@ -49,7 +49,7 @@ More details about how the caching works:
 """
 
 from django.conf import settings
-from django.core.cache import cache
+from django.core.cache import get_cache
 from django.utils.cache import get_cache_key, learn_cache_key, patch_response_headers, get_max_age
 
 class UpdateCacheMiddleware(object):
@@ -65,6 +65,7 @@ class UpdateCacheMiddleware(object):
         self.cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
         self.key_prefix = settings.CACHE_MIDDLEWARE_KEY_PREFIX
         self.cache_anonymous_only = getattr(settings, 'CACHE_MIDDLEWARE_ANONYMOUS_ONLY', False)
+        self.cache = get_cache(settings.CACHE_MIDDLEWARE_ALIAS)
 
     def process_response(self, request, response):
         """Sets the cache, if needed."""
@@ -85,7 +86,7 @@ class UpdateCacheMiddleware(object):
         patch_response_headers(response, timeout)
         if timeout:
             cache_key = learn_cache_key(request, response, timeout, self.key_prefix)
-            cache.set(cache_key, response, timeout)
+            self.cache.set(cache_key, response, timeout)
         return response
 
 class FetchFromCacheMiddleware(object):
@@ -100,6 +101,7 @@ class FetchFromCacheMiddleware(object):
         self.cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
         self.key_prefix = settings.CACHE_MIDDLEWARE_KEY_PREFIX
         self.cache_anonymous_only = getattr(settings, 'CACHE_MIDDLEWARE_ANONYMOUS_ONLY', False)
+        self.cache = get_cache(settings.CACHE_MIDDLEWARE_ALIAS)
 
     def process_request(self, request):
         """
@@ -124,12 +126,12 @@ class FetchFromCacheMiddleware(object):
             request._cache_update_cache = True
             return None # No cache information available, need to rebuild.
 
-        response = cache.get(cache_key, None)
+        response = self.cache.get(cache_key, None)
 
         # if it wasn't found and we are looking for a HEAD, try looking just for that
         if response is None and request.method == 'HEAD':
             cache_key = get_cache_key(request, self.key_prefix, 'HEAD')
-            response = cache.get(cache_key, None)
+            response = self.cache.get(cache_key, None)
 
         if response is None:
             request._cache_update_cache = True
@@ -146,14 +148,22 @@ class CacheMiddleware(UpdateCacheMiddleware, FetchFromCacheMiddleware):
     Also used as the hook point for the cache decorator, which is generated
     using the decorator-from-middleware utility.
     """
-    def __init__(self, cache_timeout=None, key_prefix=None, cache_anonymous_only=None):
+    def __init__(self, cache_timeout=None, key_prefix=None, cache_anonymous_only=None, cache_alias=None):
         self.cache_timeout = cache_timeout
         if cache_timeout is None:
             self.cache_timeout = settings.CACHE_MIDDLEWARE_SECONDS
-        self.key_prefix = key_prefix
+
         if key_prefix is None:
             self.key_prefix = settings.CACHE_MIDDLEWARE_KEY_PREFIX
+        else:
+            self.key_prefix = key_prefix
+
         if cache_anonymous_only is None:
             self.cache_anonymous_only = getattr(settings, 'CACHE_MIDDLEWARE_ANONYMOUS_ONLY', False)
         else:
             self.cache_anonymous_only = cache_anonymous_only
+
+        if cache_alias is None:
+            self.cache = get_cache(settings.CACHE_MIDDLEWARE_ALIAS, key_prefix=self.key_prefix)
+        else:
+            self.cache = get_cache(cache_alias, key_prefix=self.key_prefix)
