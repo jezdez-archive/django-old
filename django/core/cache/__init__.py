@@ -32,6 +32,10 @@ from django.core import signals
 from django.core.cache.backends.base import InvalidCacheBackendError, CacheKeyWarning
 from django.utils import importlib
 
+__all__ = [
+    'get_cache', 'cache', 'DEFAULT_CACHE_ALIAS'
+]
+
 # Name for use in settings file --> name of module in "backends" directory.
 # Any backend scheme that is not in this dictionary is treated as a Python
 # import path to a custom backend.
