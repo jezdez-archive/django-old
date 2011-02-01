@@ -125,11 +125,14 @@ Type 'yes' to continue, or 'no' to cancel: """ % settings.STATIC_ROOT)
                     pass
                 else:
                     # The full path of the target file
-                    full_path = self.storage.path(prefixed_path)
+                    if self.local:
+                        full_path = self.storage.path(prefixed_path)
+                    else:
+                        full_path = None
                     # Skip the file if the source file is younger
                     if target_last_modified >= source_last_modified:
-                        if not ((symlink and not os.path.islink(full_path)) or
-                                (not symlink and os.path.islink(full_path))):
+                        if not ((symlink and full_path and not os.path.islink(full_path)) or
+                                (not symlink and full_path and os.path.islink(full_path))):
                             if prefixed_path not in self.unmodified_files:
                                 self.unmodified_files.append(prefixed_path)
                             self.log("Skipping '%s' (not modified)" % path)
