@@ -26,8 +26,6 @@ Settings
 .. note::
 
     The following settings control the behavior of the staticfiles app.
-    Configuring the global settings :setting:`STATIC_ROOT` and
-    :setting:`STATIC_URL` is **required**.
 
 .. setting:: STATICFILES_DIRS
 
@@ -50,20 +48,29 @@ your additional files directory(ies) e.g.::
         "/opt/webfiles/common",
     )
 
-In case you want to refer to files in one of the locations with a additional
+Prefixes (optional)
+"""""""""""""""""""
+
+In case you want to refer to files in one of the locations with an additional
 namespace, you can **optionally** provide a prefix as ``(prefix, path)``
 tuples, e.g.::
 
     STATICFILES_DIRS = (
-        "/home/polls.com/polls/static",
+        # ...
         ("downloads", "/opt/webfiles/stats"),
     )
 
-With this configuration, the :djadmin:`collectstatic` management command would
-for example collect the stats files in a ``'downloads'`` directory. So
-assuming you have :setting:`STATIC_URL` set ``'/static/'``, this would
-allow you to refer to the file ``'/opt/webfiles/stats/polls_20101022.tar.gz'``
-with ``'/static/downloads/polls_20101022.tar.gz'`` in your templates.
+Example:
+
+Assuming you have :setting:`STATIC_URL` set ``'/static/'``, the
+:djadmin:`collectstatic` management command would collect the "stats" files
+in a ``'downloads'`` subdirectory of :setting:`STATIC_ROOT`.
+
+This would allow you to refer to the local file
+``'/opt/webfiles/stats/polls_20101022.tar.gz'`` with
+``'/static/downloads/polls_20101022.tar.gz'`` in your templates, e.g.::
+
+    <a href="{{ STATIC_URL }}downloads/polls_20101022.tar.gz">
 
 .. setting:: STATICFILES_STORAGE
 
@@ -180,8 +187,12 @@ for each relative path, use the ``--first`` option::
 This is a debugging aid; it'll show you exactly which static file will be
 collected for a given path.
 
+.. _staticfiles-runserver:
+
 runserver
 ---------
+
+.. django-admin:: runserver
 
 Overrides the core :djadmin:`runserver` command if the ``staticfiles`` app
 is :setting:`installed<INSTALLED_APPS>` and adds automatic serving of static
@@ -306,3 +317,31 @@ already defined pattern list. Use it like this::
     This helper function will only work if :setting:`DEBUG` is ``True``
     and your :setting:`STATIC_URL` setting is neither empty nor a full
     URL such as ``http://static.example.com/``.
+
+.. _staticfiles-serve-other-directories:
+
+Serving other directories
+"""""""""""""""""""""""""
+
+There may be files other than your project's static assets that, for
+convenience, you'd like to have Django serve for you in local development. The
+:func:`~django.contrib.staticfiles.views.serve` view can be used to serve any
+directory you give it. (Again, this view is **not** hardened for production
+use, and should be used only as a development aid; you should serve these files
+in production using a real front-end webserver).
+
+The most likely example is user-uploaded content in :setting:`MEDIA_ROOT`.
+``staticfiles`` is intended for static assets and has no built-in handling for
+user-uploaded files, but you can have Django serve your :setting:`MEDIA_ROOT`
+by appending something like this to your URLconf::
+
+   from django.conf import settings
+
+   if settings.DEBUG:
+       urlpatterns += patterns('django.contrib.staticfiles.views',
+           url(r'^media/(?P<path>.*)$', 'serve',
+               {'document_root': settings.MEDIA_ROOT}),
+       )
+
+This snippet assumes you've also set your :setting:`MEDIA_URL` (in development)
+to ``/media/``.

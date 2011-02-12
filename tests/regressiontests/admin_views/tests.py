@@ -2,6 +2,7 @@
 
 import re
 import datetime
+import urlparse
 
 from django.conf import settings
 from django.core import mail
@@ -34,7 +35,7 @@ from models import (Article, BarAccount, CustomArticle, EmptyModel,
     Person, Persona, Picture, Podcast, Section, Subscriber, Vodcast,
     Language, Collector, Widget, Grommet, DooHickey, FancyDoodad, Whatsit,
     Category, Post, Plot, FunkyTag, Chapter, Book, Promo, WorkHour, Employee,
-    Question, Answer)
+    Question, Answer, Inquisition, Actor)
 
 
 class AdminViewBasicTest(TestCase):
@@ -47,12 +48,18 @@ class AdminViewBasicTest(TestCase):
     urlbit = 'admin'
 
     def setUp(self):
-        self.old_language_code = settings.LANGUAGE_CODE
+        self.old_USE_I18N = settings.LANGUAGE_CODE
+        self.old_USE_L10N = settings.USE_L10N
+        self.old_LANGUAGE_CODE = settings.LANGUAGE_CODE
         self.client.login(username='super', password='secret')
+        settings.USE_I18N = True
 
     def tearDown(self):
-        settings.LANGUAGE_CODE = self.old_language_code
+        settings.USE_I18N = self.old_USE_I18N
+        settings.USE_L10N = self.old_USE_L10N
+        settings.LANGUAGE_CODE = self.old_LANGUAGE_CODE
         self.client.logout()
+        formats.reset_format_cache()
 
     def testTrailingSlashRequired(self):
         """
@@ -350,22 +357,42 @@ class AdminViewBasicTest(TestCase):
         if the default language is non-English but the selected language
         is English. See #13388 and #3594 for more details.
         """
-        settings.LANGUAGE_CODE = 'fr'
-        activate('en-us')
-        response = self.client.get('/test_admin/admin/jsi18n/')
-        self.assertNotContains(response, 'Choisir une heure')
-        deactivate()
+        try:
+            settings.LANGUAGE_CODE = 'fr'
+            activate('en-us')
+            response = self.client.get('/test_admin/admin/jsi18n/')
+            self.assertNotContains(response, 'Choisir une heure')
+        finally:
+            deactivate()
 
     def testI18NLanguageNonEnglishFallback(self):
         """
         Makes sure that the fallback language is still working properly
         in cases where the selected language cannot be found.
         """
-        settings.LANGUAGE_CODE = 'fr'
-        activate('none')
-        response = self.client.get('/test_admin/admin/jsi18n/')
-        self.assertContains(response, 'Choisir une heure')
-        deactivate()
+        try:
+            settings.LANGUAGE_CODE = 'fr'
+            activate('none')
+            response = self.client.get('/test_admin/admin/jsi18n/')
+            self.assertContains(response, 'Choisir une heure')
+        finally:
+            deactivate()
+
+    def testL10NDeactivated(self):
+        """
+        Check if L10N is deactivated, the Javascript i18n view doesn't
+        return localized date/time formats. Refs #14824.
+        """
+        try:
+            settings.LANGUAGE_CODE = 'ru'
+            settings.USE_L10N = False
+            activate('ru')
+            response = self.client.get('/test_admin/admin/jsi18n/')
+            self.assertNotContains(response, '%d.%m.%Y %H:%M:%S')
+            self.assertContains(response, '%Y-%m-%d %H:%M:%S')
+        finally:
+            deactivate()
+
 
     def test_disallowed_filtering(self):
         self.assertRaises(SuspiciousOperation,
@@ -392,6 +419,40 @@ class AdminViewBasicTest(TestCase):
         self.assertContains(response, 'employee__person_ptr__exact')
         response = self.client.get("/test_admin/admin/admin_views/workhour/?employee__person_ptr__exact=%d" % e1.pk)
         self.assertEqual(response.status_code, 200)
+
+    def test_allowed_filtering_15103(self):
+        """
+        Regressions test for ticket 15103 - filtering on fields defined in a
+        ForeignKey 'limit_choices_to' should be allowed, otherwise raw_id_fields
+        can break.
+        """
+        try:
+            self.client.get("/test_admin/admin/admin_views/inquisition/?leader__name=Palin&leader__age=27")
+        except SuspiciousOperation:
+            self.fail("Filters should be allowed if they are defined on a ForeignKey pointing to this model")
+
+class AdminJavaScriptTest(AdminViewBasicTest):
+    def testSingleWidgetFirsFieldFocus(self):
+        """
+        JavaScript-assisted auto-focus on first field.
+        """
+        response = self.client.get('/test_admin/%s/admin_views/picture/add/' % self.urlbit)
+        self.assertContains(
+            response,
+            '<script type="text/javascript">document.getElementById("id_name").focus();</script>'
+        )
+
+    def testMultiWidgetFirsFieldFocus(self):
+        """
+        JavaScript-assisted auto-focus should work if a model/ModelAdmin setup
+        is such that the first form field has a MultiWidget.
+        """
+        response = self.client.get('/test_admin/%s/admin_views/reservation/add/' % self.urlbit)
+        self.assertContains(
+            response,
+            '<script type="text/javascript">document.getElementById("id_start_date_0").focus();</script>'
+        )
+
 
 class SaveAsTests(TestCase):
     fixtures = ['admin-views-users.xml','admin-views-person.xml']
@@ -1637,6 +1698,29 @@ class AdminActionsTest(TestCase):
         response = self.client.post('/test_admin/admin/admin_views/subscriber/', delete_confirmation_data)
         self.assertEqual(Subscriber.objects.count(), 0)
 
+    def test_non_localized_pk(self):
+        """If USE_THOUSAND_SEPARATOR is set, make sure that the ids for
+        the objects selected for deletion are rendered without separators.
+        Refs #14895.
+        """
+        self.old_USE_THOUSAND_SEPARATOR = settings.USE_THOUSAND_SEPARATOR
+        self.old_USE_L10N = settings.USE_L10N
+        settings.USE_THOUSAND_SEPARATOR = True
+        settings.USE_L10N = True
+        subscriber = Subscriber.objects.get(id=1)
+        subscriber.id = 9999
+        subscriber.save()
+        action_data = {
+            ACTION_CHECKBOX_NAME: [9999, 2],
+            'action' : 'delete_selected',
+            'index': 0,
+        }
+        response = self.client.post('/test_admin/admin/admin_views/subscriber/', action_data)
+        self.assertTemplateUsed(response, 'admin/delete_selected_confirmation.html')
+        self.assertTrue('value="9999"' in response.content and 'value="2"' in response.content) # Instead of 9,999
+        settings.USE_THOUSAND_SEPARATOR = self.old_USE_THOUSAND_SEPARATOR
+        settings.USE_L10N = self.old_USE_L10N
+
     def test_model_admin_default_delete_action_protected(self):
         """
         Tests the default delete action defined as a ModelAdmin method in the
@@ -2339,6 +2423,39 @@ class ReadonlyTest(TestCase):
         response = self.client.get('/test_admin/admin/admin_views/pizza/add/')
         self.assertEqual(response.status_code, 200)
 
+
+class RawIdFieldsTest(TestCase):
+    fixtures = ['admin-views-users.xml']
+
+    def setUp(self):
+        self.client.login(username='super', password='secret')
+
+    def tearDown(self):
+        self.client.logout()
+
+    def test_limit_choices_to(self):
+        """Regression test for 14880"""
+        # This includes tests integers, strings and booleans in the lookup query string
+        actor = Actor.objects.create(name="Palin", age=27)
+        inquisition1 = Inquisition.objects.create(expected=True,
+                                                  leader=actor,
+                                                  country="England")
+        inquisition2 = Inquisition.objects.create(expected=False,
+                                                  leader=actor,
+                                                  country="Spain")
+        response = self.client.get('/test_admin/admin/admin_views/sketch/add/')
+        # Find the link
+        m = re.search(r'<a href="([^"]*)"[^>]* id="lookup_id_inquisition"', response.content)
+        self.assertTrue(m) # Got a match
+        popup_url = m.groups()[0].replace("&amp;", "&")
+
+        # Handle relative links
+        popup_url = urlparse.urljoin(response.request['PATH_INFO'], popup_url)
+        # Get the popup
+        response2 = self.client.get(popup_url)
+        self.assertContains(response2, "Spain")
+        self.assertNotContains(response2, "England")
+
 class UserAdminTest(TestCase):
     """
     Tests user CRUD functionality.
@@ -2493,6 +2610,21 @@ class DateHierarchyTests(TestCase):
 
     def setUp(self):
         self.client.login(username='super', password='secret')
+        self.old_USE_THOUSAND_SEPARATOR = settings.USE_THOUSAND_SEPARATOR
+        self.old_USE_L10N = settings.USE_L10N
+        settings.USE_THOUSAND_SEPARATOR = True
+        settings.USE_L10N = True
+
+    def tearDown(self):
+        settings.USE_THOUSAND_SEPARATOR = self.old_USE_THOUSAND_SEPARATOR
+        settings.USE_L10N = self.old_USE_L10N
+        formats.reset_format_cache()
+
+    def assert_non_localized_year(self, response, year):
+        """Ensure that the year is not localized with
+        USE_THOUSAND_SEPARATOR. Refs #15234.
+        """
+        self.assertNotContains(response, formats.number_format(year))
 
     def assert_contains_year_link(self, response, date):
         self.assertContains(response, '?release_date__year=%d"' % (date.year,))
@@ -2524,9 +2656,10 @@ class DateHierarchyTests(TestCase):
         """
         DATE = datetime.date(2000, 6, 30)
         Podcast.objects.create(release_date=DATE)
-        response = self.client.get(
-            reverse('admin:admin_views_podcast_changelist'))
+        url = reverse('admin:admin_views_podcast_changelist')
+        response = self.client.get(url)
         self.assert_contains_day_link(response, DATE)
+        self.assert_non_localized_year(response, 2000)
 
     def test_within_month(self):
         """
@@ -2537,10 +2670,11 @@ class DateHierarchyTests(TestCase):
                  datetime.date(2000, 6, 3))
         for date in DATES:
             Podcast.objects.create(release_date=date)
-        response = self.client.get(
-            reverse('admin:admin_views_podcast_changelist'))
+        url = reverse('admin:admin_views_podcast_changelist')
+        response = self.client.get(url)
         for date in DATES:
             self.assert_contains_day_link(response, date)
+        self.assert_non_localized_year(response, 2000)
 
     def test_within_year(self):
         """
@@ -2551,12 +2685,13 @@ class DateHierarchyTests(TestCase):
                  datetime.date(2000, 5, 3))
         for date in DATES:
             Podcast.objects.create(release_date=date)
-        response = self.client.get(
-            reverse('admin:admin_views_podcast_changelist'))
+        url = reverse('admin:admin_views_podcast_changelist')
+        response = self.client.get(url)
         # no day-level links
         self.assertNotContains(response, 'release_date__day=')
         for date in DATES:
             self.assert_contains_month_link(response, date)
+        self.assert_non_localized_year(response, 2000)
 
     def test_multiple_years(self):
         """
@@ -2577,14 +2712,20 @@ class DateHierarchyTests(TestCase):
 
         # and make sure GET parameters still behave correctly
         for date in DATES:
-            response = self.client.get(
-                '%s?release_date__year=%d' % (
-                    reverse('admin:admin_views_podcast_changelist'),
-                    date.year))
+            url = '%s?release_date__year=%d' % (
+                  reverse('admin:admin_views_podcast_changelist'),
+                  date.year)
+            response = self.client.get(url)
             self.assert_contains_month_link(response, date)
+            self.assert_non_localized_year(response, 2000)
+            self.assert_non_localized_year(response, 2003)
+            self.assert_non_localized_year(response, 2005)
 
-            response = self.client.get(
-                '%s?release_date__year=%d&release_date__month=%d' % (
-                    reverse('admin:admin_views_podcast_changelist'),
-                    date.year, date.month))
+            url = '%s?release_date__year=%d&release_date__month=%d' % (
+                  reverse('admin:admin_views_podcast_changelist'),
+                  date.year, date.month)
+            response = self.client.get(url)
             self.assert_contains_day_link(response, date)
+            self.assert_non_localized_year(response, 2000)
+            self.assert_non_localized_year(response, 2003)
+            self.assert_non_localized_year(response, 2005)

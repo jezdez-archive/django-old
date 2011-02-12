@@ -668,28 +668,28 @@ msgstr[2] "%(size)d bajtów"
 
 #: template/defaultfilters.py:807
 #, python-format
-msgid "%.1f KB"
-msgstr "%.1f KB"
+msgid "%s KB"
+msgstr "%s KB"
 
 #: template/defaultfilters.py:809
 #, python-format
-msgid "%.1f MB"
-msgstr "%.1f MB"
+msgid "%s MB"
+msgstr "%s MB"
 
 #: template/defaultfilters.py:811
 #, python-format
-msgid "%.1f GB"
-msgstr "%.1f GB"
+msgid "%s GB"
+msgstr "%s GB"
 
 #: template/defaultfilters.py:813
 #, python-format
-msgid "%.1f TB"
-msgstr "%.1f TB"
+msgid "%s TB"
+msgstr "%s TB"
 
 #: template/defaultfilters.py:814
 #, python-format
-msgid "%.1f PB"
-msgstr "%.1f PB"
+msgid "%s PB"
+msgstr "%s PB"
 
 #: utils/dateformat.py:42
 msgid "p.m."
@@ -868,73 +868,61 @@ msgid "dec"
 msgstr "gru"
 
 #: utils/dates.py:31
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Jan."
 msgstr "Sty."
 
 #: utils/dates.py:32
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Feb."
 msgstr "Lut."
 
 #: utils/dates.py:33
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "March"
 msgstr "Marzec"
 
 #: utils/dates.py:34
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "April"
 msgstr "Kwiecień"
 
 #: utils/dates.py:35
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "May"
 msgstr "Maj"
 
 #: utils/dates.py:36
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "June"
 msgstr "Czerwiec"
 
 #: utils/dates.py:37
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "July"
 msgstr "Lipiec"
 
 #: utils/dates.py:38
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Aug."
 msgstr "Sier."
 
 #: utils/dates.py:39
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Sept."
 msgstr "Wrz."
 
 #: utils/dates.py:40
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Oct."
 msgstr "Paź."
 
 #: utils/dates.py:41
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Nov."
 msgstr "Lis."
 
 #: utils/dates.py:42
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Dec."
 msgstr "Gru."

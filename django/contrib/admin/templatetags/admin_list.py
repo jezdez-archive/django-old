@@ -156,7 +156,11 @@ def items_for_result(cl, result, form):
                 if value is None:
                     result_repr = EMPTY_CHANGELIST_VALUE
                 if isinstance(f.rel, models.ManyToOneRel):
-                    result_repr = escape(getattr(result, f.name))
+                    field_val = getattr(result, f.name)
+                    if field_val is None:
+                        result_repr = EMPTY_CHANGELIST_VALUE
+                    else:
+                        result_repr = escape(field_val)
                 else:
                     result_repr = display_for_field(value, f)
                 if isinstance(f, models.DateField) or isinstance(f, models.TimeField):
@@ -257,7 +261,7 @@ def date_hierarchy(cl):
                 'show': True,
                 'back': {
                     'link': link({year_field: year_lookup}),
-                    'title': year_lookup
+                    'title': str(year_lookup)
                 },
                 'choices': [{
                     'link': link({year_field: year_lookup, month_field: month_lookup, day_field: day.day}),

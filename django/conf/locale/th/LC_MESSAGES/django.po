@@ -670,28 +670,28 @@ msgstr[0] "%(size)d ไบต์"
 
 #: template/defaultfilters.py:807
 #, python-format
-msgid "%.1f KB"
-msgstr "%.1f กิโลไบต์"
+msgid "%s KB"
+msgstr "%s กิโลไบต์"
 
 #: template/defaultfilters.py:809
 #, python-format
-msgid "%.1f MB"
-msgstr "%.1f เมกะไบต์"
+msgid "%s MB"
+msgstr "%s เมกะไบต์"
 
 #: template/defaultfilters.py:811
 #, python-format
-msgid "%.1f GB"
-msgstr "%.1f กิกะไบต์"
+msgid "%s GB"
+msgstr "%s กิกะไบต์"
 
 #: template/defaultfilters.py:813
 #, fuzzy, python-format
-msgid "%.1f TB"
-msgstr "%.1f กิโลไบต์"
+msgid "%s TB"
+msgstr "%s กิโลไบต์"
 
 #: template/defaultfilters.py:814
 #, fuzzy, python-format
-msgid "%.1f PB"
-msgstr "%.1f กิโลไบต์"
+msgid "%s PB"
+msgstr "%s กิโลไบต์"
 
 #: utils/dateformat.py:42
 msgid "p.m."
@@ -870,73 +870,61 @@ msgid "dec"
 msgstr "ธ.ค."
 
 #: utils/dates.py:31
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Jan."
 msgstr "ม.ค."
 
 #: utils/dates.py:32
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Feb."
 msgstr "ก.พ."
 
 #: utils/dates.py:33
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "March"
 msgstr "มีนาคม"
 
 #: utils/dates.py:34
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "April"
 msgstr "เมษายน"
 
 #: utils/dates.py:35
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "May"
 msgstr "พฤษภาคม"
 
 #: utils/dates.py:36
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "June"
 msgstr "มิถุนายน"
 
 #: utils/dates.py:37
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "July"
 msgstr "กรกฎาคม"
 
 #: utils/dates.py:38
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Aug."
 msgstr "ส.ค."
 
 #: utils/dates.py:39
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Sept."
 msgstr "ก.ย."
 
 #: utils/dates.py:40
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Oct."
 msgstr "ต.ค."
 
 #: utils/dates.py:41
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Nov."
 msgstr "พ.ย."
 
 #: utils/dates.py:42
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Dec."
 msgstr "ธ.ค."

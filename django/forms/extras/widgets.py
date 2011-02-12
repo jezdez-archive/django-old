@@ -17,6 +17,26 @@ __all__ = ('SelectDateWidget',)
 
 RE_DATE = re.compile(r'(\d{4})-(\d\d?)-(\d\d?)$')
 
+def _parse_date_fmt():
+    fmt = get_format('DATE_FORMAT')
+    escaped = False
+    output = []
+    for char in fmt:
+        if escaped:
+            escaped = False
+        elif char == '\\':
+            escaped = True
+        elif char in 'Yy':
+            output.append('year')
+            #if not self.first_select: self.first_select = 'year'
+        elif char in 'bEFMmNn':
+            output.append('month')
+            #if not self.first_select: self.first_select = 'month'
+        elif char in 'dj':
+            output.append('day')
+            #if not self.first_select: self.first_select = 'day'
+    return output
+
 class SelectDateWidget(Widget):
     """
     A Widget that splits date input into three <select> boxes.
@@ -50,7 +70,7 @@ class SelectDateWidget(Widget):
                         input_format = get_format('DATE_INPUT_FORMATS')[0]
                         # Python 2.4 compatibility:
                         #     v = datetime.datetime.strptime(value, input_format)
-                        # would be clearer, but datetime.strptime was added in 
+                        # would be clearer, but datetime.strptime was added in
                         # Python 2.5
                         v = datetime.datetime(*(time.strptime(value, input_format)[0:6]))
                         year_val, month_val, day_val = v.year, v.month, v.day
@@ -67,24 +87,25 @@ class SelectDateWidget(Widget):
         choices = [(i, i) for i in range(1, 32)]
         day_html = self.create_select(name, self.day_field, value, day_val,  choices)
 
-        format = get_format('DATE_FORMAT')
-        escaped = False
         output = []
-        for char in format:
-            if escaped:
-                escaped = False
-            elif char == '\\':
-                escaped = True
-            elif char in 'Yy':
+        for field in _parse_date_fmt():
+            if field == 'year':
                 output.append(year_html)
-            elif char in 'bEFMmNn':
+            elif field == 'month':
                 output.append(month_html)
-            elif char in 'dj':
+            elif field == 'day':
                 output.append(day_html)
         return mark_safe(u'\n'.join(output))
 
     def id_for_label(self, id_):
-        return '%s_month' % id_
+        first_select = None
+        field_list = _parse_date_fmt()
+        if field_list:
+            first_select = field_list[0]
+        if first_select is not None:
+            return '%s_%s' % (id_, first_select)
+        else:
+            return '%s_month' % id_
     id_for_label = classmethod(id_for_label)
 
     def value_from_datadict(self, data, files, name):
@@ -99,7 +120,7 @@ class SelectDateWidget(Widget):
                 try:
                     date_value = datetime.date(int(y), int(m), int(d))
                 except ValueError:
-                    pass
+                    return '%s-%s-%s' % (y, m, d)
                 else:
                     date_value = datetime_safe.new_date(date_value)
                     return date_value.strftime(input_format)
@@ -118,4 +139,3 @@ class SelectDateWidget(Widget):
         s = Select(choices=choices)
         select_html = s.render(field % name, val, local_attrs)
         return select_html
-

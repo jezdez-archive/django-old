@@ -210,14 +210,16 @@ class AdminSplitDateTimeWidgetTest(TestCase):
 
         activate('de-at')
         old_USE_L10N = settings.USE_L10N
-        settings.USE_L10N = True
-        w.is_localized = True
-        self.assertEqual(
-            conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
-            '<p class="datetime">Datum: <input value="01.12.2007" type="text" class="vDateField" name="test_0" size="10" /><br />Zeit: <input value="09:30:00" type="text" class="vTimeField" name="test_1" size="8" /></p>',
-        )
-        deactivate()
-        settings.USE_L10N = old_USE_L10N
+        try:
+            settings.USE_L10N = True
+            w.is_localized = True
+            self.assertEqual(
+                conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
+                '<p class="datetime">Datum: <input value="01.12.2007" type="text" class="vDateField" name="test_0" size="10" /><br />Zeit: <input value="09:30:00" type="text" class="vTimeField" name="test_1" size="8" /></p>',
+            )
+        finally:
+            deactivate()
+            settings.USE_L10N = old_USE_L10N
 
 
 class AdminFileWidgetTest(DjangoTestCase):
@@ -230,7 +232,7 @@ class AdminFileWidgetTest(DjangoTestCase):
         w = AdminFileWidget()
         self.assertEqual(
             conditional_escape(w.render('test', album.cover_art)),
-            '<p class="file-upload">Currently: <a target="_blank" href="%(STORAGE_URL)salbums/hybrid_theory.jpg">albums\hybrid_theory.jpg</a> <span class="clearable-file-input"><input type="checkbox" name="test-clear" id="test-clear_id" /> <label for="test-clear_id">Clear</label></span><br />Change: <input type="file" name="test" /></p>' % { 'STORAGE_URL': default_storage.url('') },
+            '<p class="file-upload">Currently: <a href="%(STORAGE_URL)salbums/hybrid_theory.jpg">albums\hybrid_theory.jpg</a> <span class="clearable-file-input"><input type="checkbox" name="test-clear" id="test-clear_id" /> <label for="test-clear_id">Clear</label></span><br />Change: <input type="file" name="test" /></p>' % { 'STORAGE_URL': default_storage.url('') },
         )
 
         self.assertEqual(

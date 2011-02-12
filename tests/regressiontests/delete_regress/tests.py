@@ -5,7 +5,7 @@ from django.db import backend, connection, transaction, DEFAULT_DB_ALIAS
 from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
 
 from models import (Book, Award, AwardNote, Person, Child, Toy, PlayedWith,
-    PlayedWithNote, Contact, Email, Researcher)
+    PlayedWithNote, Contact, Email, Researcher, Food, Eaten)
 
 
 # Can't run this test under SQLite, because you can't
@@ -62,6 +62,7 @@ class DeleteLockingTest(TransactionTestCase):
         Book.objects.filter(pagecount__lt=250).delete()
         transaction.commit()
         self.assertEqual(1, Book.objects.count())
+        transaction.commit()
 
 
 class DeleteCascadeTests(TestCase):
@@ -118,6 +119,16 @@ class DeleteCascadeTransactionTests(TransactionTestCase):
         r.contacts.add(email)
 
         email.delete()
+
+    def test_to_field(self):
+        """
+        Cascade deletion works with ForeignKey.to_field set to non-PK.
+
+        """
+        apple = Food.objects.create(name="apple")
+        eaten = Eaten.objects.create(food=apple, meal="lunch")
+
+        apple.delete()
 
 class LargeDeleteTests(TestCase):
     def test_large_deletes(self):

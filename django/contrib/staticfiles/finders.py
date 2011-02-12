@@ -1,6 +1,5 @@
 import os
 from django.conf import settings
-from django.db import models
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage, Storage, FileSystemStorage
 from django.utils.datastructures import SortedDict
@@ -11,7 +10,7 @@ from django.utils._os import safe_join
 from django.contrib.staticfiles import utils
 from django.contrib.staticfiles.storage import AppStaticStorage
 
-_finders = {}
+_finders = SortedDict()
 
 
 class BaseFinder(object):
@@ -43,22 +42,29 @@ class FileSystemFinder(BaseFinder):
     to locate files.
     """
     def __init__(self, apps=None, *args, **kwargs):
+        # List of locations with static files
+        self.locations = []
         # Maps dir paths to an appropriate storage instance
         self.storages = SortedDict()
-        # Set of locations with static files
-        self.locations = set()
+        if not isinstance(settings.STATICFILES_DIRS, (list, tuple)):
+            raise ImproperlyConfigured(
+                "Your STATICFILES_DIRS setting is not a tuple or list; "
+                "perhaps you forgot a trailing comma?")
         for root in settings.STATICFILES_DIRS:
             if isinstance(root, (list, tuple)):
                 prefix, root = root
             else:
                 prefix = ''
-            self.locations.add((prefix, root))
-        # Don't initialize multiple storages for the same location
+            if os.path.abspath(settings.STATIC_ROOT) == os.path.abspath(root):
+                raise ImproperlyConfigured(
+                    "The STATICFILES_DIRS setting should "
+                    "not contain the STATIC_ROOT setting")
+            if (prefix, root) not in self.locations:
+                self.locations.append((prefix, root))
         for prefix, root in self.locations:
             filesystem_storage = FileSystemStorage(location=root)
             filesystem_storage.prefix = prefix
             self.storages[root] = filesystem_storage
-
         super(FileSystemFinder, self).__init__(*args, **kwargs)
 
     def find(self, path, all=False):

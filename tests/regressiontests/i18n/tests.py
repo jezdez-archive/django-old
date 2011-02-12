@@ -9,13 +9,13 @@ from threading import local
 from django.conf import settings
 from django.template import Template, Context
 from django.utils.formats import (get_format, date_format, time_format,
-    localize, localize_input, iter_format_modules)
+    localize, localize_input, iter_format_modules, get_format_modules)
 from django.utils.importlib import import_module
 from django.utils.numberformat import format as nformat
 from django.utils.safestring import mark_safe, SafeString, SafeUnicode
 from django.utils.translation import (ugettext, ugettext_lazy, activate,
         deactivate, gettext_lazy, pgettext, npgettext, to_locale,
-        get_language_info)
+        get_language_info, get_language)
 from django.utils.unittest import TestCase
 
 
@@ -253,10 +253,8 @@ class FormattingTests(TestCase):
             deactivate()
 
     def test_l10n_enabled(self):
-        """
-        Catalan locale
-        """
         settings.USE_L10N = True
+        # Catalan locale
         activate('ca')
         try:
             self.assertEqual('j \de F \de Y', get_format('DATE_FORMAT'))
@@ -345,15 +343,15 @@ class FormattingTests(TestCase):
 
         # Russian locale (with E as month)
         activate('ru')
-        self.assertEqual(
-                u'<select name="mydate_day" id="id_mydate_day">\n<option value="1">1</option>\n<option value="2">2</option>\n<option value="3">3</option>\n<option value="4">4</option>\n<option value="5">5</option>\n<option value="6">6</option>\n<option value="7">7</option>\n<option value="8">8</option>\n<option value="9">9</option>\n<option value="10">10</option>\n<option value="11">11</option>\n<option value="12">12</option>\n<option value="13">13</option>\n<option value="14">14</option>\n<option value="15">15</option>\n<option value="16">16</option>\n<option value="17">17</option>\n<option value="18">18</option>\n<option value="19">19</option>\n<option value="20">20</option>\n<option value="21">21</option>\n<option value="22">22</option>\n<option value="23">23</option>\n<option value="24">24</option>\n<option value="25">25</option>\n<option value="26">26</option>\n<option value="27">27</option>\n<option value="28">28</option>\n<option value="29">29</option>\n<option value="30">30</option>\n<option value="31" selected="selected">31</option>\n</select>\n<select name="mydate_month" id="id_mydate_month">\n<option value="1">\u042f\u043d\u0432\u0430\u0440\u044c</option>\n<option value="2">\u0424\u0435\u0432\u0440\u0430\u043b\u044c</option>\n<option value="3">\u041c\u0430\u0440\u0442</option>\n<option value="4">\u0410\u043f\u0440\u0435\u043b\u044c</option>\n<option value="5">\u041c\u0430\u0439</option>\n<option value="6">\u0418\u044e\u043d\u044c</option>\n<option value="7">\u0418\u044e\u043b\u044c</option>\n<option value="8">\u0410\u0432\u0433\u0443\u0441\u0442</option>\n<option value="9">\u0421\u0435\u043d\u0442\u044f\u0431\u0440\u044c</option>\n<option value="10">\u041e\u043a\u0442\u044f\u0431\u0440\u044c</option>\n<option value="11">\u041d\u043e\u044f\u0431\u0440\u044c</option>\n<option value="12" selected="selected">\u0414\u0435\u043a\u0430\u0431\u0440\u044c</option>\n</select>\n<select name="mydate_year" id="id_mydate_year">\n<option value="2009" selected="selected">2009</option>\n<option value="2010">2010</option>\n<option value="2011">2011</option>\n<option value="2012">2012</option>\n<option value="2013">2013</option>\n<option value="2014">2014</option>\n<option value="2015">2015</option>\n<option value="2016">2016</option>\n<option value="2017">2017</option>\n<option value="2018">2018</option>\n</select>',
-                SelectDateWidget(years=range(2009, 2019)).render('mydate', datetime.date(2009, 12, 31))
-        )
-        deactivate()
+        try:
+            self.assertEqual(
+                    u'<select name="mydate_day" id="id_mydate_day">\n<option value="1">1</option>\n<option value="2">2</option>\n<option value="3">3</option>\n<option value="4">4</option>\n<option value="5">5</option>\n<option value="6">6</option>\n<option value="7">7</option>\n<option value="8">8</option>\n<option value="9">9</option>\n<option value="10">10</option>\n<option value="11">11</option>\n<option value="12">12</option>\n<option value="13">13</option>\n<option value="14">14</option>\n<option value="15">15</option>\n<option value="16">16</option>\n<option value="17">17</option>\n<option value="18">18</option>\n<option value="19">19</option>\n<option value="20">20</option>\n<option value="21">21</option>\n<option value="22">22</option>\n<option value="23">23</option>\n<option value="24">24</option>\n<option value="25">25</option>\n<option value="26">26</option>\n<option value="27">27</option>\n<option value="28">28</option>\n<option value="29">29</option>\n<option value="30">30</option>\n<option value="31" selected="selected">31</option>\n</select>\n<select name="mydate_month" id="id_mydate_month">\n<option value="1">\u042f\u043d\u0432\u0430\u0440\u044c</option>\n<option value="2">\u0424\u0435\u0432\u0440\u0430\u043b\u044c</option>\n<option value="3">\u041c\u0430\u0440\u0442</option>\n<option value="4">\u0410\u043f\u0440\u0435\u043b\u044c</option>\n<option value="5">\u041c\u0430\u0439</option>\n<option value="6">\u0418\u044e\u043d\u044c</option>\n<option value="7">\u0418\u044e\u043b\u044c</option>\n<option value="8">\u0410\u0432\u0433\u0443\u0441\u0442</option>\n<option value="9">\u0421\u0435\u043d\u0442\u044f\u0431\u0440\u044c</option>\n<option value="10">\u041e\u043a\u0442\u044f\u0431\u0440\u044c</option>\n<option value="11">\u041d\u043e\u044f\u0431\u0440\u044c</option>\n<option value="12" selected="selected">\u0414\u0435\u043a\u0430\u0431\u0440\u044c</option>\n</select>\n<select name="mydate_year" id="id_mydate_year">\n<option value="2009" selected="selected">2009</option>\n<option value="2010">2010</option>\n<option value="2011">2011</option>\n<option value="2012">2012</option>\n<option value="2013">2013</option>\n<option value="2014">2014</option>\n<option value="2015">2015</option>\n<option value="2016">2016</option>\n<option value="2017">2017</option>\n<option value="2018">2018</option>\n</select>',
+                    SelectDateWidget(years=range(2009, 2019)).render('mydate', datetime.date(2009, 12, 31))
+            )
+        finally:
+            deactivate()
 
         # English locale
-
-        settings.USE_L10N = True
         activate('en')
         try:
             self.assertEqual('N j, Y', get_format('DATE_FORMAT'))
@@ -487,13 +485,23 @@ class FormattingTests(TestCase):
         Tests the iter_format_modules function always yields format modules in
         a stable and correct order in presence of both base ll and ll_CC formats.
         """
+        settings.USE_L10N = True
+        en_format_mod = import_module('django.conf.locale.en.formats')
+        en_gb_format_mod = import_module('django.conf.locale.en_GB.formats')
+        self.assertEqual(list(iter_format_modules('en-gb')), [en_gb_format_mod, en_format_mod])
+
+    def test_get_format_modules_stability(self):
+        activate('de')
+        old_format_module_path = settings.FORMAT_MODULE_PATH
+        settings.FORMAT_MODULE_PATH = 'regressiontests.i18n.other.locale'
         try:
-            old_l10n, settings.USE_L10N = settings.USE_L10N, True
-            en_format_mod = import_module('django.conf.locale.en.formats')
-            en_gb_format_mod = import_module('django.conf.locale.en_GB.formats')
-            self.assertEqual(list(iter_format_modules('en-gb')), [en_gb_format_mod, en_format_mod])
+            settings.USE_L10N = True
+            old = "%r" % get_format_modules(reverse=True)
+            new = "%r" % get_format_modules(reverse=True) # second try
+            self.assertEqual(new, old, 'Value returned by get_formats_modules() must be preserved between calls.')
         finally:
-            settings.USE_L10N = old_l10n
+            settings.FORMAT_MODULE_PATH = old_format_module_path
+            deactivate()
 
     def test_localize_templatetag_and_filter(self):
         """
@@ -660,14 +668,14 @@ class ResolutionOrderI18NTests(TestCase):
 
     def assertUgettext(self, msgid, msgstr):
         result = ugettext(msgid)
-        self.assert_(msgstr in result, ("The string '%s' isn't in the "
+        self.assertTrue(msgstr in result, ("The string '%s' isn't in the "
             "translation of '%s'; the actual result is '%s'." % (msgstr, msgid, result)))
 
 class AppResolutionOrderI18NTests(ResolutionOrderI18NTests):
 
     def setUp(self):
         self.old_installed_apps = settings.INSTALLED_APPS
-        settings.INSTALLED_APPS = list(settings.INSTALLED_APPS) + ['regressiontests.i18n.resolution']
+        settings.INSTALLED_APPS = ['regressiontests.i18n.resolution'] + list(settings.INSTALLED_APPS)
         super(AppResolutionOrderI18NTests, self).setUp()
 
     def tearDown(self):
@@ -691,6 +699,22 @@ class LocalePathsResolutionOrderI18NTests(ResolutionOrderI18NTests):
     def test_locale_paths_translation(self):
         self.assertUgettext('Time', 'LOCALE_PATHS')
 
+    def test_locale_paths_override_app_translation(self):
+        old_installed_apps = settings.INSTALLED_APPS
+        settings.INSTALLED_APPS = list(settings.INSTALLED_APPS) + ['regressiontests.i18n.resolution']
+        try:
+            self.assertUgettext('Time', 'LOCALE_PATHS')
+        finally:
+            settings.INSTALLED_APPS = old_installed_apps
+
+    def test_locale_paths_override_project_translation(self):
+        old_settings_module = settings.SETTINGS_MODULE
+        settings.SETTINGS_MODULE = 'regressiontests'
+        try:
+            self.assertUgettext('Date/time', 'LOCALE_PATHS')
+        finally:
+            settings.SETTINGS_MODULE = old_settings_module
+
 class ProjectResolutionOrderI18NTests(ResolutionOrderI18NTests):
 
     def setUp(self):
@@ -708,19 +732,15 @@ class ProjectResolutionOrderI18NTests(ResolutionOrderI18NTests):
     def test_project_override_app_translation(self):
         old_installed_apps = settings.INSTALLED_APPS
         settings.INSTALLED_APPS = list(settings.INSTALLED_APPS) + ['regressiontests.i18n.resolution']
-        self.assertUgettext('Date/time', 'PROJECT')
-        settings.INSTALLED_APPS = old_installed_apps
-
-    def test_project_override_locale_paths_translation(self):
-        old_locale_paths = settings.LOCALE_PATHS
-        settings.LOCALE_PATHS += (os.path.join(os.path.dirname(os.path.abspath(__file__)), 'other', 'locale'),)
-        self.assertUgettext('Date/time', 'PROJECT')
-        settings.LOCALE_PATHS = old_locale_paths
+        try:
+            self.assertUgettext('Date/time', 'PROJECT')
+        finally:
+            settings.INSTALLED_APPS = old_installed_apps
 
 class DjangoFallbackResolutionOrderI18NTests(ResolutionOrderI18NTests):
 
     def test_django_fallback(self):
-        self.assertUgettext('Date/time', 'Datum/Zeit')
+        self.assertEqual(ugettext('Date/time'), 'Datum/Zeit')
 
 
 class TestModels(TestCase):
@@ -743,3 +763,134 @@ class TestLanguageInfo(TestCase):
         self.assertEqual(li['name_local'], u'Deutsch')
         self.assertEqual(li['name'], 'German')
         self.assertEqual(li['bidi'], False)
+
+
+class MultipleLocaleActivationTests(TestCase):
+    """
+    Tests for template rendering behavior when multiple locales are activated
+    during the lifetime of the same process.
+    """
+    def setUp(self):
+        self._old_language = get_language()
+
+    def tearDown(self):
+        activate(self._old_language)
+
+    def test_single_locale_activation(self):
+        """
+        Simple baseline behavior with one locale for all the supported i18n constructs.
+        """
+        activate('fr')
+        self.assertEqual(Template("{{ _('Yes') }}").render(Context({})), 'Oui')
+        self.assertEqual(Template("{% load i18n %}{% trans 'Yes' %}").render(Context({})), 'Oui')
+        self.assertEqual(Template("{% load i18n %}{% blocktrans %}Yes{% endblocktrans %}").render(Context({})), 'Oui')
+
+    # Literal marked up with _() in a filter expression
+
+    def test_multiple_locale_filter(self):
+        activate('de')
+        t = Template("{% load i18n %}{{ 0|yesno:_('yes,no,maybe') }}")
+        activate(self._old_language)
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'nee')
+
+    def test_multiple_locale_filter_deactivate(self):
+        activate('de')
+        t = Template("{% load i18n %}{{ 0|yesno:_('yes,no,maybe') }}")
+        deactivate()
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'nee')
+
+    def test_multiple_locale_filter_direct_switch(self):
+        activate('de')
+        t = Template("{% load i18n %}{{ 0|yesno:_('yes,no,maybe') }}")
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'nee')
+
+    # Literal marked up with _()
+
+    def test_multiple_locale(self):
+        activate('de')
+        t = Template("{{ _('No') }}")
+        activate(self._old_language)
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_deactivate(self):
+        activate('de')
+        t = Template("{{ _('No') }}")
+        deactivate()
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_direct_switch(self):
+        activate('de')
+        t = Template("{{ _('No') }}")
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    # Literal marked up with _(), loading the i18n template tag library
+
+    def test_multiple_locale_loadi18n(self):
+        activate('de')
+        t = Template("{% load i18n %}{{ _('No') }}")
+        activate(self._old_language)
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_loadi18n_deactivate(self):
+        activate('de')
+        t = Template("{% load i18n %}{{ _('No') }}")
+        deactivate()
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_loadi18n_direct_switch(self):
+        activate('de')
+        t = Template("{% load i18n %}{{ _('No') }}")
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    # trans i18n tag
+
+    def test_multiple_locale_trans(self):
+        activate('de')
+        t = Template("{% load i18n %}{% trans 'No' %}")
+        activate(self._old_language)
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_deactivate_trans(self):
+        activate('de')
+        t = Template("{% load i18n %}{% trans 'No' %}")
+        deactivate()
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_direct_switch_trans(self):
+        activate('de')
+        t = Template("{% load i18n %}{% trans 'No' %}")
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    # blocktrans i18n tag
+
+    def test_multiple_locale_btrans(self):
+        activate('de')
+        t = Template("{% load i18n %}{% blocktrans %}No{% endblocktrans %}")
+        activate(self._old_language)
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_deactivate_btrans(self):
+        activate('de')
+        t = Template("{% load i18n %}{% blocktrans %}No{% endblocktrans %}")
+        deactivate()
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')
+
+    def test_multiple_locale_direct_switch_btrans(self):
+        activate('de')
+        t = Template("{% load i18n %}{% blocktrans %}No{% endblocktrans %}")
+        activate('nl')
+        self.assertEqual(t.render(Context({})), 'Nee')

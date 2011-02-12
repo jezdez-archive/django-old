@@ -1084,7 +1084,29 @@ class ClearableFileInputTests(TestCase):
         widget = ClearableFileInput()
         widget.is_required = False
         self.assertEqual(widget.render('myfile', FakeFieldFile()),
-                         u'Currently: <a target="_blank" href="something">something</a> <input type="checkbox" name="myfile-clear" id="myfile-clear_id" /> <label for="myfile-clear_id">Clear</label><br />Change: <input type="file" name="myfile" />')
+                         u'Currently: <a href="something">something</a> <input type="checkbox" name="myfile-clear" id="myfile-clear_id" /> <label for="myfile-clear_id">Clear</label><br />Change: <input type="file" name="myfile" />')
+
+    def test_html_escaped(self):
+        """
+        A ClearableFileInput should escape name, filename and URL when
+        rendering HTML. Refs #15182.
+        """
+
+        class StrangeFieldFile(object):
+            url = "something?chapter=1&sect=2&copy=3&lang=en"
+
+            def __unicode__(self):
+                return u'''something<div onclick="alert('oops')">.jpg'''
+
+        widget = ClearableFileInput()
+        field = StrangeFieldFile()
+        output = widget.render('my<div>file', field)
+        self.assertFalse(field.url in output)
+        self.assertTrue(u'href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en"' in output)
+        self.assertFalse(unicode(field) in output)
+        self.assertTrue(u'something&lt;div onclick=&quot;alert(&#39;oops&#39;)&quot;&gt;.jpg' in output)
+        self.assertTrue(u'my&lt;div&gt;file' in output)
+        self.assertFalse(u'my<div>file' in output)
 
     def test_clear_input_renders_only_if_not_required(self):
         """
@@ -1095,7 +1117,7 @@ class ClearableFileInputTests(TestCase):
         widget = ClearableFileInput()
         widget.is_required = True
         self.assertEqual(widget.render('myfile', FakeFieldFile()),
-                         u'Currently: <a target="_blank" href="something">something</a> <br />Change: <input type="file" name="myfile" />')
+                         u'Currently: <a href="something">something</a> <br />Change: <input type="file" name="myfile" />')
 
     def test_clear_input_renders_only_if_initial(self):
         """

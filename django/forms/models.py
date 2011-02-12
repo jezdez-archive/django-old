@@ -21,8 +21,7 @@ from formsets import BaseFormSet, formset_factory, DELETION_FIELD_NAME
 
 __all__ = (
     'ModelForm', 'BaseModelForm', 'model_to_dict', 'fields_for_model',
-    'save_instance', 'form_for_fields', 'ModelChoiceField',
-    'ModelMultipleChoiceField',
+    'save_instance', 'ModelChoiceField', 'ModelMultipleChoiceField',
 )
 
 def construct_instance(form, instance, fields=None, exclude=None):
@@ -91,26 +90,6 @@ def save_instance(form, instance, fields=None, fail_message='saved',
         # saving of m2m data.
         form.save_m2m = save_m2m
     return instance
-
-def make_model_save(model, fields, fail_message):
-    """Returns the save() method for a Form."""
-    def save(self, commit=True):
-        return save_instance(self, model(), fields, fail_message, commit)
-    return save
-
-def make_instance_save(instance, fields, fail_message):
-    """Returns the save() method for a Form."""
-    def save(self, commit=True):
-        return save_instance(self, instance, fields, fail_message, commit)
-    return save
-
-def form_for_fields(field_list):
-    """
-    Returns a Form class for the given list of Django database field instances.
-    """
-    fields = SortedDict([(f.name, f.formfield())
-                         for f in field_list if f.editable])
-    return type('FormForFields', (BaseForm,), {'base_fields': fields})
 
 
 # ModelForms #################################################################
@@ -532,7 +511,7 @@ class BaseModelFormSet(BaseFormSet):
                         # poke error messages into the right places and mark
                         # the form as invalid
                         errors.append(self.get_unique_error_message(unique_check))
-                        form._errors[NON_FIELD_ERRORS] = self.get_form_error()
+                        form._errors[NON_FIELD_ERRORS] = self.error_class([self.get_form_error()])
                         del form.cleaned_data
                         break
                     # mark the data as seen
@@ -563,7 +542,7 @@ class BaseModelFormSet(BaseFormSet):
                         # poke error messages into the right places and mark
                         # the form as invalid
                         errors.append(self.get_date_error_message(date_check))
-                        form._errors[NON_FIELD_ERRORS] = self.get_form_error()
+                        form._errors[NON_FIELD_ERRORS] = self.error_class([self.get_form_error()])
                         del form.cleaned_data
                         break
                     seen_data.add(data)
@@ -700,13 +679,9 @@ class BaseInlineFormSet(BaseModelFormSet):
         self.save_as_new = save_as_new
         # is there a better way to get the object descriptor?
         self.rel_name = RelatedObject(self.fk.rel.to, self.model, self.fk).get_accessor_name()
-        if self.fk.rel.field_name == self.fk.rel.to._meta.pk.name:
-            backlink_value = self.instance
-        else:
-            backlink_value = getattr(self.instance, self.fk.rel.field_name)
         if queryset is None:
             queryset = self.model._default_manager
-        qs = queryset.filter(**{self.fk.name: backlink_value})
+        qs = queryset.filter(**{self.fk.name: self.instance})
         super(BaseInlineFormSet, self).__init__(data, files, prefix=prefix,
                                                 queryset=qs)
 
@@ -715,10 +690,6 @@ class BaseInlineFormSet(BaseModelFormSet):
             return 0
         return super(BaseInlineFormSet, self).initial_form_count()
 
-    def total_form_count(self):
-        if self.save_as_new:
-            return super(BaseInlineFormSet, self).initial_form_count()
-        return super(BaseInlineFormSet, self).total_form_count()
 
     def _construct_form(self, i, **kwargs):
         form = super(BaseInlineFormSet, self)._construct_form(i, **kwargs)

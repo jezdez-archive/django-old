@@ -5,7 +5,7 @@ import urllib
 from django.conf import settings
 from django.contrib.auth import SESSION_KEY, REDIRECT_FIELD_NAME
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.sites.models import Site
+from django.contrib.sites.models import Site, RequestSite
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.core import mail
@@ -104,6 +104,12 @@ class PasswordResetTest(AuthViewsTestCase):
         self.assertEquals(response.status_code, 200)
         self.assert_("The password reset link was invalid" in response.content)
 
+    def test_confirm_overflow_user(self):
+        # Ensure that we get a 200 response for a base36 user id that overflows int
+        response = self.client.get('/reset/zzzzzzzzzzzzz-1-1/')
+        self.assertEquals(response.status_code, 200)
+        self.assert_("The password reset link was invalid" in response.content)
+
     def test_confirm_invalid_post(self):
         # Same as test_confirm_invalid, but trying
         # to do a POST instead.
@@ -192,9 +198,12 @@ class LoginTest(AuthViewsTestCase):
     def test_current_site_in_context_after_login(self):
         response = self.client.get(reverse('django.contrib.auth.views.login'))
         self.assertEquals(response.status_code, 200)
-        site = Site.objects.get_current()
-        self.assertEquals(response.context['site'], site)
-        self.assertEquals(response.context['site_name'], site.name)
+        if Site._meta.installed:
+            site = Site.objects.get_current()
+            self.assertEquals(response.context['site'], site)
+            self.assertEquals(response.context['site_name'], site.name)
+        else:
+            self.assertIsInstance(response.context['site'], RequestSite)
         self.assert_(isinstance(response.context['form'], AuthenticationForm), 
                      'Login form is not an AuthenticationForm')
 

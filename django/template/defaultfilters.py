@@ -460,10 +460,7 @@ def dictsort(value, arg):
     Takes a list of dicts, returns that list sorted by the property given in
     the argument.
     """
-    var_resolve = Variable(arg).resolve
-    decorated = [(var_resolve(item), item) for item in value]
-    decorated.sort()
-    return [item[1] for item in decorated]
+    return sorted(value, key=Variable(arg).resolve)
 dictsort.is_safe = False
 
 def dictsortreversed(value, arg):
@@ -471,11 +468,7 @@ def dictsortreversed(value, arg):
     Takes a list of dicts, returns that list sorted in reverse order by the
     property given in the argument.
     """
-    var_resolve = Variable(arg).resolve
-    decorated = [(var_resolve(item), item) for item in value]
-    decorated.sort()
-    decorated.reverse()
-    return [item[1] for item in decorated]
+    return sorted(value, key=Variable(arg).resolve, reverse=True)
 dictsortreversed.is_safe = False
 
 def first(value):
@@ -799,19 +792,21 @@ def filesizeformat(bytes):
     try:
         bytes = float(bytes)
     except (TypeError,ValueError,UnicodeDecodeError):
-        return u"0 bytes"
+        return ungettext("%(size)d byte", "%(size)d bytes", 0) % {'size': 0}
+
+    filesize_number_format = lambda value: formats.number_format(round(value, 1), 1)
 
     if bytes < 1024:
         return ungettext("%(size)d byte", "%(size)d bytes", bytes) % {'size': bytes}
     if bytes < 1024 * 1024:
-        return ugettext("%.1f KB") % (bytes / 1024)
+        return ugettext("%s KB") % filesize_number_format(bytes / 1024)
     if bytes < 1024 * 1024 * 1024:
-        return ugettext("%.1f MB") % (bytes / (1024 * 1024))
+        return ugettext("%s MB") % filesize_number_format(bytes / (1024 * 1024))
     if bytes < 1024 * 1024 * 1024 * 1024:
-        return ugettext("%.1f GB") % (bytes / (1024 * 1024 * 1024))
+        return ugettext("%s GB") % filesize_number_format(bytes / (1024 * 1024 * 1024))
     if bytes < 1024 * 1024 * 1024 * 1024 * 1024:
-        return ugettext("%.1f TB") % (bytes / (1024 * 1024 * 1024 * 1024))
-    return ugettext("%.1f PB") % (bytes / (1024 * 1024 * 1024 * 1024 * 1024))
+        return ugettext("%s TB") % filesize_number_format(bytes / (1024 * 1024 * 1024 * 1024))
+    return ugettext("%s PB") % filesize_number_format(bytes / (1024 * 1024 * 1024 * 1024 * 1024))
 filesizeformat.is_safe = True
 
 def pluralize(value, arg=u's'):

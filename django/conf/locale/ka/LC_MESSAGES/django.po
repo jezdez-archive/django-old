@@ -682,28 +682,28 @@ msgstr[0] "%(size)d ბაიტი"
 
 #: template/defaultfilters.py:807
 #, python-format
-msgid "%.1f KB"
-msgstr "%.1f კბაიტი"
+msgid "%s KB"
+msgstr "%s კბაიტი"
 
 #: template/defaultfilters.py:809
 #, python-format
-msgid "%.1f MB"
-msgstr "%.1f მბაიტი"
+msgid "%s MB"
+msgstr "%s მბაიტი"
 
 #: template/defaultfilters.py:811
 #, python-format
-msgid "%.1f GB"
-msgstr "%.1f გბაიტი"
+msgid "%s GB"
+msgstr "%s გბაიტი"
 
 #: template/defaultfilters.py:813
 #, fuzzy, python-format
-msgid "%.1f TB"
-msgstr "%.1f კბაიტი"
+msgid "%s TB"
+msgstr "%s კბაიტი"
 
 #: template/defaultfilters.py:814
 #, fuzzy, python-format
-msgid "%.1f PB"
-msgstr "%.1f კბაიტი"
+msgid "%s PB"
+msgstr "%s კბაიტი"
 
 #: utils/dateformat.py:42
 msgid "p.m."
@@ -882,73 +882,61 @@ msgid "dec"
 msgstr "დეკ"
 
 #: utils/dates.py:31
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Jan."
 msgstr "იან."
 
 #: utils/dates.py:32
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Feb."
 msgstr "თებ."
 
 #: utils/dates.py:33
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "March"
 msgstr "მარტი"
 
 #: utils/dates.py:34
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "April"
 msgstr "აპრილი"
 
 #: utils/dates.py:35
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "May"
 msgstr "მაისი"
 
 #: utils/dates.py:36
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "June"
 msgstr "ივნისი"
 
 #: utils/dates.py:37
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "July"
 msgstr "ივლისი"
 
 #: utils/dates.py:38
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Aug."
 msgstr "აგვ."
 
 #: utils/dates.py:39
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Sept."
 msgstr "სექტ."
 
 #: utils/dates.py:40
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Oct."
 msgstr "ოქტ."
 
 #: utils/dates.py:41
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Nov."
 msgstr "ნოემ."
 
 #: utils/dates.py:42
-#, fuzzy
 msgctxt "abbrev. month"
 msgid "Dec."
 msgstr "დეკ."
