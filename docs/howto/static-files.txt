@@ -109,10 +109,9 @@ the framework see :doc:`the staticfiles reference </ref/contrib/staticfiles>`.
    :setting:`MEDIA_URL` different from your :setting:`STATIC_ROOT` and
    :setting:`STATIC_URL`. You will need to arrange for serving of files in
    :setting:`MEDIA_ROOT` yourself; ``staticfiles`` does not deal with
-   user-uploaded files at all. You can, however, use ``staticfiles``'
-   :func:`~django.contrib.staticfiles.views.serve` view for serving
-   :setting:`MEDIA_ROOT` in development; see
-   :ref:`staticfiles-serve-other-directories`.
+   user-uploaded files at all. You can, however, use
+   :func:`~django.views.static.serve` view for serving :setting:`MEDIA_ROOT`
+   in development; see :ref:`staticfiles-serve-other-directories`.
 
 .. _staticfiles-in-templates:
 

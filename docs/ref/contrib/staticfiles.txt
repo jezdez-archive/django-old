@@ -343,5 +343,13 @@ by appending something like this to your URLconf::
                {'document_root': settings.MEDIA_ROOT}),
        )
 
+Luckily Django also ships with a small URL helper function that shrinks
+that down a bit::
+
+    from django.conf import settings
+    from django.conf.urls.static import static
+
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 This snippet assumes you've also set your :setting:`MEDIA_URL` (in development)
 to ``/media/``.
