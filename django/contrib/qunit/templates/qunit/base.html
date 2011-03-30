@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QUnit Test Suite</title>
+  <link rel="stylesheet" href="{{ STATIC_URL }}qunit/qunit.css" type="text/css" media="screen">
+  <script type="text/javascript" src="{{ STATIC_URL }}qunit/qunit.js"></script>
+  {% block extrahead %}{% endblock extrahead %}
+</head>
+
+<body>
+  <h1 id="qunit-header">QUnit Test Suite {% block title %}{% endblock title %}</h1>
+  <h2 id="qunit-banner">{% block banner %}{% endblock banner %}</h2>
+  <div id="qunit-testrunner-toolbar">{% block toolbar %}{% endblock toolbar %}</div>
+  {% block content %}{% endblock content %}
+</body>
+</html>

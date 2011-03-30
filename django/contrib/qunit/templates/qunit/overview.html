@@ -1,0 +1,17 @@
+{% extends "qunit/base.html" %}
+
+{% block title %}Overview{% endblock title %}
+
+{% block banner %}{% endblock banner %}
+
+{% block toolbar %}{% endblock toolbar %}
+
+{% block content %}
+  {% if suites %}
+  <div id="navigation">
+    {% for label, options in suites.items %}
+    <a href="{{ label }}/">{{ options.name }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endblock content %}
