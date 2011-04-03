@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QUnit Test Suite</title>
+  <link rel="stylesheet" href="{{ linkbase }}static/qunit/qunit.css" type="text/css" media="screen">
+  <script type="text/javascript" src="/static/qunit/qunit.js"></script>
+  {% for remote_url in suite.remote_urls %}<script type="text/javascript" src="{{ remote_url }}"></script>
+  {% endfor %}
+  {% for local_url in suite.local_urls %}<script type="text/javascript" src="{{ STATIC_URL }}{{ local_url }}"></script>
+  {% endfor %}
+  {% for file in files %}<script type="text/javascript" src="{{ file }}"></script>
+  {% endfor %}
+</head>
+
+<body>
+  <h1 id="qunit-header">QUnit Test Suite {% if suite %}({{ suite.name }}){% endif %}</h1>
+  <h2 id="qunit-banner"></h2>
+  <div id="qunit-testrunner-toolbar">
+      <div id="navigation">
+      {% if suites %}
+        {% for label, options in suites.items %}
+        <a href="{{ linkbase }}{{ label }}/">{{ options.name }}</a>
+        {% endfor %}
+      {% endif %}
+      <p>
+      <a href="..">..</a>
+        {% for suite in subsuites %}
+        <a href="{{ suite }}/">{{ suite }}</a>
+        {% endfor %}
+      </p>
+    
+  </div>
+  <h2 id="qunit-userAgent"></h2>
+  <ol id="qunit-tests"></ol>
+  <div id="qunit-fixture">{% if suite.fixture %}{{ fixture }}{% endif %}</div>
+</body>
+</html>
