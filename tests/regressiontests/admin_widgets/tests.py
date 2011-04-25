@@ -325,3 +325,10 @@ class RelatedFieldWidgetWrapperTests(DjangoTestCase):
         # Used to fail with a name error.
         w = RelatedFieldWidgetWrapper(w, rel, admin.site)
         self.assertFalse(w.can_add_related)
+
+class AdminRadioSelectTests(DjangoTestCase):
+    def test_radio_select(self):
+        w = AdminRadioSelect(attrs={'class': 'vRadioSelect'})
+        rendered = w.render('foo', 1, attrs={'class': 'RadioSelect'},
+                            choices=(('1', 'one'), ('2', 'two')))
+        self.assertTrue('<ul class="RadioSelect">' in rendered, rendered)

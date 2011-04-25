@@ -1,0 +1,3 @@
+<ul{% for key, val in attrs.items %} {{ key }}="{{ val }}"{% endfor %}>{% for choice in choices %}
+<li><label{% if attrs.id %} for="{{ attrs.id }}_{{ forloop.counter|add:-1 }}"{% endif %}><input{% if value == choice.0 %} checked="checked"{% endif %} type="radio"{% if attrs.id %} id="{{ attrs.id }}_{{ forloop.counter|add:-1 }}"{% endif %} value="{{ choice.0 }}" name="{{ name }}" /> {{ choice.1 }}</label></li>{% endfor %}
+</ul>

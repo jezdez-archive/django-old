@@ -72,7 +72,7 @@ class AdminSplitDateTime(forms.SplitDateTimeWidget):
     """
     A SplitDateTime Widget that has some admin-specific styling.
     """
-        
+
     def __init__(self, attrs=None):
         widgets = [AdminDateWidget, AdminTimeWidget]
         # Note that we're calling MultiWidget, not SplitDateTimeWidget, because
@@ -83,17 +83,9 @@ class AdminSplitDateTime(forms.SplitDateTimeWidget):
         return mark_safe(u'<p class="datetime">%s %s<br />%s %s</p>' % \
             (_('Date:'), rendered_widgets[0], _('Time:'), rendered_widgets[1]))
 
-class AdminRadioFieldRenderer(RadioFieldRenderer):
-    def render(self):
-        """Outputs a <ul> for this set of radio fields."""
-        return mark_safe(u'<ul%s>\n%s\n</ul>' % (
-            flatatt(self.attrs),
-            u'\n'.join([u'<li>%s</li>' % force_unicode(w) for w in self]))
-        )
-
 
 class AdminRadioSelect(forms.RadioSelect):
-    renderer = AdminRadioFieldRenderer
+    template_name = 'admin/forms/radio.html'
 
 
 class AdminFileWidget(forms.ClearableFileInput):

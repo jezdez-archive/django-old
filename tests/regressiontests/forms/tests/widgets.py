@@ -720,7 +720,8 @@ beatle J R Ringo False""")
 #<label><input checked="checked" type="radio" name="beatle" value="G" /> George</label><br />
 #<label><input type="radio" name="beatle" value="R" /> Ringo</label>""")
 
-        # A RadioFieldRenderer object also allows index access to individual RadioInput
+        # A RadioFieldRenderer (deprecation started in 1.4) object also
+        # allows index access to individual RadioInput
         w = RadioSelect()
         r = w.get_renderer('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')))
         self.assertEqual(str(r[1]), '<label><input type="radio" name="beatle" value="P" /> Paul</label>')
