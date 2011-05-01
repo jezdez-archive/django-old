@@ -60,10 +60,18 @@ class SignalTests(TestCase):
 
         # throw a decorator syntax receiver into the mix
         @receiver(signals.pre_save)
-        def pre_save_decorator_test(signal, sender, instance, **kwargs):
+        def pre_save_receiver_decorator_test(signal, sender, instance, **kwargs):
             data.append(instance)
 
         @receiver(signals.pre_save, sender=Car)
+        def pre_save_receiver_decorator_sender_test(signal, sender, instance, **kwargs):
+            data.append(instance)
+
+        @signals.pre_save.connect
+        def pre_save_decorator_test(signal, sender, instance, **kwargs):
+            data.append(instance)
+
+        @signals.pre_save.connect(sender=Car)
         def pre_save_decorator_sender_test(signal, sender, instance, **kwargs):
             data.append(instance)
 
@@ -72,6 +80,7 @@ class SignalTests(TestCase):
         p1.save()
         self.assertEqual(data, [
             (p1, False),
+            p1,
             p1,
             (p1, True, False),
         ])
@@ -82,15 +91,18 @@ class SignalTests(TestCase):
         self.assertEqual(data, [
             (p1, False),
             p1,
+            p1,
             (p1, False, False),
         ])
         data[:] = []
 
         # Car signal (sender defined)
-        c1 = Car(make="Volkswagon", model="Passat")
+        c1 = Car(make="Volkswagen", model="Passat")
         c1.save()
         self.assertEqual(data, [
             (c1, False),
+            c1,
+            c1,
             c1,
             c1,
             (c1, True, False),
@@ -101,6 +113,7 @@ class SignalTests(TestCase):
         p1.save_base(raw=True)
         self.assertEqual(data, [
             (p1, True),
+            p1,
             p1,
             (p1, False, True),
         ])
@@ -119,6 +132,7 @@ class SignalTests(TestCase):
         self.assertEqual(data, [
             (p2, False),
             p2,
+            p2,
             (p2, True, False),
         ])
         data[:] = []
@@ -127,6 +141,7 @@ class SignalTests(TestCase):
         p2.save()
         self.assertEqual(data, [
             (p2, False),
+            p2,
             p2,
             (p2, True, False),
         ])
@@ -151,6 +166,8 @@ class SignalTests(TestCase):
         signals.pre_save.disconnect(pre_save_test)
         signals.pre_save.disconnect(pre_save_decorator_test)
         signals.pre_save.disconnect(pre_save_decorator_sender_test, sender=Car)
+        signals.pre_save.disconnect(pre_save_receiver_decorator_test)
+        signals.pre_save.disconnect(pre_save_receiver_decorator_sender_test, sender=Car)
 
         # Check that all our signals got disconnected properly.
         post_signals = (

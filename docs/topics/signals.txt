@@ -133,6 +133,18 @@ Now, our ``my_callback`` function will be called each time a request finishes.
 
 The ``receiver`` decorator was added in Django 1.3.
 
+.. versionadded:: 1.4
+
+Optionally you can use the signal as a decorator itself::
+
+.. code-block:: python
+
+    from django.core.signals import request_finished
+
+    @request_finished.connect
+    def my_callback(sender, **kwargs):
+        print "Request finished!"
+
 .. admonition:: Where should this code live?
 
     You can put signal handling and registration code anywhere you like.
