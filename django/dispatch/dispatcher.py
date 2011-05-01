@@ -266,7 +266,7 @@ class Signal(object):
             self.lock.release()
 
 
-def receiver(signal, **kwargs):
+def receiver(signal, *args, **kwargs):
     """
     A decorator for connecting receivers to signals. Used by passing in the
     signal and keyword arguments to connect::
@@ -276,7 +276,4 @@ def receiver(signal, **kwargs):
             ...
 
     """
-    def _decorator(func):
-        signal._connect(func, **kwargs)
-        return func
-    return _decorator
+    return signal.connect(*args, **kwargs)
