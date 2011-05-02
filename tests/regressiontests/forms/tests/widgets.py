@@ -950,19 +950,19 @@ beatle J R Ringo False""")
 
     def test_multi(self):
         class MyMultiWidget(MultiWidget):
+            template_name = 'forms/my_multi_widget.html'
+
             def decompress(self, value):
                 if value:
                     return value.split('__')
                 return ['', '']
-            def format_output(self, rendered_widgets):
-                return u'<br />'.join(rendered_widgets)
 
         w = MyMultiWidget(widgets=(TextInput(attrs={'class': 'big'}), TextInput(attrs={'class': 'small'})))
-        self.assertEqual(w.render('name', ['john', 'lennon']), u'<input type="text" name="name_0" value="john" class="big" />\n<br /><input type="text" name="name_1" value="lennon" class="small" />\n')
-        self.assertEqual(w.render('name', 'john__lennon'), u'<input type="text" name="name_0" value="john" class="big" />\n<br /><input type="text" name="name_1" value="lennon" class="small" />\n')
-        self.assertEqual(w.render('name', 'john__lennon', attrs={'id':'foo'}), u'<input type="text" name="name_0" value="john" class="big" id="foo_0" />\n<br /><input type="text" name="name_1" value="lennon" class="small" id="foo_1" />\n')
+        self.assertEqual(w.render('name', ['john', 'lennon']), u'<input type="text" name="name_0" value="john" class="big" />\n<br /><input type="text" name="name_1" value="lennon" class="small" />\n\n')
+        self.assertEqual(w.render('name', 'john__lennon'), u'<input type="text" name="name_0" value="john" class="big" />\n<br /><input type="text" name="name_1" value="lennon" class="small" />\n\n')
+        self.assertEqual(w.render('name', 'john__lennon', attrs={'id':'foo'}), u'<input type="text" name="name_0" value="john" class="big" id="foo_0" />\n<br /><input type="text" name="name_1" value="lennon" class="small" id="foo_1" />\n\n')
         w = MyMultiWidget(widgets=(TextInput(attrs={'class': 'big'}), TextInput(attrs={'class': 'small'})), attrs={'id': 'bar'})
-        self.assertEqual(w.render('name', ['john', 'lennon']), u'<input type="text" name="name_0" value="john" class="big" id="bar_0" />\n<br /><input type="text" name="name_1" value="lennon" class="small" id="bar_1" />\n')
+        self.assertEqual(w.render('name', ['john', 'lennon']), u'<input type="text" name="name_0" value="john" class="big" id="bar_0" />\n<br /><input type="text" name="name_1" value="lennon" class="small" id="bar_1" />\n\n')
 
         w = MyMultiWidget(widgets=(TextInput(), TextInput()))
 

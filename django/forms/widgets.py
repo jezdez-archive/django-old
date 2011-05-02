@@ -784,9 +784,6 @@ class MultiWidget(Widget):
     with the corresponding widget -- the first value is rendered in the first
     widget, the second value is rendered in the second widget, etc.
 
-    Subclasses may implement format_output(), which takes the list of rendered
-    widgets and returns a string of HTML that formats them any way you'd like.
-
     You'll probably want to use this class with MultiValueField.
     """
     template_name = 'forms/multiwidget.html'
@@ -823,9 +820,7 @@ class MultiWidget(Widget):
             import warnings
             warnings.warn(("format_output() is deprecated: use templates "
                            "to alter MultiWidget rendering"),
-                          PendingDeprecationWarning)
-            output = self.get_context(name, value, attrs)['widgets']
-            return mark_safe(self.format_output(output))
+                          DeprecationWarning)
         return super(MultiWidget, self).render(name, value, attrs)
 
     def id_for_label(self, id_):

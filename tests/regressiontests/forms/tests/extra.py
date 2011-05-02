@@ -383,6 +383,8 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
         # SplitDateTimeWidget is one example of a MultiWidget.
 
         class ComplexMultiWidget(MultiWidget):
+            template_name = 'forms/complex_multi_widget.html'
+
             def __init__(self, attrs=None):
                 widgets = (
                     TextInput(),
@@ -397,9 +399,6 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
                     return [data[0], data[1], datetime.datetime(*time.strptime(data[2], "%Y-%m-%d %H:%M:%S")[0:6])]
                 return [None, None, None]
 
-            def format_output(self, rendered_widgets):
-                return u'\n'.join(rendered_widgets)
-
         w = ComplexMultiWidget()
         self.assertEqual(w.render('name', 'some text,JP,2007-04-25 06:24:00'), """<input type="text" name="name_0" value="some text" />
 
@@ -412,6 +411,8 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
 
 <input type="text" name="name_2_0" value="2007-04-25" />
 <input type="text" name="name_2_1" value="06:24:00" />
+
+
 
 """)
 
@@ -452,6 +453,8 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
 <input type="text" name="field1_2_0" id="id_field1_2_0" />
 <input type="text" name="field1_2_1" id="id_field1_2_1" />
 
+
+
 </td></tr>""")
 
         f = ComplexFieldForm({'field1_0':'some text','field1_1':['J','P'], 'field1_2_0':'2007-04-25', 'field1_2_1':'06:24:00'})
@@ -466,6 +469,8 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
 
 <input type="text" name="field1_2_0" value="2007-04-25" id="id_field1_2_0" />
 <input type="text" name="field1_2_1" value="06:24:00" id="id_field1_2_1" />
+
+
 
 </td></tr>""")
 
