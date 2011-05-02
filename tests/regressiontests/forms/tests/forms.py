@@ -556,8 +556,8 @@ class FormsTestCase(TestCase):
 
         f = MessageForm({'when_0': '1992-01-01', 'when_1': '01:01'})
         self.assertTrue(f.is_valid())
-        self.assertEqual(str(f['when']), '<input type="text" name="when_0" value="1992-01-01" id="id_when_0" />\n<input type="text" name="when_1" value="01:01" id="id_when_1" />\n')
-        self.assertEqual(f['when'].as_hidden(), '<input type="hidden" name="when_0" value="1992-01-01" id="id_when_0" />\n<input type="hidden" name="when_1" value="01:01" id="id_when_1" />\n')
+        self.assertEqual(str(f['when']), '<input type="text" name="when_0" value="1992-01-01" id="id_when_0" />\n<input type="text" name="when_1" value="01:01" id="id_when_1" />\n\n')
+        self.assertEqual(f['when'].as_hidden(), '<input type="hidden" name="when_0" value="1992-01-01" id="id_when_0" />\n<input type="hidden" name="when_1" value="01:01" id="id_when_1" />\n\n')
 
     def test_mulitple_choice_checkbox(self):
         # MultipleChoiceField can also be used with the CheckboxSelectMultiple widget.
@@ -2035,4 +2035,4 @@ class FormsTestCase(TestCase):
             happened_at = SplitDateTimeField(widget=widgets.SplitHiddenDateTimeWidget)
 
         form = EventForm()
-        self.assertEqual(form.as_ul(), u'<input type="hidden" name="happened_at_0" id="id_happened_at_0" />\n<input type="hidden" name="happened_at_1" id="id_happened_at_1" />\n')
+        self.assertEqual(form.as_ul(), u'<input type="hidden" name="happened_at_0" id="id_happened_at_0" />\n<input type="hidden" name="happened_at_1" id="id_happened_at_1" />\n\n')

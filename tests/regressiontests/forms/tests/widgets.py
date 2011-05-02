@@ -988,18 +988,18 @@ beatle J R Ringo False""")
 
     def test_splitdatetime(self):
         w = SplitDateTimeWidget()
-        self.assertEqual(w.render('date', ''), u'<input type="text" name="date_0" />\n<input type="text" name="date_1" />\n')
-        self.assertEqual(w.render('date', None), u'<input type="text" name="date_0" />\n<input type="text" name="date_1" />\n')
-        self.assertEqual(w.render('date', datetime.datetime(2006, 1, 10, 7, 30)), u'<input type="text" name="date_0" value="2006-01-10" />\n<input type="text" name="date_1" value="07:30:00" />\n')
-        self.assertEqual(w.render('date', [datetime.date(2006, 1, 10), datetime.time(7, 30)]), u'<input type="text" name="date_0" value="2006-01-10" />\n<input type="text" name="date_1" value="07:30:00" />\n')
+        self.assertEqual(w.render('date', ''), u'<input type="text" name="date_0" />\n<input type="text" name="date_1" />\n\n')
+        self.assertEqual(w.render('date', None), u'<input type="text" name="date_0" />\n<input type="text" name="date_1" />\n\n')
+        self.assertEqual(w.render('date', datetime.datetime(2006, 1, 10, 7, 30)), u'<input type="text" name="date_0" value="2006-01-10" />\n<input type="text" name="date_1" value="07:30:00" />\n\n')
+        self.assertEqual(w.render('date', [datetime.date(2006, 1, 10), datetime.time(7, 30)]), u'<input type="text" name="date_0" value="2006-01-10" />\n<input type="text" name="date_1" value="07:30:00" />\n\n')
 
         # You can also pass 'attrs' to the constructor. In this case, the attrs will be
         w = SplitDateTimeWidget(attrs={'class': 'pretty'})
-        self.assertEqual(w.render('date', datetime.datetime(2006, 1, 10, 7, 30)), u'<input type="text" name="date_0" value="2006-01-10" class="pretty" />\n<input type="text" name="date_1" value="07:30:00" class="pretty" />\n')
+        self.assertEqual(w.render('date', datetime.datetime(2006, 1, 10, 7, 30)), u'<input type="text" name="date_0" value="2006-01-10" class="pretty" />\n<input type="text" name="date_1" value="07:30:00" class="pretty" />\n\n')
 
         # Use 'date_format' and 'time_format' to change the way a value is displayed.
         w = SplitDateTimeWidget(date_format='%d/%m/%Y', time_format='%H:%M')
-        self.assertEqual(w.render('date', datetime.datetime(2006, 1, 10, 7, 30)), u'<input type="text" name="date_0" value="10/01/2006" />\n<input type="text" name="date_1" value="07:30" />\n')
+        self.assertEqual(w.render('date', datetime.datetime(2006, 1, 10, 7, 30)), u'<input type="text" name="date_0" value="10/01/2006" />\n<input type="text" name="date_1" value="07:30" />\n\n')
 
         self.assertTrue(w._has_changed(datetime.datetime(2008, 5, 6, 12, 40, 00), [u'2008-05-06', u'12:40:00']))
         self.assertFalse(w._has_changed(datetime.datetime(2008, 5, 6, 12, 40, 00), [u'06/05/2008', u'12:40']))
@@ -1079,12 +1079,12 @@ beatle J R Ringo False""")
         from django.forms.widgets import SplitHiddenDateTimeWidget
 
         w = SplitHiddenDateTimeWidget()
-        self.assertEqual(w.render('date', ''), u'<input type="hidden" name="date_0" />\n<input type="hidden" name="date_1" />\n')
+        self.assertEqual(w.render('date', ''), u'<input type="hidden" name="date_0" />\n<input type="hidden" name="date_1" />\n\n')
         d = datetime.datetime(2007, 9, 17, 12, 51, 34, 482548)
         self.assertEqual(str(d), '2007-09-17 12:51:34.482548')
-        self.assertEqual(w.render('date', d), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:34" />\n')
-        self.assertEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51, 34)), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:34" />\n')
-        self.assertEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51)), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:00" />\n')
+        self.assertEqual(w.render('date', d), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:34" />\n\n')
+        self.assertEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51, 34)), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:34" />\n\n')
+        self.assertEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51)), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:00" />\n\n')
 
 
 class FormsI18NWidgetsTestCase(TestCase):
@@ -1126,7 +1126,7 @@ class FormsI18NWidgetsTestCase(TestCase):
 
         w = SplitHiddenDateTimeWidget()
         w.is_localized = True
-        self.assertEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51)), u'<input type="hidden" name="date_0" value="17.09.2007" />\n<input type="hidden" name="date_1" value="12:51:00" />\n')
+        self.assertEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51)), u'<input type="hidden" name="date_0" value="17.09.2007" />\n<input type="hidden" name="date_1" value="12:51:00" />\n\n')
 
 
 class SelectAndTextWidget(MultiWidget):

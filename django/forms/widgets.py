@@ -791,11 +791,13 @@ class MultiWidget(Widget):
 
     You'll probably want to use this class with MultiValueField.
     """
+    template_name = 'forms/multiwidget.html'
+
     def __init__(self, widgets, attrs=None):
         self.widgets = [isinstance(w, type) and w() or w for w in widgets]
         super(MultiWidget, self).__init__(attrs)
 
-    def render(self, name, value, attrs=None):
+    def get_context(self, name, value, attrs=None):
         if self.is_localized:
             for widget in self.widgets:
                 widget.is_localized = self.is_localized
@@ -814,7 +816,19 @@ class MultiWidget(Widget):
             if id_:
                 final_attrs = dict(final_attrs, id='%s_%s' % (id_, i))
             output.append(widget.render(name + '_%s' % i, widget_value, final_attrs))
-        return mark_safe(self.format_output(output))
+        ctx = Context({'widgets': output})
+        ctx.update(self.get_context_data())
+        return ctx
+
+    def render(self, name, value, attrs=None):
+        if hasattr(self, 'format_output'):
+            import warnings
+            warnings.warn(("format_output() is deprecated: use templates "
+                           "to alter MultiWidget rendering"),
+                          PendingDeprecationWarning)
+            output = self.get_context(name, value, attrs)['widgets']
+            return mark_safe(self.format_output(output))
+        return super(MultiWidget, self).render(name, value, attrs)
 
     def id_for_label(self, id_):
         # See the comment for RadioSelect.id_for_label()
@@ -836,16 +850,6 @@ class MultiWidget(Widget):
             if widget._has_changed(initial, data):
                 return True
         return False
-
-    def format_output(self, rendered_widgets):
-        """
-        Given a list of rendered widgets (as strings), returns a Unicode string
-        representing the HTML for the whole lot.
-
-        This hook allows you to format the HTML design of the widgets, if
-        needed.
-        """
-        return u''.join(rendered_widgets)
 
     def decompress(self, value):
         """

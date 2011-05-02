@@ -412,6 +412,7 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
 
 <input type="text" name="name_2_0" value="2007-04-25" />
 <input type="text" name="name_2_1" value="06:24:00" />
+
 """)
 
         class ComplexField(MultiValueField):
@@ -450,6 +451,7 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
 
 <input type="text" name="field1_2_0" id="id_field1_2_0" />
 <input type="text" name="field1_2_1" id="id_field1_2_1" />
+
 </td></tr>""")
 
         f = ComplexFieldForm({'field1_0':'some text','field1_1':['J','P'], 'field1_2_0':'2007-04-25', 'field1_2_1':'06:24:00'})
@@ -464,6 +466,7 @@ class FormsExtraTestCase(unittest.TestCase, AssertFormErrorsMixin):
 
 <input type="text" name="field1_2_0" value="2007-04-25" id="id_field1_2_0" />
 <input type="text" name="field1_2_1" value="06:24:00" id="id_field1_2_1" />
+
 </td></tr>""")
 
         self.assertEqual(f.cleaned_data['field1'], u'some text,JP,2007-04-25 06:24:00')
