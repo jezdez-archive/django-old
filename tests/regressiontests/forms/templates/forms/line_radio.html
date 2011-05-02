@@ -1,0 +1,2 @@
+{% for choice in choices %}<label{% if attrs.id %} for="{{ attrs.id }}_{{ forloop.counter|add:-1 }}"{% endif %}><input{% if value == choice.0 %} checked="checked"{% endif %} type="radio"{% if attrs.id %} id="{{ attrs.id }}_{{ forloop.counter|add:-1 }}"{% endif %} name="{{ name }}" value="{{ choice.0 }}" /> {{ choice.1 }}</label>{% if not forloop.last %}<br />{% endif %}
+{% endfor %}

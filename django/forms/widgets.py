@@ -717,7 +717,6 @@ class RadioFieldRenderer(StrAndUnicode):
 
 class RadioSelect(Select):
     template_name = 'forms/radio.html'
-    renderer = RadioFieldRenderer
 
     def __init__(self, *args, **kwargs):
         # Override the default renderer if we were passed one.
@@ -726,8 +725,7 @@ class RadioSelect(Select):
             import warnings
             warnings.warn(("The renderer attribute is deprecated: use a "
                            "custom template to alter the widget rendering"),
-                          PendingDeprecationWarning)
-            self.renderer = renderer
+                          DeprecationWarning)
         super(RadioSelect, self).__init__(*args, **kwargs)
 
     def get_renderer(self, name, value, attrs=None, choices=()):
@@ -735,12 +733,12 @@ class RadioSelect(Select):
         import warnings
         warnings.warn(("get_renderer is deprecated: use a custom template to "
                        "alter the widget rendering"),
-                      PendingDeprecationWarning)
+                      DeprecationWarning)
         if value is None: value = ''
         str_value = force_unicode(value) # Normalize to string.
         final_attrs = self.build_attrs(attrs)
         choices = list(chain(self.choices, choices))
-        return self.renderer(name, str_value, final_attrs, choices)
+        return RadioFieldRenderer(name, str_value, final_attrs, choices)
 
     def id_for_label(self, id_):
         # RadioSelect is represented by multiple <input type="radio"> fields,
