@@ -214,6 +214,8 @@ class RelatedFieldWidgetWrapper(forms.Widget):
     This class is a wrapper to a given widget to add the add icon for the
     admin interface.
     """
+    template_name = 'admin/forms/related_field.html'
+
     def __init__(self, widget, rel, admin_site, can_add_related=None):
         self.is_hidden = widget.is_hidden
         self.needs_multipart_form = widget.needs_multipart_form
@@ -240,7 +242,7 @@ class RelatedFieldWidgetWrapper(forms.Widget):
         return self.widget.media
     media = property(_media)
 
-    def render(self, name, value, *args, **kwargs):
+    def get_context(self, name, value, *args, **kwargs):
         rel_to = self.rel.to
         info = (rel_to._meta.app_label, rel_to._meta.object_name.lower())
         try:
@@ -250,13 +252,17 @@ class RelatedFieldWidgetWrapper(forms.Widget):
             related_url = '%s%s/%s/add/' % info
         self.widget.choices = self.choices
         output = [self.widget.render(name, value, *args, **kwargs)]
-        if self.can_add_related:
-            # TODO: "id_" is hard-coded here. This should instead use the correct
-            # API to determine the ID dynamically.
-            output.append(u'<a href="%s" class="add-another" id="add_id_%s" onclick="return showAddAnotherPopup(this);"> ' % \
-                (related_url, name))
-            output.append(u'<img src="%simg/admin/icon_addlink.gif" width="10" height="10" alt="%s"/></a>' % (settings.ADMIN_MEDIA_PREFIX, _('Add Another')))
-        return mark_safe(u''.join(output))
+        ctx = super(RelatedFieldWidgetWrapper,
+                    self).get_context(name, value, *args, **kwargs)
+        ctx.update({
+            'widget': self.widget.render(name, value, *args, **kwargs),
+            'related_url': related_url,
+            'can_add_related': self.can_add_related,
+            'name': name,
+            'ADMIN_MEDIA_PREFIX': settings.ADMIN_MEDIA_PREFIX,
+            'add_another': _('Add Another'),
+        })
+        return ctx
 
     def build_attrs(self, extra_attrs=None, **kwargs):
         "Helper function for building an attribute dictionary."
