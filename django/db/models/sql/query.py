@@ -74,7 +74,7 @@ class RawQuery(object):
         return iter(result)
 
     def __repr__(self):
-        return "<RawQuery: %r>" % (self.sql % self.params)
+        return "<RawQuery: %r>" % (self.sql % tuple(self.params))
 
     def _execute_query(self):
         self.cursor = connections[self.using].cursor()
@@ -125,6 +125,8 @@ class Query(object):
         self.order_by = []
         self.low_mark, self.high_mark = 0, None  # Used for offset/limit
         self.distinct = False
+        self.select_for_update = False
+        self.select_for_update_nowait = False
         self.select_related = False
         self.related_select_cols = []
 
@@ -254,6 +256,8 @@ class Query(object):
         obj.order_by = self.order_by[:]
         obj.low_mark, obj.high_mark = self.low_mark, self.high_mark
         obj.distinct = self.distinct
+        obj.select_for_update = self.select_for_update
+        obj.select_for_update_nowait = self.select_for_update_nowait
         obj.select_related = self.select_related
         obj.related_select_cols = []
         obj.aggregates = copy.deepcopy(self.aggregates, memo=memo)
@@ -360,6 +364,7 @@ class Query(object):
 
         query.clear_ordering(True)
         query.clear_limits()
+        query.select_for_update = False
         query.select_related = False
         query.related_select_cols = []
         query.related_select_fields = []
@@ -1406,13 +1411,13 @@ class Query(object):
         the final join is against the same column as we are comparing against,
         and is an inner join, we can go back one step in a join chain and
         compare against the LHS of the join instead (and then repeat the
-        optimization). The result, potentially, involves less table joins.
+        optimization). The result, potentially, involves fewer table joins.
 
         The 'target' parameter is the final field being joined to, 'join_list'
         is the full list of join aliases.
 
         The 'last' list contains offsets into 'join_list', corresponding to
-        each component of the filter.  Many-to-many relations, for example, add
+        each component of the filter. Many-to-many relations, for example, add
         two tables to the join list and we want to deal with both tables the
         same way, so 'last' has an entry for the first of the two tables and
         then the table immediately after the second table, in that case.

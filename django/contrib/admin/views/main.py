@@ -1,13 +1,15 @@
-from django.contrib.admin.filterspecs import FilterSpec
-from django.contrib.admin.options import IncorrectLookupParameters
-from django.contrib.admin.util import quote, get_fields_from_path
+import operator
+
 from django.core.exceptions import SuspiciousOperation
 from django.core.paginator import InvalidPage
 from django.db import models
 from django.utils.encoding import force_unicode, smart_str
 from django.utils.translation import ugettext, ugettext_lazy
 from django.utils.http import urlencode
-import operator
+
+from django.contrib.admin import FieldListFilter
+from django.contrib.admin.options import IncorrectLookupParameters
+from django.contrib.admin.util import quote, get_fields_from_path
 
 # The system will display a "Show all" link on the change list only if the
 # total result count is less than or equal to this setting.
@@ -23,11 +25,25 @@ TO_FIELD_VAR = 't'
 IS_POPUP_VAR = 'pop'
 ERROR_FLAG = 'e'
 
+IGNORED_PARAMS = (
+    ALL_VAR, ORDER_VAR, ORDER_TYPE_VAR, SEARCH_VAR, IS_POPUP_VAR, TO_FIELD_VAR)
+
 # Text to display within change-list table cells if the value is blank.
 EMPTY_CHANGELIST_VALUE = ugettext_lazy('(None)')
 
+def field_needs_distinct(field):
+    if ((hasattr(field, 'rel') and
+         isinstance(field.rel, models.ManyToManyRel)) or
+        (isinstance(field, models.related.RelatedObject) and
+         not field.field.unique)):
+         return True
+    return False
+
+
 class ChangeList(object):
-    def __init__(self, request, model, list_display, list_display_links, list_filter, date_hierarchy, search_fields, list_select_related, list_per_page, list_editable, model_admin):
+    def __init__(self, request, model, list_display, list_display_links,
+            list_filter, date_hierarchy, search_fields, list_select_related,
+            list_per_page, list_editable, model_admin):
         self.model = model
         self.opts = model._meta
         self.lookup_opts = self.opts
@@ -61,20 +77,39 @@ class ChangeList(object):
             self.list_editable = list_editable
         self.order_field, self.order_type = self.get_ordering()
         self.query = request.GET.get(SEARCH_VAR, '')
-        self.query_set = self.get_query_set()
+        self.query_set = self.get_query_set(request)
         self.get_results(request)
-        self.title = (self.is_popup and ugettext('Select %s') % force_unicode(self.opts.verbose_name) or ugettext('Select %s to change') % force_unicode(self.opts.verbose_name))
-        self.filter_specs, self.has_filters = self.get_filters(request)
+        if self.is_popup:
+            title = ugettext('Select %s')
+        else:
+            title = ugettext('Select %s to change')
+        self.title = title % force_unicode(self.opts.verbose_name)
         self.pk_attname = self.lookup_opts.pk.attname
 
-    def get_filters(self, request):
+    def get_filters(self, request, use_distinct=False):
         filter_specs = []
+        cleaned_params, use_distinct = self.get_lookup_params(use_distinct)
         if self.list_filter:
-            for filter_name in self.list_filter:
-                field = get_fields_from_path(self.model, filter_name)[-1]
-                spec = FilterSpec.create(field, request, self.params,
-                                         self.model, self.model_admin,
-                                         field_path=filter_name)
+            for list_filer in self.list_filter:
+                if callable(list_filer):
+                    # This is simply a custom list filter class.
+                    spec = list_filer(request, cleaned_params,
+                        self.model, self.model_admin)
+                else:
+                    field_path = None
+                    try:
+                        # This is custom FieldListFilter class for a given field.
+                        field, field_list_filter_class = list_filer
+                    except (TypeError, ValueError):
+                        # This is simply a field name, so use the default
+                        # FieldListFilter class that has been registered for
+                        # the type of the given field.
+                        field, field_list_filter_class = list_filer, FieldListFilter.create
+                    if not isinstance(field, models.Field):
+                        field_path = field
+                        field = get_fields_from_path(self.model, field_path)[-1]
+                    spec = field_list_filter_class(field, request, cleaned_params,
+                        self.model, self.model_admin, field_path=field_path)
                 if spec and spec.has_output():
                     filter_specs.append(spec)
         return filter_specs, bool(filter_specs)
@@ -166,14 +201,13 @@ class ChangeList(object):
             order_type = params[ORDER_TYPE_VAR]
         return order_field, order_type
 
-    def get_query_set(self):
-        use_distinct = False
-
-        qs = self.root_query_set
+    def get_lookup_params(self, use_distinct=False):
         lookup_params = self.params.copy() # a dictionary of the query string
-        for i in (ALL_VAR, ORDER_VAR, ORDER_TYPE_VAR, SEARCH_VAR, IS_POPUP_VAR, TO_FIELD_VAR):
-            if i in lookup_params:
-                del lookup_params[i]
+
+        for ignored in IGNORED_PARAMS:
+            if ignored in lookup_params:
+                del lookup_params[ignored]
+
         for key, value in lookup_params.items():
             if not isinstance(key, str):
                 # 'key' will be used as a keyword argument later, so Python
@@ -186,11 +220,11 @@ class ChangeList(object):
                 # instance
                 field_name = key.split('__', 1)[0]
                 try:
-                    f = self.lookup_opts.get_field_by_name(field_name)[0]
+                    field = self.lookup_opts.get_field_by_name(field_name)[0]
+                    use_distinct = field_needs_distinct(field)
                 except models.FieldDoesNotExist:
-                    raise IncorrectLookupParameters
-                if hasattr(f, 'rel') and isinstance(f.rel, models.ManyToManyRel):
-                    use_distinct = True
+                    # It might be a custom NonFieldFilter
+                    pass
 
             # if key ends with __in, split parameter into separate values
             if key.endswith('__in'):
@@ -206,11 +240,28 @@ class ChangeList(object):
                 lookup_params[key] = value
 
             if not self.model_admin.lookup_allowed(key, value):
-                raise SuspiciousOperation(
-                    "Filtering by %s not allowed" % key
-                )
+                raise SuspiciousOperation("Filtering by %s not allowed" % key)
 
-        # Apply lookup parameters from the query string.
+        return lookup_params, use_distinct
+
+    def get_query_set(self, request):
+        lookup_params, use_distinct = self.get_lookup_params(use_distinct=False)
+        self.filter_specs, self.has_filters = self.get_filters(request, use_distinct)
+
+        # Let every list filter modify the qs and params to its liking
+        qs = self.root_query_set
+        for filter_spec in self.filter_specs:
+            new_qs = filter_spec.queryset(request, qs)
+            if new_qs is not None:
+                qs = new_qs
+                for param in filter_spec.used_params():
+                    try:
+                        del lookup_params[param]
+                    except KeyError:
+                        pass
+
+        # Apply the remaining lookup parameters from the query string (i.e.
+        # those that haven't already been processed by the filters).
         try:
             qs = qs.filter(**lookup_params)
         # Naked except! Because we don't have any other way of validating "params".
@@ -218,8 +269,8 @@ class ChangeList(object):
         # values are not in the correct type, so we might get FieldError, ValueError,
         # ValicationError, or ? from a custom field that raises yet something else
         # when handed impossible data.
-        except:
-            raise IncorrectLookupParameters
+        except Exception, e:
+            raise IncorrectLookupParameters(e)
 
         # Use select_related() if one of the list_display options is a field
         # with a relationship and the provided queryset doesn't already have
@@ -230,11 +281,11 @@ class ChangeList(object):
             else:
                 for field_name in self.list_display:
                     try:
-                        f = self.lookup_opts.get_field(field_name)
+                        field = self.lookup_opts.get_field(field_name)
                     except models.FieldDoesNotExist:
                         pass
                     else:
-                        if isinstance(f.rel, models.ManyToOneRel):
+                        if isinstance(field.rel, models.ManyToOneRel):
                             qs = qs.select_related()
                             break
 
@@ -264,7 +315,7 @@ class ChangeList(object):
                 for search_spec in orm_lookups:
                     field_name = search_spec.split('__', 1)[0]
                     f = self.lookup_opts.get_field_by_name(field_name)[0]
-                    if hasattr(f, 'rel') and isinstance(f.rel, models.ManyToManyRel):
+                    if field_needs_distinct(f):
                         use_distinct = True
                         break
 

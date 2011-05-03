@@ -403,6 +403,7 @@ class QuerySet(object):
                 "Cannot change a query once a slice has been taken."
         obj = self._clone()
         obj.query.set_limits(high=1)
+        obj.query.clear_ordering()
         obj.query.add_ordering('-%s' % latest_by)
         return obj.get()
 
@@ -435,6 +436,7 @@ class QuerySet(object):
         del_query._for_write = True
 
         # Disable non-supported fields.
+        del_query.query.select_for_update = False
         del_query.query.select_related = False
         del_query.query.clear_ordering()
 
@@ -583,6 +585,18 @@ class QuerySet(object):
         else:
             return self._filter_or_exclude(None, **filter_obj)
 
+    def select_for_update(self, **kwargs):
+        """
+        Returns a new QuerySet instance that will select objects with a
+        FOR UPDATE lock.
+        """
+        # Default to false for nowait
+        nowait = kwargs.pop('nowait', False)
+        obj = self._clone()
+        obj.query.select_for_update = True
+        obj.query.select_for_update_nowait = nowait
+        return obj
+
     def select_related(self, *fields, **kwargs):
         """
         Returns a new QuerySet instance that will select related objects.
@@ -712,7 +726,7 @@ class QuerySet(object):
 
     def using(self, alias):
         """
-        Selects which database this QuerySet should excecute it's query against.
+        Selects which database this QuerySet should excecute its query against.
         """
         clone = self._clone()
         clone._db = alias
@@ -1371,7 +1385,7 @@ class RawQuerySet(object):
             yield instance
 
     def __repr__(self):
-        return "<RawQuerySet: %r>" % (self.raw_query % self.params)
+        return "<RawQuerySet: %r>" % (self.raw_query % tuple(self.params))
 
     def __getitem__(self, k):
         return list(self)[k]

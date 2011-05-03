@@ -1,5 +1,5 @@
 from functools import update_wrapper, partial
-from django import forms, template
+from django import forms
 from django.forms.formsets import all_valid
 from django.forms.models import (modelform_factory, modelformset_factory,
     inlineformset_factory, BaseInlineFormSet)
@@ -15,7 +15,8 @@ from django.db.models.related import RelatedObject
 from django.db.models.fields import BLANK_CHOICE_DASH, FieldDoesNotExist
 from django.db.models.sql.constants import LOOKUP_SEP, QUERY_TERMS
 from django.http import Http404, HttpResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render_to_response
+from django.shortcuts import get_object_or_404
+from django.template.response import SimpleTemplateResponse, TemplateResponse
 from django.utils.decorators import method_decorator
 from django.utils.datastructures import SortedDict
 from django.utils.html import escape, escapejs
@@ -189,7 +190,16 @@ class BaseModelAdmin(object):
     declared_fieldsets = property(_declared_fieldsets)
 
     def get_readonly_fields(self, request, obj=None):
+        """
+        Hook for specifying custom readonly fields.
+        """
         return self.readonly_fields
+
+    def get_prepopulated_fields(self, request, obj=None):
+        """
+        Hook for specifying custom prepopulated fields.
+        """
+        return self.prepopulated_fields
 
     def queryset(self, request):
         """
@@ -699,12 +709,12 @@ class ModelAdmin(BaseModelAdmin):
             form_template = self.add_form_template
         else:
             form_template = self.change_form_template
-        context_instance = template.RequestContext(request, current_app=self.admin_site.name)
-        return render_to_response(form_template or [
+
+        return TemplateResponse(request, form_template or [
             "admin/%s/%s/change_form.html" % (app_label, opts.object_name.lower()),
             "admin/%s/change_form.html" % app_label,
             "admin/change_form.html"
-        ], context, context_instance=context_instance)
+        ], context, current_app=self.admin_site.name)
 
     def response_add(self, request, obj, post_url_continue='../%s/'):
         """
@@ -909,7 +919,8 @@ class ModelAdmin(BaseModelAdmin):
                 formsets.append(formset)
 
         adminForm = helpers.AdminForm(form, list(self.get_fieldsets(request)),
-            self.prepopulated_fields, self.get_readonly_fields(request),
+            self.get_prepopulated_fields(request),
+            self.get_readonly_fields(request),
             model_admin=self)
         media = self.media + adminForm.media
 
@@ -917,8 +928,9 @@ class ModelAdmin(BaseModelAdmin):
         for inline, formset in zip(self.inline_instances, formsets):
             fieldsets = list(inline.get_fieldsets(request))
             readonly = list(inline.get_readonly_fields(request))
+            prepopulated = dict(inline.get_prepopulated_fields(request))
             inline_admin_formset = helpers.InlineAdminFormSet(inline, formset,
-                fieldsets, readonly, model_admin=self)
+                fieldsets, prepopulated, readonly, model_admin=self)
             inline_admin_formsets.append(inline_admin_formset)
             media = media + inline_admin_formset.media
 
@@ -1000,7 +1012,8 @@ class ModelAdmin(BaseModelAdmin):
                 formsets.append(formset)
 
         adminForm = helpers.AdminForm(form, self.get_fieldsets(request, obj),
-            self.prepopulated_fields, self.get_readonly_fields(request, obj),
+            self.get_prepopulated_fields(request, obj),
+            self.get_readonly_fields(request, obj),
             model_admin=self)
         media = self.media + adminForm.media
 
@@ -1008,8 +1021,9 @@ class ModelAdmin(BaseModelAdmin):
         for inline, formset in zip(self.inline_instances, formsets):
             fieldsets = list(inline.get_fieldsets(request, obj))
             readonly = list(inline.get_readonly_fields(request, obj))
+            prepopulated = dict(inline.get_prepopulated_fields(request, obj))
             inline_admin_formset = helpers.InlineAdminFormSet(inline, formset,
-                fieldsets, readonly, model_admin=self)
+                fieldsets, prepopulated, readonly, model_admin=self)
             inline_admin_formsets.append(inline_admin_formset)
             media = media + inline_admin_formset.media
 
@@ -1061,7 +1075,9 @@ class ModelAdmin(BaseModelAdmin):
             # something is screwed up with the database, so display an error
             # page.
             if ERROR_FLAG in request.GET.keys():
-                return render_to_response('admin/invalid_setup.html', {'title': _('Database error')})
+                return SimpleTemplateResponse('admin/invalid_setup.html', {
+                    'title': _('Database error'),
+                })
             return HttpResponseRedirect(request.path + '?' + ERROR_FLAG + '=1')
 
         # If the request was POSTed, this might be a bulk action or a bulk
@@ -1075,7 +1091,7 @@ class ModelAdmin(BaseModelAdmin):
         if (actions and request.method == 'POST' and
                 'index' in request.POST and '_save' not in request.POST):
             if selected:
-                response = self.response_action(request, queryset=cl.get_query_set())
+                response = self.response_action(request, queryset=cl.get_query_set(request))
                 if response:
                     return response
                 else:
@@ -1091,7 +1107,7 @@ class ModelAdmin(BaseModelAdmin):
                 helpers.ACTION_CHECKBOX_NAME in request.POST and
                 'index' not in request.POST and '_save' not in request.POST):
             if selected:
-                response = self.response_action(request, queryset=cl.get_query_set())
+                response = self.response_action(request, queryset=cl.get_query_set(request))
                 if response:
                     return response
                 else:
@@ -1170,12 +1186,12 @@ class ModelAdmin(BaseModelAdmin):
             'actions_selection_counter': self.actions_selection_counter,
         }
         context.update(extra_context or {})
-        context_instance = template.RequestContext(request, current_app=self.admin_site.name)
-        return render_to_response(self.change_list_template or [
+
+        return TemplateResponse(request, self.change_list_template or [
             'admin/%s/%s/change_list.html' % (app_label, opts.object_name.lower()),
             'admin/%s/change_list.html' % app_label,
             'admin/change_list.html'
-        ], context, context_instance=context_instance)
+        ], context, current_app=self.admin_site.name)
 
     @csrf_protect_m
     @transaction.commit_on_success
@@ -1231,12 +1247,12 @@ class ModelAdmin(BaseModelAdmin):
             "app_label": app_label,
         }
         context.update(extra_context or {})
-        context_instance = template.RequestContext(request, current_app=self.admin_site.name)
-        return render_to_response(self.delete_confirmation_template or [
+
+        return TemplateResponse(request, self.delete_confirmation_template or [
             "admin/%s/%s/delete_confirmation.html" % (app_label, opts.object_name.lower()),
             "admin/%s/delete_confirmation.html" % app_label,
             "admin/delete_confirmation.html"
-        ], context, context_instance=context_instance)
+        ], context, current_app=self.admin_site.name)
 
     def history_view(self, request, object_id, extra_context=None):
         "The 'history' admin view for this model."
@@ -1259,12 +1275,11 @@ class ModelAdmin(BaseModelAdmin):
             'app_label': app_label,
         }
         context.update(extra_context or {})
-        context_instance = template.RequestContext(request, current_app=self.admin_site.name)
-        return render_to_response(self.object_history_template or [
+        return TemplateResponse(request, self.object_history_template or [
             "admin/%s/%s/object_history.html" % (app_label, opts.object_name.lower()),
             "admin/%s/object_history.html" % app_label,
             "admin/object_history.html"
-        ], context, context_instance=context_instance)
+        ], context, current_app=self.admin_site.name)
 
 class InlineModelAdmin(BaseModelAdmin):
     """

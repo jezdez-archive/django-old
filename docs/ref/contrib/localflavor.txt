@@ -43,6 +43,8 @@ Countries currently supported by :mod:`~django.contrib.localflavor` are:
     * Brazil_
     * Canada_
     * Chile_
+    * China_
+    * Croatia_
     * Czech_
     * Finland_
     * France_
@@ -62,6 +64,7 @@ Countries currently supported by :mod:`~django.contrib.localflavor` are:
     * Poland_
     * Portugal_
     * Romania_
+    * Russia_
     * Slovakia_
     * `South Africa`_
     * Spain_
@@ -92,6 +95,8 @@ Here's an example of how to use them::
 .. _Brazil: `Brazil (br)`_
 .. _Canada: `Canada (ca)`_
 .. _Chile: `Chile (cl)`_
+.. _China: `China (cn)`_
+.. _Croatia: `Croatia (hr)`_
 .. _Czech: `Czech (cz)`_
 .. _Finland: `Finland (fi)`_
 .. _France: `France (fr)`_
@@ -111,15 +116,27 @@ Here's an example of how to use them::
 .. _Poland: `Poland (pl)`_
 .. _Portugal: `Portugal (pt)`_
 .. _Romania: `Romania (ro)`_
+.. _Russia: `Russia (ru)`_
 .. _Slovakia: `Slovakia (sk)`_
 .. _South Africa: `South Africa (za)`_
 .. _Spain: `Spain (es)`_
 .. _Sweden: `Sweden (se)`_
 .. _Switzerland: `Switzerland (ch)`_
 .. _Turkey: `Turkey (tr)`_
-.. _United Kingdom: `United Kingdom (uk)`_
+.. _United Kingdom: `United Kingdom (gb)`_
 .. _United States of America: `United States of America (us)`_
 .. _Uruguay: `Uruguay (uy)`_
+
+Internationalization of localflavor
+===================================
+
+Localflavor has its own catalog of translations, in the directory
+``django/contrib/localflavor/locale``, and it's not loaded automatically like
+Django's general catalog in ``django/conf/locale``. If you want localflavor's
+texts to be translated, like form fields error messages, you must include
+:mod:`django.contrib.localflavor` in the :setting:`INSTALLED_APPS` setting, so
+the internationalization system can find the catalog, as explained in
+:ref:`using-translations-in-your-own-projects`.
 
 Adding flavors
 ==============
@@ -188,6 +205,8 @@ Argentina (``ar``)
 Australia (``au``)
 =============================================
 
+.. versionadded:: 1.4
+
 .. class:: au.forms.AUPostCodeField
 
     A form field that validates input as an Australian postcode.
@@ -201,6 +220,21 @@ Australia (``au``)
 
     A ``Select`` widget that uses a list of Australian states/territories as its
     choices.
+
+.. class:: au.models.AUPhoneNumberField
+
+    A model field that checks that the value is a valid Australian phone
+    number (ten digits).
+
+.. class:: au.models.AUStateField
+
+    A model field that forms represent as a ``forms.AUStateField`` field and
+    stores the three-letter Australian state abbreviation in the database.
+
+.. class:: au.models.AUPostCodeField
+
+    A model field that forms represent as a ``forms.AUPostCodeField`` field
+    and stores the four-digit Australian postcode in the database.
 
 Austria (``at``)
 ================
@@ -321,6 +355,103 @@ Chile (``cl``)
 
     A ``Select`` widget that uses a list of Chilean regions (Regiones) as its
     choices.
+
+China (``cn``)
+==============
+
+.. versionadded:: 1.4
+
+.. class:: cn.forms.CNProvinceSelect
+
+    A ``Select`` widget that uses a list of Chinese regions as its choices.
+
+.. class:: cn.forms.CNPostCodeField
+
+    A form field that validates input as a Chinese post code.
+    Valid formats are XXXXXX where X is digit.
+
+.. class:: cn.forms.CNIDCardField
+
+    A form field that validates input as a Chinese Identification Card Number.
+    Both 1st and 2nd generation ID Card Number are validated.
+
+.. class:: cn.forms.CNPhoneNumberField
+
+    A form field that validates input as a Chinese phone number.
+    Valid formats are 0XX-XXXXXXXX, composed of 3 or 4 digits of region code
+    and 7 or 8 digits of phone number.
+
+.. class:: cn.forms.CNCellNumberField
+
+    A form field that validates input as a Chinese mobile phone number.
+    Valid formats are like 1XXXXXXXXXX, where X is digit.
+    The second digit could only be 3, 5 and 8.
+
+Croatia (``hr``)
+================
+
+.. versionadded:: 1.4
+
+.. class:: hr.forms.HRCountySelect
+
+    A ``Select`` widget that uses a list of counties of Croatia as its choices.
+
+.. class:: hr.forms.HRPhoneNumberPrefixSelect
+
+    A ``Select`` widget that uses a list of phone number prefixes of Croatia as
+    its choices.
+
+.. class:: hr.forms.HRLicensePlatePrefixSelect
+
+    A ``Select`` widget that uses a list of vehicle license plate prefixes of
+    Croatia as its choices.
+
+.. class:: hr.forms.HRPhoneNumberField
+
+    A form field that validates input as a phone number of Croatia.
+    A valid format is a country code or a leading zero, area code prefix, 6 or 7
+    digit number; e.g. +385XXXXXXXX or 0XXXXXXXX
+    Validates fixed, mobile and FGSM numbers. Normalizes to a full number with
+    country code (+385 prefix).
+
+.. class:: hr.forms.HRLicensePlateField
+
+    A form field that validates input as a vehicle license plate of Croatia.
+    Normalizes to the specific format XX YYYY-XX where X is a letter and Y a
+    digit. There can be three or four digits.
+    Suffix is constructed from the shared letters of the Croatian and English
+    alphabets.
+    It is used for standardized license plates only. Special cases like license
+    plates for oldtimers, temporary license plates, government institution
+    license plates and customized license plates are not covered by this field.
+
+.. class:: hr.forms.HRPostalCodeField
+
+    A form field that validates input as a postal code of Croatia.
+    It consists of exactly five digits ranging from 10000 to 59999 inclusive.
+
+.. class:: hr.forms.HROIBField
+
+    A form field that validates input as a Personal Identification Number (OIB)
+    of Croatia.
+    It consists of exactly eleven digits.
+
+.. class:: hr.forms.HRJMBGField
+
+    A form field that validates input as a Unique Master Citizen Number (JMBG).
+    The number is still in use in Croatia, but it is being replaced by OIB.
+    This field works for other ex-Yugoslavia countries as well where the JMBG is
+    still in use.
+    The area segment of the JMBG is not validated because the citizens might
+    have emigrated to another ex-Yugoslavia country.
+    The number consists of exactly thirteen digits.
+
+.. class:: hr.forms.HRJMBAGField
+
+    A form field that validates input as a Unique Master Academic Citizen Number
+    (JMBAG) of Croatia.
+    This number is used by college students and professors in Croatia.
+    The number consists of exactly nineteen digits.
 
 Czech (``cz``)
 ==============
@@ -628,6 +759,17 @@ Poland (``pl``)
 
 .. _PESEL: http://en.wikipedia.org/wiki/PESEL
 
+.. versionadded:: 1.4
+
+.. class:: pl.forms.PLNationalIDCardNumberField
+
+    A form field that validates input as a Polish National ID Card number. The
+    valid format is AAAXXXXXX, where A is letter (A-Z), X is digit and left-most
+    digit is checksum digit. More information about checksum calculation algorithm
+    see `Polish identity card`_.
+
+.. _`Polish identity card`: http://en.wikipedia.org/wiki/Polish_identity_card
+
 .. class:: pl.forms.PLREGONField
 
     A form field that validates input as a Polish National Official Business
@@ -709,6 +851,34 @@ Romania (``ro``)
 .. class:: ro.forms.ROPostalCodeField
 
     A form field that validates Romanian postal codes.
+
+Russia (``ru``)
+===============
+
+.. versionadded:: 1.4
+
+.. class:: ru.forms.RUPostalCodeField
+
+    Russian Postal code field. The valid format is XXXXXX, where X is any
+    digit and the first digit is not zero.
+
+.. class:: ru.forms.RUCountySelect
+
+    A ``Select`` widget that uses a list of Russian Counties as its choices.
+
+.. class:: ru.forms.RURegionSelect
+
+    A ``Select`` widget that uses a list of Russian Regions as its choices.
+
+.. class:: ru.forms.RUPassportNumberField
+
+    Russian internal passport number. The valid format is XXXX XXXXXX, where X
+    is any digit.
+
+.. class:: ru.forms.RUAlienPassportNumberField
+
+    Russian alien's passport number. The valid format is XX XXXXXXX, where X
+    is any digit.
 
 Slovakia (``sk``)
 =================
@@ -884,20 +1054,20 @@ Turkey (``tr``)
 
     A ``select`` widget that uses a list of Turkish provinces as its choices.
 
-United Kingdom (``uk``)
+United Kingdom (``gb``)
 =======================
 
-.. class:: uk.forms.UKPostcodeField
+.. class:: gb.forms.GBPostcodeField
 
     A form field that validates input as a UK postcode. The regular
     expression used is sourced from the schema for British Standard BS7666
     address types at http://www.cabinetoffice.gov.uk/media/291293/bs7666-v2-0.xml.
 
-.. class:: uk.forms.UKCountySelect
+.. class:: gb.forms.GBCountySelect
 
     A ``Select`` widget that uses a list of UK counties/regions as its choices.
 
-.. class:: uk.forms.UKNationSelect
+.. class:: gb.forms.GBNationSelect
 
     A ``Select`` widget that uses a list of UK nations as its choices.
 

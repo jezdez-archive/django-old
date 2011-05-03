@@ -692,7 +692,9 @@ class Variable(object):
                                 ):
                             raise VariableDoesNotExist("Failed lookup for key [%s] in %r", (bit, current)) # missing attribute
                 if callable(current):
-                    if getattr(current, 'alters_data', False):
+                    if getattr(current, 'do_not_call_in_templates', False):
+                        pass
+                    elif getattr(current, 'alters_data', False):
                         current = settings.TEMPLATE_STRING_IF_INVALID
                     else:
                         try: # method call (assuming no args required)
@@ -821,7 +823,7 @@ class Library(object):
             # @register.tag()
             return self.tag_function
         elif name != None and compile_function == None:
-            if(callable(name)):
+            if callable(name):
                 # @register.tag
                 return self.tag_function(name)
             else:
@@ -845,7 +847,7 @@ class Library(object):
             # @register.filter()
             return self.filter_function
         elif filter_func == None:
-            if(callable(name)):
+            if callable(name):
                 # @register.filter
                 return self.filter_function(name)
             else:
@@ -899,6 +901,66 @@ class Library(object):
         else:
             raise TemplateSyntaxError("Invalid arguments provided to simple_tag")
 
+    def assignment_tag(self, func=None, takes_context=None):
+        def dec(func):
+            params, xx, xxx, defaults = getargspec(func)
+            if takes_context:
+                if params[0] == 'context':
+                    params = params[1:]
+                else:
+                    raise TemplateSyntaxError("Any tag function decorated with takes_context=True must have a first argument of 'context'")
+
+            class AssignmentNode(Node):
+                def __init__(self, params_vars, target_var):
+                    self.params_vars = map(Variable, params_vars)
+                    self.target_var = target_var
+
+                def render(self, context):
+                    resolved_vars = [var.resolve(context) for var in self.params_vars]
+                    if takes_context:
+                        func_args = [context] + resolved_vars
+                    else:
+                        func_args = resolved_vars
+                    context[self.target_var] = func(*func_args)
+                    return ''
+
+            def compile_func(parser, token):
+                bits = token.split_contents()
+                tag_name = bits[0]
+                bits = bits[1:]
+                params_max = len(params)
+                defaults_length = defaults and len(defaults) or 0
+                params_min = params_max - defaults_length
+                if (len(bits) < 2 or bits[-2] != 'as'):
+                    raise TemplateSyntaxError(
+                        "'%s' tag takes at least 2 arguments and the "
+                        "second last argument must be 'as'" % tag_name)
+                params_vars = bits[:-2]
+                target_var = bits[-1]
+                if (len(params_vars) < params_min or
+                        len(params_vars) > params_max):
+                    if params_min == params_max:
+                        raise TemplateSyntaxError(
+                            "%s takes %s arguments" % (tag_name, params_min))
+                    else:
+                        raise TemplateSyntaxError(
+                            "%s takes between %s and %s arguments"
+                            % (tag_name, params_min, params_max))
+                return AssignmentNode(params_vars, target_var)
+
+            compile_func.__doc__ = func.__doc__
+            self.tag(getattr(func, "_decorated_function", func).__name__, compile_func)
+            return func
+
+        if func is None:
+            # @register.assignment_tag(...)
+            return dec
+        elif callable(func):
+            # @register.assignment_tag
+            return dec(func)
+        else:
+            raise TemplateSyntaxError("Invalid arguments provided to assignment_tag")
+
     def inclusion_tag(self, file_name, context_class=Context, takes_context=False):
         def dec(func):
             params, xx, xxx, defaults = getargspec(func)
@@ -928,7 +990,11 @@ class Library(object):
                         else:
                             t = get_template(file_name)
                         self.nodelist = t.nodelist
-                    new_context = context_class(dict, autoescape=context.autoescape)
+                    new_context = context_class(dict, **{
+                        'autoescape': context.autoescape,
+                        'current_app': context.current_app,
+                        'use_l10n': context.use_l10n,
+                    })
                     # Copy across the CSRF token, if present, because inclusion
                     # tags are often used for forms, and we need instructions
                     # for using CSRF protection to be as simple as possible.

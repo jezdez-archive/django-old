@@ -1,5 +1,5 @@
 from django.contrib.localflavor.pl.forms import (PLProvinceSelect,
-    PLCountySelect, PLPostalCodeField, PLNIPField, PLPESELField, PLREGONField)
+    PLCountySelect, PLPostalCodeField, PLNIPField, PLPESELField, PLNationalIDCardNumberField, PLREGONField)
 
 from utils import LocalFlavorTestCase
 
@@ -447,6 +447,21 @@ class PLLocalFlavorTests(LocalFlavorTestCase):
         }
         self.assertFieldOutput(PLPESELField, valid, invalid)
 
+    def test_PLNationalIDCardNumberField(self):
+        error_checksum = [u'Wrong checksum for the National ID Card Number.']
+        error_format = [u'National ID Card Number consists of 3 letters and 6 digits.']
+        valid = {
+            'ABC123458': 'ABC123458',
+            'abc123458': 'ABC123458',
+        }
+        invalid = {
+            'ABC123457': error_checksum,
+            'abc123457': error_checksum,
+            'a12Aaaaaa': error_format,
+            'AA1234443': error_format,
+        }
+        self.assertFieldOutput(PLNationalIDCardNumberField, valid, invalid)
+
     def test_PLREGONField(self):
         error_checksum = [u'Wrong checksum for the National Business Register Number (REGON).']
         error_format = [u'National Business Register Number (REGON) consists of 9 or 14 digits.']
@@ -461,4 +476,3 @@ class PLLocalFlavorTests(LocalFlavorTestCase):
             '590096': error_format,
         }
         self.assertFieldOutput(PLREGONField, valid, invalid)
-
