@@ -134,7 +134,9 @@ def find_template(name, dirs=None):
         # overrinding widgets' templates in TEMPLATE_DIRS or app_directories.
         forms_loader = 'django.template.loaders.forms.Loader'
         if not forms_loader in settings.TEMPLATE_LOADERS:
-            loaders.append(find_template_loader(forms_loader))
+            forms_ld = find_template_loader(forms_loader)
+            forms_ld._auto_added = True
+            loaders.append(forms_ld)
         template_source_loaders = tuple(loaders)
     for loader in template_source_loaders:
         try:

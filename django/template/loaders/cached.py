@@ -26,7 +26,9 @@ class Loader(BaseLoader):
             # The forms loader needs to be cached too
             forms_loader = 'django.template.loaders.forms.Loader'
             if not forms_loader in self._loaders:
-                self._cached_loaders.append(find_template_loader(forms_loader))
+                forms_ld = find_template_loader(forms_loader)
+                forms_ld._auto_added = True
+                self._cached_loaders.append(forms_ld)
         return self._cached_loaders
 
     def find_template(self, name, dirs=None):
