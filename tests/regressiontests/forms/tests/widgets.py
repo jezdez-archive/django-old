@@ -1268,3 +1268,46 @@ class ClearableFileInputTests(TestCase):
                 data={'myfile-clear': True},
                 files={'myfile': f},
                 name='myfile'), f)
+
+
+class WidgetsAPITests(TestCase):
+    """Tests for the widget's public API"""
+
+    def test_template_name(self):
+        """Altering template_name on the widget class"""
+        class SomeWidget(TextInput):
+            template_name = 'forms/decorated_widget.html'
+
+        w = SomeWidget()
+        self.assertEqual(w.render('baz', None), '<input type="text" name="baz" />\nNice widget\n')
+
+    def test_context(self):
+        """Overriding get_context on the widget class"""
+        class OtherWidget(PasswordInput):
+            template_name = 'forms/secret_pw.html'
+
+            def get_context(self, name, value, attrs=None):
+                ctx = super(OtherWidget, self).get_context(name, value, attrs)
+                ctx['secret'] = True
+                return ctx
+
+        w = OtherWidget()
+        self.assertEqual(w.render('nice', None), '<input type="password" name="nice" />\nThis password is secret, don\'t tell anyone!\n')
+
+    def test_context_data(self):
+        """Overriding get_context_data on the widget class"""
+        class EmailWidget(TextInput):
+            template_name = 'forms/email.html'
+            input_type = 'email'
+
+            def get_context_data(self):
+                ctx = super(EmailWidget, self).get_context_data()
+                ctx['has_placeholder'] = True
+                return ctx
+
+            def get_context(self, name, value, attrs=None):
+                ctx = super(EmailWidget, self).get_context(name, value, attrs)
+                ctx['attrs']['placeholder'] = 'john@example.com'
+                return ctx
+        w = EmailWidget()
+        self.assertEqual(w.render('email', 'test@example.com'), '<input type="email" name="email" value="test@example.com" placeholder="john@example.com" />\nYup, there is a placeholder\n')
