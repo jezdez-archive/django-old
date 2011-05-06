@@ -8,6 +8,7 @@ from threading import local
 
 from django.conf import settings
 from django.template import Template, Context
+from django.test import TestCase
 from django.utils.formats import (get_format, date_format, time_format,
     localize, localize_input, iter_format_modules, get_format_modules)
 from django.utils.importlib import import_module
@@ -17,7 +18,6 @@ from django.utils import translation
 from django.utils.translation import (ugettext, ugettext_lazy, activate,
         deactivate, gettext_lazy, pgettext, npgettext, to_locale,
         get_language_info, get_language)
-from django.utils.unittest import TestCase
 
 
 from forms import I18nForm, SelectDateForm, SelectDateWidget, CompanyForm
@@ -62,7 +62,7 @@ class TranslationTests(TestCase):
         extended_locale_paths = settings.LOCALE_PATHS + (
             os.path.join(os.path.dirname(os.path.abspath(__file__)), 'other', 'locale'),
         )
-        with settings.override(LOCALE_PATHS=extended_locale_paths):
+        with self.settings(LOCALE_PATHS=extended_locale_paths):
             from django.utils.translation import trans_real
             trans_real._active = local()
             trans_real._translations = {}
@@ -158,12 +158,12 @@ class FormattingTests(TestCase):
         """
         Localization of numbers
         """
-        with settings.override(USE_L10N=True, USE_THOUSAND_SEPARATOR=False):
+        with self.settings(USE_L10N=True, USE_THOUSAND_SEPARATOR=False):
             self.assertEqual(u'66666.66', nformat(self.n, decimal_sep='.', decimal_pos=2, grouping=3, thousand_sep=','))
             self.assertEqual(u'66666A6', nformat(self.n, decimal_sep='A', decimal_pos=1, grouping=1, thousand_sep='B'))
             self.assertEqual(u'66666', nformat(self.n, decimal_sep='X', decimal_pos=0, grouping=1, thousand_sep='Y'))
 
-        with settings.override(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
+        with self.settings(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
             self.assertEqual(u'66,666.66', nformat(self.n, decimal_sep='.', decimal_pos=2, grouping=3, thousand_sep=','))
             self.assertEqual(u'6B6B6B6B6A6', nformat(self.n, decimal_sep='A', decimal_pos=1, grouping=1, thousand_sep='B'))
             self.assertEqual(u'-66666.6', nformat(-66666.666, decimal_sep='.', decimal_pos=1))
@@ -235,7 +235,7 @@ class FormattingTests(TestCase):
             # thousand separator and grouping when USE_L10N is False even
             # if the USE_THOUSAND_SEPARATOR, NUMBER_GROUPING and
             # THOUSAND_SEPARATOR settings are specified
-            with settings.override(USE_THOUSAND_SEPARATOR=True,
+            with self.settings(USE_THOUSAND_SEPARATOR=True,
                     NUMBER_GROUPING=1, THOUSAND_SEPARATOR='!'):
                 self.assertEqual(u'66666.67', Template('{{ n|floatformat:2 }}').render(self.ctxt))
                 self.assertEqual(u'100000.0', Template('{{ f|floatformat }}').render(self.ctxt))
@@ -402,7 +402,7 @@ class FormattingTests(TestCase):
         """
         Check if sublocales fall back to the main locale
         """
-        with settings.override(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
+        with self.settings(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
             with translation.override('de-at', deactivate=True):
                 self.assertEqual(u'66.666,666', Template('{{ n }}').render(self.ctxt))
             with translation.override('es-us', deactivate=True):
@@ -427,7 +427,7 @@ class FormattingTests(TestCase):
             )
             self.assertEqual(localize_input(datetime.datetime(2009, 12, 31, 6, 0, 0)), '31.12.2009 06:00:00')
             self.assertEqual(datetime.datetime(2009, 12, 31, 6, 0, 0), form6.cleaned_data['date_added'])
-            with settings.override(USE_THOUSAND_SEPARATOR=True):
+            with self.settings(USE_THOUSAND_SEPARATOR=True):
                 # Checking for the localized "products_delivered" field
                 self.assertTrue(u'<input type="text" name="products_delivered" value="12.000" id="id_products_delivered" />' in form6.as_ul())
 
@@ -439,7 +439,7 @@ class FormattingTests(TestCase):
         with translation.override('de-at', deactivate=True):
             de_format_mod = import_module('django.conf.locale.de.formats')
             self.assertEqual(list(iter_format_modules('de')), [de_format_mod])
-            with settings.override(FORMAT_MODULE_PATH='regressiontests.i18n.other.locale'):
+            with self.settings(FORMAT_MODULE_PATH='regressiontests.i18n.other.locale'):
                 test_de_format_mod = import_module('regressiontests.i18n.other.locale.de.formats')
                 self.assertEqual(list(iter_format_modules('de')), [test_de_format_mod, de_format_mod])
 
@@ -454,7 +454,7 @@ class FormattingTests(TestCase):
         self.assertEqual(list(iter_format_modules('en-gb')), [en_gb_format_mod, en_format_mod])
 
     def test_get_format_modules_stability(self):
-        with settings.override(USE_L10N=True,
+        with self.settings(USE_L10N=True,
                 FORMAT_MODULE_PATH='regressiontests.i18n.other.locale'):
             with translation.override('de', deactivate=True):
                 old = "%r" % get_format_modules(reverse=True)
@@ -475,10 +475,10 @@ class FormattingTests(TestCase):
         output3 = '3,14;3.14'
         output4 = '3.14;3,14'
         with translation.override('de', deactivate=True):
-            with settings.override(USE_L10N=False):
+            with self.settings(USE_L10N=False):
                 self.assertEqual(template1.render(context), output1)
                 self.assertEqual(template4.render(context), output4)
-            with settings.override(USE_L10N=True):
+            with self.settings(USE_L10N=True):
                 self.assertEqual(template1.render(context), output1)
                 self.assertEqual(template2.render(context), output2)
                 self.assertEqual(template3.render(context), output3)
@@ -640,11 +640,11 @@ class LocalePathsResolutionOrderI18NTests(ResolutionOrderI18NTests):
 
     def test_locale_paths_override_app_translation(self):
         extended_apps = list(settings.INSTALLED_APPS) + ['regressiontests.i18n.resolution']
-        with settings.override(INSTALLED_APPS=extended_apps):
+        with self.settings(INSTALLED_APPS=extended_apps):
             self.assertUgettext('Time', 'LOCALE_PATHS')
 
     def test_locale_paths_override_project_translation(self):
-        with settings.override(SETTINGS_MODULE='regressiontests'):
+        with self.settings(SETTINGS_MODULE='regressiontests'):
             self.assertUgettext('Date/time', 'LOCALE_PATHS')
 
 class ProjectResolutionOrderI18NTests(ResolutionOrderI18NTests):
@@ -663,7 +663,7 @@ class ProjectResolutionOrderI18NTests(ResolutionOrderI18NTests):
 
     def test_project_override_app_translation(self):
         extended_apps = list(settings.INSTALLED_APPS) + ['regressiontests.i18n.resolution']
-        with settings.override(INSTALLED_APPS=extended_apps):
+        with self.settings(INSTALLED_APPS=extended_apps):
             self.assertUgettext('Date/time', 'PROJECT')
 
 class DjangoFallbackResolutionOrderI18NTests(ResolutionOrderI18NTests):

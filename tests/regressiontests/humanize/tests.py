@@ -1,11 +1,12 @@
 from datetime import timedelta, date, datetime, tzinfo, timedelta
 
+from django.conf import settings
 from django.template import Template, Context, add_to_builtins
+from django.test import TestCase
 from django.utils import translation, unittest
 from django.utils.dateformat import DateFormat
 from django.utils.translation import ugettext as _
 from django.utils.html import escape
-from django.conf import settings
 
 add_to_builtins('django.contrib.humanize.templatetags.humanize')
 
@@ -27,7 +28,7 @@ class FixedOffset(tzinfo):
         return timedelta(0)
 
 
-class HumanizeTests(unittest.TestCase):
+class HumanizeTests(TestCase):
 
     def humanize_tester(self, test_list, result_list, method):
         # Using max below ensures we go through both lists
@@ -67,7 +68,7 @@ class HumanizeTests(unittest.TestCase):
             '100', '1.000', '10.123', '10.311', '1.000.000', '1.234.567,25',
             '100', '1.000', '10.123', '10.311', '1.000.000', '1.234.567,1234567')
 
-        with settings.override(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
+        with self.settings(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
             with translation.override('de'):
                 self.humanize_tester(test_list, result_list, 'intcomma')
 
@@ -86,7 +87,7 @@ class HumanizeTests(unittest.TestCase):
         result_list = ('100', '1,0 million', '1,2 million', '1,3 million',
                        '1,0 billion', '2,0 billion', '6,0 trillion')
 
-        with settings.override(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
+        with self.settings(USE_L10N=True, USE_THOUSAND_SEPARATOR=True):
             with translation.override('de'):
                 self.humanize_tester(test_list, result_list, 'intword')
 
