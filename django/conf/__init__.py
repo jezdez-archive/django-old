@@ -10,6 +10,7 @@ import os
 import re
 import time     # Needed for Windows
 import warnings
+from contextlib import contextmanager
 
 from django.conf import global_settings
 from django.utils.functional import LazyObject
@@ -17,6 +18,8 @@ from django.utils import importlib
 
 ENVIRONMENT_VARIABLE = "DJANGO_SETTINGS_MODULE"
 
+class NonExisting(object):
+    pass
 
 class LazySettings(LazyObject):
     """
@@ -53,6 +56,22 @@ class LazySettings(LazyObject):
         for name, value in options.items():
             setattr(holder, name, value)
         self._wrapped = holder
+
+    @contextmanager
+    def override(self, **options):
+        """
+        A context manager that temporarily sets a setting and reverts
+        back to the original value when exiting the context.
+        """
+        old_wrapped = self._wrapped
+        override = UserSettingsHolder(self._wrapped)
+        try:
+            for key, new_value in options.items():
+                setattr(override, key, new_value)
+            self._wrapped = override
+            yield override
+        finally:
+            self._wrapped = old_wrapped
 
     def configured(self):
         """

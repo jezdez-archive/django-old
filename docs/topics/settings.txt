@@ -137,6 +137,23 @@ don't do this in a view::
 
 The only place you should assign to settings is in a settings file.
 
+.. versionadded:: 1.4
+
+    For testing purposes it's often useful to change a setting temporarily
+    and revert to the original value after running the testing code. For
+    this use case Django provides a standard `Python context manager`_
+    ``django.conf.settings.override``, which can be used like this::
+
+        from django.conf import settings
+
+        with settings.override(LOGIN_URL='/another/login/'):
+            # do something
+
+    This will override the :setting:`LOGIN_URL` setting for the code in the
+    ``white`` block and reset its value to the previous state afterwards.
+
+.. _`Python context manager`: http://www.python.org/dev/peps/pep-0343/
+
 Security
 ========
 
@@ -249,6 +266,3 @@ Also, it's an error to call ``configure()`` more than once, or to call
 
 It boils down to this: Use exactly one of either ``configure()`` or
 ``DJANGO_SETTINGS_MODULE``. Not both, and not neither.
-
-.. _@login_required: ../authentication/#the-login-required-decorator
-

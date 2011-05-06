@@ -4,6 +4,21 @@ from django.utils import unittest
 
 class SettingsTests(unittest.TestCase):
 
+    def test_override(self):
+        settings.TEST = 'test'
+        self.assertEqual('test', settings.TEST)
+        with settings.override(TEST='override'):
+            self.assertEqual('override', settings.TEST)
+        self.assertEqual('test', settings.TEST)
+
+    def test_override_change(self):
+        settings.TEST = 'test'
+        self.assertEqual('test', settings.TEST)
+        with settings.override(TEST='override'):
+            self.assertEqual('override', settings.TEST)
+            settings.TEST = 'test2'
+        self.assertEqual('test', settings.TEST)
+
     #
     # Regression tests for #10130: deleting settings.
     #
@@ -16,6 +31,7 @@ class SettingsTests(unittest.TestCase):
 
     def test_settings_delete_wrapped(self):
         self.assertRaises(TypeError, delattr, settings, '_wrapped')
+
 
 
 class TrailingSlashURLTests(unittest.TestCase):
