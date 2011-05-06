@@ -9,6 +9,7 @@ class SettingsTests(TestCase):
         with self.settings(TEST='override'):
             self.assertEqual('override', settings.TEST)
         self.assertEqual('test', settings.TEST)
+        del settings.TEST
 
     def test_override_change(self):
         settings.TEST = 'test'
@@ -17,6 +18,14 @@ class SettingsTests(TestCase):
             self.assertEqual('override', settings.TEST)
             settings.TEST = 'test2'
         self.assertEqual('test', settings.TEST)
+        del settings.TEST
+
+    def test_override_doesnt_leak(self):
+        self.assertRaises(AttributeError, getattr, settings, 'TEST')
+        with self.settings(TEST='override'):
+            self.assertEqual('override', settings.TEST)
+            settings.TEST = 'test'
+        self.assertRaises(AttributeError, getattr, settings, 'TEST')
 
     #
     # Regression tests for #10130: deleting settings.
