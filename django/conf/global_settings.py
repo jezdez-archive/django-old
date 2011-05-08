@@ -484,6 +484,12 @@ LOGIN_REDIRECT_URL = '/accounts/profile/'
 # The number of days a password reset link is valid for
 PASSWORD_RESET_TIMEOUT_DAYS = 3
 
+##################
+# SIGNED COOKIES #
+##################
+
+COOKIE_SIGNER_BACKEND = 'django.core.signing.TimestampSigner'
+
 ########
 # CSRF #
 ########
