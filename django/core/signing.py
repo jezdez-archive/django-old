@@ -122,7 +122,8 @@ def get_cookie_signer():
     return Signer(settings.SECRET_KEY)
 
 class Signer(object):
-    def __init__(self, key=None):
+    def __init__(self, key=None, sep=':'):
+        self.sep = sep
         self.key = key or settings.SECRET_KEY
 
     def signature(self, value, salt=''):
@@ -130,17 +131,17 @@ class Signer(object):
         key = sha_constructor('signer' + self.key + salt).hexdigest()
         return base64_hmac(value, key)
 
-    def sign(self, value, salt='', sep=':'):
+    def sign(self, value, salt=''):
         value = smart_str(value)
         return '%s%s%s' % (
-            value, sep, self.signature(value, salt=salt)
+            value, self.sep, self.signature(value, salt=salt)
         )
 
-    def unsign(self, signed_value, salt='', sep=':'):
+    def unsign(self, signed_value, salt=''):
         signed_value = smart_str(signed_value)
-        if not sep in signed_value:
-            raise BadSignature, "No '%s' found in value" % sep
-        value, sig = signed_value.rsplit(sep, 1)
+        if not self.sep in signed_value:
+            raise BadSignature, "No '%s' found in value" % self.sep
+        value, sig = signed_value.rsplit(self.sep, 1)
         expected = self.signature(value, salt=salt)
         if sig != expected:
             # Important: do NOT include the expected sig in the exception
@@ -154,16 +155,15 @@ class TimestampSigner(Signer):
     def timestamp(self):
         return baseconv.base62.from_int(int(time.time()))
 
-    def sign(self, value, salt='', sep=':'):
-        value = smart_str('%s%s%s' % (value, sep, self.timestamp()))
+    def sign(self, value, salt=''):
+        value = smart_str('%s%s%s' % (value, self.sep, self.timestamp()))
         return '%s%s%s' % (
-            value, sep, self.signature(value, salt=salt)
+            value, self.sep, self.signature(value, salt=salt)
         )
 
-    def unsign(self, value, salt='', sep=':', max_age=None):
+    def unsign(self, value, salt='', max_age=None):
         value, timestamp = super(TimestampSigner, self).unsign(
-            value, salt=salt, sep=sep
-        ).rsplit(sep, 1)
+            value, salt=salt).rsplit(self.sep, 1)
         timestamp = baseconv.base62.to_int(timestamp)
         if max_age is not None:
             # Check timestamp is not older than max_age
