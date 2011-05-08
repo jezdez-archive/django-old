@@ -133,7 +133,7 @@ absolute_http_url_re = re.compile(r"^https?://", re.I)
 class Http404(Exception):
     pass
 
-raise_error = object()
+RAISE_ERROR = object()
 
 class HttpRequest(object):
     """A basic HTTP request."""
@@ -173,7 +173,7 @@ class HttpRequest(object):
         # Rather than crash if this doesn't happen, we encode defensively.
         return '%s%s' % (self.path, self.META.get('QUERY_STRING', '') and ('?' + iri_to_uri(self.META.get('QUERY_STRING', ''))) or '')
 
-    def get_signed_cookie(self, key, default=raise_error, salt = '',
+    def get_signed_cookie(self, key, default=RAISE_ERROR, salt = '',
             max_age=None):
         """
         Attempts to return a signed cookie. If the signature fails or the
@@ -183,7 +183,7 @@ class HttpRequest(object):
         try:
             cookie_value = self.COOKIES[key].encode('utf-8')
         except KeyError:
-            if default is not raise_error:
+            if default is not RAISE_ERROR:
                 return default
             else:
                 raise
@@ -192,7 +192,7 @@ class HttpRequest(object):
                 cookie_value, salt = key + salt, max_age = max_age
             )
         except signing.BadSignature:
-            if default is not raise_error:
+            if default is not RAISE_ERROR:
                 return default
             else:
                 raise
