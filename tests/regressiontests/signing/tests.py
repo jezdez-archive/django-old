@@ -29,7 +29,7 @@ class TestSigner(TestCase):
         self.assertEqual(
             signer.signature('hello', salt='extra-salt'),
             signing.base64_hmac('hello', sha_constructor(
-                'signer' + 'predictable-secret' + 'extra-salt'
+                'extra-salt' + 'signer' + 'predictable-secret'
             ).hexdigest())
         )
         self.assertNotEqual(
