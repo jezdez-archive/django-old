@@ -128,7 +128,7 @@ class Signer(object):
 
     def signature(self, value, salt=''):
         # Derive a new key from the SECRET_KEY, using the optional salt
-        key = sha_constructor('signer' + self.key + salt).hexdigest()
+        key = sha_constructor(salt + 'signer' + self.key).hexdigest()
         return base64_hmac(value, key)
 
     def sign(self, value, salt=''):
