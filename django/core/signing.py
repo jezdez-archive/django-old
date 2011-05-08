@@ -119,7 +119,7 @@ def get_cookie_signer():
         raise ImproperlyConfigured(
             'Error importing cookie signer %s: "%s"' % (modpath, e)
         )
-    return Signer(settings.SECRET_KEY)
+    return Signer('django.http.cookies' + settings.SECRET_KEY)
 
 class Signer(object):
     def __init__(self, key=None, sep=':'):
