@@ -576,9 +576,7 @@ class ModelAdmin(BaseModelAdmin):
         # get_action might have returned None, so filter any of those out.
         actions = filter(None, actions)
 
-        # Convert the actions into a SortedDict keyed by name
-        # and sorted by description.
-        actions.sort(key=lambda k: k[2].lower())
+        # Convert the actions into a SortedDict keyed by name.
         actions = SortedDict([
             (name, (func, name, desc))
             for func, name, desc in actions
@@ -1091,7 +1089,7 @@ class ModelAdmin(BaseModelAdmin):
         if (actions and request.method == 'POST' and
                 'index' in request.POST and '_save' not in request.POST):
             if selected:
-                response = self.response_action(request, queryset=cl.get_query_set())
+                response = self.response_action(request, queryset=cl.get_query_set(request))
                 if response:
                     return response
                 else:
@@ -1107,7 +1105,7 @@ class ModelAdmin(BaseModelAdmin):
                 helpers.ACTION_CHECKBOX_NAME in request.POST and
                 'index' not in request.POST and '_save' not in request.POST):
             if selected:
-                response = self.response_action(request, queryset=cl.get_query_set())
+                response = self.response_action(request, queryset=cl.get_query_set(request))
                 if response:
                     return response
                 else:

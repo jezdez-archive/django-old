@@ -341,13 +341,15 @@ def external_mail(modeladmin, request, selected):
         'from@example.com',
         ['to@example.com']
     ).send()
+external_mail.short_description = 'External mail (Another awesome action)'
 
 def redirect_to(modeladmin, request, selected):
     from django.http import HttpResponseRedirect
     return HttpResponseRedirect('/some-where-else/')
+redirect_to.short_description = 'Redirect to (Awesome action)'
 
 class ExternalSubscriberAdmin(admin.ModelAdmin):
-    actions = [external_mail, redirect_to]
+    actions = [redirect_to, external_mail]
 
 class Media(models.Model):
     name = models.CharField(max_length=60)
@@ -611,7 +613,7 @@ class Gadget(models.Model):
         return self.name
 
 class CustomChangeList(ChangeList):
-    def get_query_set(self):
+    def get_query_set(self, request):
         return self.root_query_set.filter(pk=9999) # Does not exist
 
 class GadgetAdmin(admin.ModelAdmin):

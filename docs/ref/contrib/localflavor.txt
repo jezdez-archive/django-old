@@ -123,9 +123,20 @@ Here's an example of how to use them::
 .. _Sweden: `Sweden (se)`_
 .. _Switzerland: `Switzerland (ch)`_
 .. _Turkey: `Turkey (tr)`_
-.. _United Kingdom: `United Kingdom (uk)`_
+.. _United Kingdom: `United Kingdom (gb)`_
 .. _United States of America: `United States of America (us)`_
 .. _Uruguay: `Uruguay (uy)`_
+
+Internationalization of localflavor
+===================================
+
+Localflavor has its own catalog of translations, in the directory
+``django/contrib/localflavor/locale``, and it's not loaded automatically like
+Django's general catalog in ``django/conf/locale``. If you want localflavor's
+texts to be translated, like form fields error messages, you must include
+:mod:`django.contrib.localflavor` in the :setting:`INSTALLED_APPS` setting, so
+the internationalization system can find the catalog, as explained in
+:ref:`using-translations-in-your-own-projects`.
 
 Adding flavors
 ==============
@@ -377,7 +388,7 @@ China (``cn``)
     The second digit could only be 3, 5 and 8.
 
 Croatia (``hr``)
-==============
+================
 
 .. versionadded:: 1.4
 
@@ -748,6 +759,17 @@ Poland (``pl``)
 
 .. _PESEL: http://en.wikipedia.org/wiki/PESEL
 
+.. versionadded:: 1.4
+
+.. class:: pl.forms.PLNationalIDCardNumberField
+
+    A form field that validates input as a Polish National ID Card number. The
+    valid format is AAAXXXXXX, where A is letter (A-Z), X is digit and left-most
+    digit is checksum digit. More information about checksum calculation algorithm
+    see `Polish identity card`_.
+
+.. _`Polish identity card`: http://en.wikipedia.org/wiki/Polish_identity_card
+
 .. class:: pl.forms.PLREGONField
 
     A form field that validates input as a Polish National Official Business
@@ -1032,20 +1054,20 @@ Turkey (``tr``)
 
     A ``select`` widget that uses a list of Turkish provinces as its choices.
 
-United Kingdom (``uk``)
+United Kingdom (``gb``)
 =======================
 
-.. class:: uk.forms.UKPostcodeField
+.. class:: gb.forms.GBPostcodeField
 
     A form field that validates input as a UK postcode. The regular
     expression used is sourced from the schema for British Standard BS7666
     address types at http://www.cabinetoffice.gov.uk/media/291293/bs7666-v2-0.xml.
 
-.. class:: uk.forms.UKCountySelect
+.. class:: gb.forms.GBCountySelect
 
     A ``Select`` widget that uses a list of UK counties/regions as its choices.
 
-.. class:: uk.forms.UKNationSelect
+.. class:: gb.forms.GBNationSelect
 
     A ``Select`` widget that uses a list of UK nations as its choices.
 
