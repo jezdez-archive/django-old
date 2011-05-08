@@ -173,8 +173,8 @@ class HttpRequest(object):
         # Rather than crash if this doesn't happen, we encode defensively.
         return '%s%s' % (self.path, self.META.get('QUERY_STRING', '') and ('?' + iri_to_uri(self.META.get('QUERY_STRING', ''))) or '')
 
-    def get_signed_cookie(self, key, default=RAISE_ERROR, salt = '',
-            max_age=None):
+    def get_signed_cookie(self, key, default=RAISE_ERROR, salt='',
+        max_age=None):
         """
         Attempts to return a signed cookie. If the signature fails or the
         cookie has expired, raises an exception... unless you provide the
@@ -189,7 +189,7 @@ class HttpRequest(object):
                 raise
         try:
             value = signing.get_cookie_signer().unsign(
-                cookie_value, salt = key + salt, max_age = max_age
+                cookie_value, salt=key + salt, max_age=max_age
             )
         except signing.BadSignature:
             if default is not RAISE_ERROR:
@@ -612,7 +612,7 @@ class HttpResponse(object):
         if httponly:
             self.cookies[key]['httponly'] = True
 
-    def set_signed_cookie(self, key, value, salt = '', **kwargs):
+    def set_signed_cookie(self, key, value, salt='', **kwargs):
         value = signing.get_cookie_signer().sign(value, salt=key + salt)
         return self.set_cookie(key, value, **kwargs)
 
@@ -718,4 +718,3 @@ def str_to_unicode(s, encoding):
         return unicode(s, encoding, 'replace')
     else:
         return s
-

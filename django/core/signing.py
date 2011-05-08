@@ -38,9 +38,12 @@ from django.utils.hashcompat import sha_constructor
 from django.utils import baseconv, simplejson
 from django.utils.encoding import force_unicode, smart_str
 from django.utils.importlib import import_module
-import hmac, base64, time
+import hmac
+import base64
+import time
 
-def dumps(obj, key = None, compress = False, salt = ''):
+
+def dumps(obj, key=None, compress=False, salt=''):
     """
     Returns URL-safe, sha1 signed base64 compressed JSON string. If key is
     None, settings.SECRET_KEY is used instead.
@@ -53,9 +56,13 @@ def dumps(obj, key = None, compress = False, salt = ''):
     that the NSA might try to brute-force your SHA-1 protected secret.
     """
     json = simplejson.dumps(obj, separators=(',', ':'))
-    is_compressed = False # Flag for if it's been compressed or not
+
+    # Flag for if it's been compressed or not
+    is_compressed = False
+
     if compress:
-        import zlib # Avoid zlib dependency unless compress is being used
+        # Avoid zlib dependency unless compress is being used
+        import zlib
         compressed = zlib.compress(json)
         if len(compressed) < (len(json) - 1):
             json = compressed
@@ -65,7 +72,8 @@ def dumps(obj, key = None, compress = False, salt = ''):
         base64d = '.' + base64d
     return TimestampSigner(key).sign(base64d, salt=salt)
 
-def loads(s, key = None, salt = '', max_age=None):
+
+def loads(s, key=None, salt='', max_age=None):
     "Reverse of dumps(), raises BadSignature if signature fails"
     try:
         base64d = smart_str(TimestampSigner(key).unsign(
@@ -84,25 +92,31 @@ def loads(s, key = None, salt = '', max_age=None):
         jsond = zlib.decompress(json)
     return simplejson.loads(json)
 
+
 def b64_encode(s):
     return base64.urlsafe_b64encode(s).strip('=')
+
 
 def b64_decode(s):
     pad = '=' * (-len(s) % 4)
     return base64.urlsafe_b64decode(s + pad)
+
 
 def base64_hmac(value, key):
     return b64_encode(
         (hmac.new(key, value, sha_constructor).digest())
     )
 
+
 class BadSignature(Exception):
     "Signature does not match"
     pass
 
+
 class SignatureExpired(BadSignature):
     "Signature timestamp is older than required max_age"
     pass
+
 
 def get_cookie_signer():
     modpath = settings.COOKIE_SIGNER_BACKEND
@@ -120,6 +134,7 @@ def get_cookie_signer():
             'Error importing cookie signer %s: "%s"' % (modpath, e)
         )
     return Signer('django.http.cookies' + settings.SECRET_KEY)
+
 
 class Signer(object):
     def __init__(self, key=None, sep=':'):
@@ -140,16 +155,17 @@ class Signer(object):
     def unsign(self, signed_value, salt=''):
         signed_value = smart_str(signed_value)
         if not self.sep in signed_value:
-            raise BadSignature, "No '%s' found in value" % self.sep
+            raise BadSignature('No "%s" found in value' % self.sep)
         value, sig = signed_value.rsplit(self.sep, 1)
         expected = self.signature(value, salt=salt)
         if sig != expected:
             # Important: do NOT include the expected sig in the exception
             # message, since it might leak up to an attacker! Can we enforce
             # this in the Django debug templates?
-            raise BadSignature, 'Signature "%s" does not match' % sig
+            raise BadSignature('Signature "%s" does not match' % sig)
         else:
             return force_unicode(value)
+
 
 class TimestampSigner(Signer):
     def timestamp(self):
@@ -169,8 +185,7 @@ class TimestampSigner(Signer):
             # Check timestamp is not older than max_age
             age = time.time() - timestamp
             if age > max_age:
-                raise SignatureExpired, 'Signature age %s > %s seconds' % (
+                raise SignatureExpired('Signature age %s > %s seconds' % (
                     age, max_age
-                )
+                ))
         return value
-
