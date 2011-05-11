@@ -71,7 +71,7 @@ def base64_hmac(value, key):
 
 
 def get_cookie_signer():
-    modpath = settings.COOKIE_SIGNER_BACKEND
+    modpath = settings.SIGNING_BACKEND
     module, attr = modpath.rsplit('.', 1)
     try:
         mod = import_module(module)
