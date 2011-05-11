@@ -240,19 +240,20 @@ Methods
 
    Example: ``"http://example.com/music/bands/the_beatles/?print=true"``
 
-.. method:: HttpRequest.get_signed_cookie(key, default=raise_error, salt = '', max_age=None)
+.. method:: HttpRequest.get_signed_cookie(key, default=RAISE_ERROR, salt='', max_age=None)
 
    .. versionadded:: 1.4
 
    Returns a cookie value for a signed cookie, or raises a
-   ``utils.BadSignature`` exception if the signature is no longer valid. If
-   you provide the ``default`` argument the exception will be suppressed and
-   that default value will be returned instead.
+   :class:`~django.core.signing.BadSignature` exception if the signature is
+   no longer valid. If you provide the ``default`` argument the exception
+   will be suppressed and that default value will be returned instead.
 
-   The optional salt argument can be used to provide extra protection against
-   brute force attacks on your secret key. If supplied, the max_age argument
-   will be checked against the signed timestamp attached to the cookie value
-   to ensure the cookie is no older than max_age seconds.
+   The optional ``salt`` argument can be used to provide extra protection
+   against brute force attacks on your secret key. If supplied, the
+   ``max_age`` argument will be checked against the signed timestamp
+   attached to the cookie value to ensure the cookie is not older than
+   ``max_age`` seconds.
 
    For example::
 
@@ -263,7 +264,7 @@ Methods
           >>> request.get_signed_cookie('non-existing-cookie')
           ...
           KeyError: 'non-existing-cookie'
-          >>> request.get_signed_cookie('non-existing-cookie', default=False)
+          >>> request.get_signed_cookie('non-existing-cookie', False)
           False
           >>> request.get_signed_cookie('cookie-that-was-tampered-with')
           ...
@@ -271,10 +272,10 @@ Methods
           >>> request.get_signed_cookie('name', max_age=60)
           ...
           SignatureExpired: Signature age 1677.3839159 > 60 seconds
-          >>> request.get_signed_cookie('name', max_age=60, default=False)
+          >>> request.get_signed_cookie('name', False, max_age=60)
           False
 
-   See :doc:`cryptographic signing <topics-signing>` for more information.
+   See :ref:`cryptographic signing <topics-signing>` for more information.
 
 .. method:: HttpRequest.is_secure()
 
@@ -658,11 +659,12 @@ Methods
 
     .. versionadded:: 1.4
 
-    Like ``set_cookie()``, but :ref:`cryptographically signs <topics-signing>`
-    the cookie before setting it. Use in conjunction with
-    ``HttpRequest.get_signed_cookie``. You can use the optional ``salt``
-    argument for added key strength, but you will need to remember to pass it
-    to the corresponding ``get_signed_cookie`` call.
+    Like :meth:`~HttpResponse.set_cookie()`, but
+    :ref:`cryptographically signs <topics-signing>` the cookie before setting
+    it. Use in conjunction with :meth:`HttpRequest.get_signed_cookie`.
+    You can use the optional ``salt`` argument for added key strength, but
+    you will need to remember to pass it to the corresponding
+    :meth:`HttpRequest.get_signed_cookie` call.
 
 .. method:: HttpResponse.delete_cookie(key, path='/', domain=None)
 
