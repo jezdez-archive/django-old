@@ -1,8 +1,9 @@
-from unittest import TestCase
-from django.core import signing
-from django.utils.hashcompat import sha_constructor
-from django.utils.encoding import force_unicode
 import time
+
+from django.core import signing
+from django.test import TestCase
+from django.utils.encoding import force_unicode
+from django.utils.hashcompat import sha_constructor
 
 class TestSigner(TestCase):
 
@@ -34,8 +35,7 @@ class TestSigner(TestCase):
         )
         self.assertNotEqual(
             signer.signature('hello', salt='one'),
-            signer.signature('hello', salt='two'),
-        )
+            signer.signature('hello', salt='two'))
 
     def test_sign_unsign(self):
         "sign/unsign should be reversible"
@@ -48,9 +48,8 @@ class TestSigner(TestCase):
             u'\u2019',
         )
         for example in examples:
-            self.assert_(
-                force_unicode(example) != force_unicode(signer.sign(example))
-            )
+            self.assertNotEqual(
+                force_unicode(example), force_unicode(signer.sign(example)))
             self.assertEqual(example, signer.unsign(signer.sign(example)))
 
     def unsign_detects_tampering(self):
@@ -67,8 +66,7 @@ class TestSigner(TestCase):
         self.assertEqual(value, signer.unsign(signed_value))
         for transform in transforms:
             self.assertRaises(
-                signing.BadSignature, signer.unsign, transform(signed_value)
-            )
+                signing.BadSignature, signer.unsign, transform(signed_value))
 
     def test_dumps_loads(self):
         "dumps and loads be reversible for any JSON serializable object"
@@ -79,7 +77,7 @@ class TestSigner(TestCase):
             {'a': 'dictionary'},
         )
         for o in objects:
-            self.assert_(o != signing.dumps(o))
+            self.assertNotEqual(o, signing.dumps(o))
             self.assertEqual(o, signing.loads(signing.dumps(o)))
 
     def test_decode_detects_tampering(self):
@@ -90,34 +88,33 @@ class TestSigner(TestCase):
             lambda s: 'a' + s[1:],
             lambda s: s.replace(':', ''),
         )
-        value = {'foo': 'bar', 'baz': 1}
+        value = {
+            'foo': 'bar',
+            'baz': 1,
+        }
         encoded = signing.dumps(value)
         self.assertEqual(value, signing.loads(encoded))
         for transform in transforms:
             self.assertRaises(
-                signing.BadSignature, signing.loads, transform(encoded)
-            )
+                signing.BadSignature, signing.loads, transform(encoded))
 
 class TestTimestampSigner(TestCase):
 
     def test_timestamp_signer(self):
-        old_time = time.time
+        value = u'hello'
+        _time = time.time
         time.time = lambda: 123456789
         try:
             signer = signing.TimestampSigner('predictable-key')
-            v = u'hello'
-            ts = signer.sign(v)
-            self.assertNotEqual(ts,signing.Signer('predictable-key').sign(v))
+            ts = signer.sign(value)
+            self.assertNotEqual(ts,
+                signing.Signer('predictable-key').sign(value))
 
-            self.assertEqual(signer.unsign(ts), v)
-
+            self.assertEqual(signer.unsign(ts), value)
             time.time = lambda: 123456800
-
-            self.assertEqual(signer.unsign(ts, max_age=12), v)
-            self.assertEqual(signer.unsign(ts, max_age=11), v)
+            self.assertEqual(signer.unsign(ts, max_age=12), value)
+            self.assertEqual(signer.unsign(ts, max_age=11), value)
             self.assertRaises(
-                signing.SignatureExpired, signer.unsign, ts, max_age=10
-            )
+                signing.SignatureExpired, signer.unsign, ts, max_age=10)
         finally:
-            time.time = old_time
-
+            time.time = _time

@@ -32,18 +32,61 @@ start of the base64 JSON.
 There are 65 url-safe characters: the 64 used by url-safe base64 and the '.'.
 These functions make use of all of them.
 """
+import hmac
+import base64
+import time
 
 from django.conf import settings
 from django.utils.hashcompat import sha_constructor
 from django.utils import baseconv, simplejson
 from django.utils.encoding import force_unicode, smart_str
 from django.utils.importlib import import_module
-import hmac
-import base64
-import time
 
 
-def dumps(obj, key=None, compress=False, salt=''):
+class BadSignature(Exception):
+    """
+    Signature does not match
+    """
+    pass
+
+
+class SignatureExpired(BadSignature):
+    """
+    Signature timestamp is older than required max_age
+    """
+    pass
+
+
+def b64_encode(s):
+    return base64.urlsafe_b64encode(s).strip('=')
+
+
+def b64_decode(s):
+    pad = '=' * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+
+def base64_hmac(value, key):
+    return b64_encode((hmac.new(key, value, sha_constructor).digest()))
+
+
+def get_cookie_signer():
+    modpath = settings.COOKIE_SIGNER_BACKEND
+    module, attr = modpath.rsplit('.', 1)
+    try:
+        mod = import_module(module)
+    except ImportError, e:
+        raise ImproperlyConfigured(
+            'Error importing cookie signer %s: "%s"' % (modpath, e))
+    try:
+        Signer = getattr(mod, attr)
+    except AttributeError, e:
+        raise ImproperlyConfigured(
+            'Error importing cookie signer %s: "%s"' % (modpath, e))
+    return Signer('django.http.cookies' + settings.SECRET_KEY)
+
+
+def dumps(obj, key=None, salt='', compress=False):
     """
     Returns URL-safe, sha1 signed base64 compressed JSON string. If key is
     None, settings.SECRET_KEY is used instead.
@@ -74,13 +117,11 @@ def dumps(obj, key=None, compress=False, salt=''):
 
 
 def loads(s, key=None, salt='', max_age=None):
-    "Reverse of dumps(), raises BadSignature if signature fails"
-    try:
-        base64d = smart_str(TimestampSigner(key).unsign(
-            s, salt=salt, max_age=max_age
-        ))
-    except BadSignature:
-        raise
+    """
+    Reverse of dumps(), raises BadSignature if signature fails
+    """
+    base64d = smart_str(
+        TimestampSigner(key).unsign(s, salt=salt, max_age=max_age))
     decompress = False
     if base64d[0] == '.':
         # It's compressed; uncompress it first
@@ -91,49 +132,6 @@ def loads(s, key=None, salt='', max_age=None):
         import zlib
         jsond = zlib.decompress(json)
     return simplejson.loads(json)
-
-
-def b64_encode(s):
-    return base64.urlsafe_b64encode(s).strip('=')
-
-
-def b64_decode(s):
-    pad = '=' * (-len(s) % 4)
-    return base64.urlsafe_b64decode(s + pad)
-
-
-def base64_hmac(value, key):
-    return b64_encode(
-        (hmac.new(key, value, sha_constructor).digest())
-    )
-
-
-class BadSignature(Exception):
-    "Signature does not match"
-    pass
-
-
-class SignatureExpired(BadSignature):
-    "Signature timestamp is older than required max_age"
-    pass
-
-
-def get_cookie_signer():
-    modpath = settings.COOKIE_SIGNER_BACKEND
-    module, attr = modpath.rsplit('.', 1)
-    try:
-        mod = import_module(module)
-    except ImportError, e:
-        raise ImproperlyConfigured(
-            'Error importing cookie signer %s: "%s"' % (modpath, e)
-        )
-    try:
-        Signer = getattr(mod, attr)
-    except AttributeError, e:
-        raise ImproperlyConfigured(
-            'Error importing cookie signer %s: "%s"' % (modpath, e)
-        )
-    return Signer('django.http.cookies' + settings.SECRET_KEY)
 
 
 class Signer(object):
@@ -148,9 +146,7 @@ class Signer(object):
 
     def sign(self, value, salt=''):
         value = smart_str(value)
-        return '%s%s%s' % (
-            value, self.sep, self.signature(value, salt=salt)
-        )
+        return '%s%s%s' % (value, self.sep, self.signature(value, salt=salt))
 
     def unsign(self, signed_value, salt=''):
         signed_value = smart_str(signed_value)
@@ -176,9 +172,7 @@ class TimestampSigner(Signer):
 
     def sign(self, value, salt=''):
         value = smart_str('%s%s%s' % (value, self.sep, self.timestamp()))
-        return '%s%s%s' % (
-            value, self.sep, self.signature(value, salt=salt)
-        )
+        return '%s%s%s' % (value, self.sep, self.signature(value, salt=salt))
 
     def unsign(self, value, salt='', max_age=None):
         value, timestamp = super(TimestampSigner, self).unsign(
@@ -188,7 +182,6 @@ class TimestampSigner(Signer):
             # Check timestamp is not older than max_age
             age = time.time() - timestamp
             if age > max_age:
-                raise SignatureExpired('Signature age %s > %s seconds' % (
-                    age, max_age
-                ))
+                raise SignatureExpired(
+                    'Signature age %s > %s seconds' % (age, max_age))
         return value
