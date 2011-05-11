@@ -158,13 +158,16 @@ class Signer(object):
             raise BadSignature('No "%s" found in value' % self.sep)
         value, sig = signed_value.rsplit(self.sep, 1)
         expected = self.signature(value, salt=salt)
-        if sig != expected:
-            # Important: do NOT include the expected sig in the exception
-            # message, since it might leak up to an attacker! Can we enforce
-            # this in the Django debug templates?
-            raise BadSignature('Signature "%s" does not match' % sig)
-        else:
-            return force_unicode(value)
+        if len(sig) == len(expected):
+            result = 0
+            for x, y in zip(expected, sig):
+              result |= ord(x) ^ ord(y)
+            if result == 0:
+                return force_unicode(value)
+        # Important: do NOT include the expected sig in the exception
+        # message, since it might leak up to an attacker!
+        # TODO: Can we enforce this in the Django debug templates?
+        raise BadSignature('Signature "%s" does not match' % sig)
 
 
 class TimestampSigner(Signer):
