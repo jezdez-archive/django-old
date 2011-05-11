@@ -39,9 +39,9 @@ import time
 from django.conf import settings
 from django.utils.hashcompat import sha_constructor
 from django.utils import baseconv, simplejson
+from django.utils.crypto import constant_time_compare
 from django.utils.encoding import force_unicode, smart_str
 from django.utils.importlib import import_module
-
 
 class BadSignature(Exception):
     """
@@ -154,12 +154,8 @@ class Signer(object):
             raise BadSignature('No "%s" found in value' % self.sep)
         value, sig = signed_value.rsplit(self.sep, 1)
         expected = self.signature(value, salt=salt)
-        if len(sig) == len(expected):
-            result = 0
-            for x, y in zip(expected, sig):
-              result |= ord(x) ^ ord(y)
-            if result == 0:
-                return force_unicode(value)
+        if constant_time_compare(sig, expected):
+            return force_unicode(value)
         # Important: do NOT include the expected sig in the exception
         # message, since it might leak up to an attacker!
         # TODO: Can we enforce this in the Django debug templates?
