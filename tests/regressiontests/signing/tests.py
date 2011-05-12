@@ -3,7 +3,6 @@ import time
 from django.core import signing
 from django.test import TestCase
 from django.utils.encoding import force_unicode
-from django.utils.hashcompat import sha_constructor
 
 class TestSigner(TestCase):
 
@@ -18,9 +17,8 @@ class TestSigner(TestCase):
         ):
             self.assertEqual(
                 signer.signature(s),
-                signing.base64_hmac(s, sha_constructor(
-                    'signer' + 'predictable-secret'
-                ).hexdigest())
+                signing.base64_hmac('signer', s,
+                    'predictable-secret')
             )
             self.assertNotEqual(signer.signature(s), signer2.signature(s))
 
@@ -29,9 +27,8 @@ class TestSigner(TestCase):
         signer = signing.Signer('predictable-secret')
         self.assertEqual(
             signer.signature('hello', salt='extra-salt'),
-            signing.base64_hmac('hello', sha_constructor(
-                'extra-salt' + 'signer' + 'predictable-secret'
-            ).hexdigest())
+            signing.base64_hmac('extra-salt' + 'signer', 'hello',
+                'predictable-secret')
         )
         self.assertNotEqual(
             signer.signature('hello', salt='one'),

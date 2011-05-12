@@ -32,14 +32,13 @@ start of the base64 JSON.
 There are 65 url-safe characters: the 64 used by url-safe base64 and the '.'.
 These functions make use of all of them.
 """
-import hmac
 import base64
 import time
 
 from django.conf import settings
-from django.utils.hashcompat import sha_constructor
+from django.core.exceptions import ImproperlyConfigured
 from django.utils import baseconv, simplejson
-from django.utils.crypto import constant_time_compare
+from django.utils.crypto import constant_time_compare, salted_hmac
 from django.utils.encoding import force_unicode, smart_str
 from django.utils.importlib import import_module
 
@@ -66,8 +65,8 @@ def b64_decode(s):
     return base64.urlsafe_b64decode(s + pad)
 
 
-def base64_hmac(value, key):
-    return b64_encode((hmac.new(key, value, sha_constructor).digest()))
+def base64_hmac(salt, value, key):
+    return b64_encode(salted_hmac(salt, value, key).digest())
 
 
 def get_cookie_signer():
@@ -140,9 +139,7 @@ class Signer(object):
         self.key = key or settings.SECRET_KEY
 
     def signature(self, value, salt=''):
-        # Derive a new key from the SECRET_KEY, using the optional salt
-        key = sha_constructor(salt + 'signer' + self.key).hexdigest()
-        return base64_hmac(value, key)
+        return base64_hmac(salt + 'signer', value, self.key)
 
     def sign(self, value, salt=''):
         value = smart_str(value)
