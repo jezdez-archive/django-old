@@ -13,7 +13,7 @@ from django.utils.functional import wraps
 
 
 __all__ = (
-    'Approximate', 'ContextList',  'get_runner', 'with_settings',
+    'Approximate', 'ContextList',  'get_runner', 'settings_override',
     'setup_test_environment', 'teardown_test_environment',
     'setup_test_template_loader', 'restore_template_loaders',
 )
@@ -167,14 +167,13 @@ def restore_template_loaders():
     delattr(loader, RESTORE_LOADERS_ATTR)
 
 
-class with_settings(object):
+class override_settings(object):
     """
     Acts as either a decorator, or a context manager.  If it's a decorator it
     takes a function and returns a wrapped function.  If it's a contextmanager
     it's used with the ``with`` statement.  In either event entering/exiting
     are called before and after, respectively, the function/block is executed.
     """
-
     def __init__(self, **kwargs):
         self.options = kwargs
         self.wrapped = settings._wrapped

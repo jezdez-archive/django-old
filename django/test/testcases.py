@@ -16,7 +16,7 @@ from django.db import (transaction, connection, connections, DEFAULT_DB_ALIAS,
 from django.http import QueryDict
 from django.test import _doctest as doctest
 from django.test.client import Client
-from django.test.utils import get_warnings_state, restore_warnings_state, with_settings
+from django.test.utils import get_warnings_state, restore_warnings_state, override_settings
 from django.utils import simplejson, unittest as ut2
 from django.utils.encoding import smart_str
 
@@ -346,7 +346,7 @@ class TransactionTestCase(ut2.TestCase):
         A context manager that temporarily sets a setting and reverts
         back to the original value when exiting the context.
         """
-        return with_settings(**kwargs)
+        return override_settings(**kwargs)
 
     def assertRedirects(self, response, expected_url, status_code=302,
                         target_status_code=200, host=None, msg_prefix=''):
