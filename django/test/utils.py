@@ -2,16 +2,21 @@ import sys
 import time
 import os
 import warnings
-from django.conf import settings
+from django.conf import settings, UserSettingsHolder
 from django.core import mail
 from django.core.mail.backends import locmem
 from django.test import signals
 from django.template import Template, loader, TemplateDoesNotExist
 from django.template.loaders import cached
 from django.utils.translation import deactivate
+from django.utils.functional import wraps
 
-__all__ = ('Approximate', 'ContextList', 'setup_test_environment',
-       'teardown_test_environment', 'get_runner')
+
+__all__ = (
+    'Approximate', 'ContextList',  'get_runner', 'with_settings',
+    'setup_test_environment', 'teardown_test_environment',
+    'setup_test_template_loader', 'restore_template_loaders',
+)
 
 RESTORE_LOADERS_ATTR = '_original_template_source_loaders'
 
@@ -160,3 +165,40 @@ def restore_template_loaders():
     """
     loader.template_source_loaders = getattr(loader, RESTORE_LOADERS_ATTR)
     delattr(loader, RESTORE_LOADERS_ATTR)
+
+
+class with_settings(object):
+    """
+    Acts as either a decorator, or a context manager.  If it's a decorator it
+    takes a function and returns a wrapped function.  If it's a contextmanager
+    it's used with the ``with`` statement.  In either event entering/exiting
+    are called before and after, respectively, the function/block is executed.
+    """
+
+    def __init__(self, **kwargs):
+        self.options = kwargs
+        self.wrapped = settings._wrapped
+
+    def __enter__(self):
+        self.enable()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.disable()
+
+    def __call__(self, func):
+        @wraps(func)
+        def inner(*args, **kwargs):
+            self.enable()
+            result = func(*args, **kwargs)
+            self.disable()
+            return result
+        return inner
+
+    def enable(self):
+        override = UserSettingsHolder(settings._wrapped)
+        for key, new_value in self.options.items():
+            setattr(override, key, new_value)
+        settings._wrapped = override
+
+    def disable(self):
+        settings._wrapped = self.wrapped

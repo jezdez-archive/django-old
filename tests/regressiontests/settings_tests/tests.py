@@ -1,7 +1,15 @@
 from __future__ import with_statement
-import os
+import os, sys
 from django.conf import settings, global_settings
 from django.test import TestCase
+from django.test.utils import with_settings
+from django.utils.unittest import skipIf
+
+
+class SettingGetter(object):
+    def __init__(self):
+        self.test = getattr(settings, 'TEST', 'undefined')
+
 
 class SettingsTests(TestCase):
 
@@ -28,6 +36,35 @@ class SettingsTests(TestCase):
             self.assertEqual('override', settings.TEST)
             settings.TEST = 'test'
         self.assertRaises(AttributeError, getattr, settings, 'TEST')
+
+    @with_settings(TEST='override')
+    def test_decorator(self):
+        self.assertEqual('override', settings.TEST)
+
+    def test_context_manager(self):
+        self.assertRaises(AttributeError, getattr, settings, 'TEST')
+        override = with_settings(TEST='override')
+        self.assertRaises(AttributeError, getattr, settings, 'TEST')
+        override.enable()
+        self.assertEqual('override', settings.TEST)
+        override.disable()
+        self.assertRaises(AttributeError, getattr, settings, 'TEST')
+
+    def test_class_decorator(self):
+        self.assertEqual(SettingGetter().test, 'undefined')
+        DecoratedSettingGetter = with_settings(TEST='override')(SettingGetter)
+        self.assertEqual(DecoratedSettingGetter().test, 'override')
+        self.assertRaises(AttributeError, getattr, settings, 'TEST')
+
+    @skipIf(sys.version_info[:2] < (2, 6), "Python version is lower than 2.6")
+    def test_new_class_decorator(self):
+        self.assertEqual(SettingGetter().test, 'undefined')
+        @with_settings(TEST='override')
+        class DecoratedSettingGetter(SettingGetter):
+            pass
+        self.assertEqual(DecoratedSettingGetter().test, 'override')
+        self.assertRaises(AttributeError, getattr, settings, 'TEST')
+
 
     #
     # Regression tests for #10130: deleting settings.
