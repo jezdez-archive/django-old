@@ -13,7 +13,7 @@ from django.utils.functional import wraps
 
 
 __all__ = (
-    'Approximate', 'ContextList',  'get_runner', 'settings_override',
+    'Approximate', 'ContextList',  'get_runner', 'override_settings',
     'setup_test_environment', 'teardown_test_environment',
     'setup_test_template_loader', 'restore_template_loaders',
 )
