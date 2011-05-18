@@ -17,22 +17,21 @@ class TestSigner(TestCase):
         ):
             self.assertEqual(
                 signer.signature(s),
-                signing.base64_hmac('signer', s,
+                signing.base64_hmac(signer.salt + 'signer', s,
                     'predictable-secret')
             )
             self.assertNotEqual(signer.signature(s), signer2.signature(s))
 
     def test_signature_with_salt(self):
         "signature(value, salt=...) should work"
-        signer = signing.Signer('predictable-secret')
+        signer = signing.Signer('predictable-secret', salt='extra-salt')
         self.assertEqual(
-            signer.signature('hello', salt='extra-salt'),
-            signing.base64_hmac('extra-salt' + 'signer', 'hello',
-                'predictable-secret')
-        )
+            signer.signature('hello'),
+                signing.base64_hmac('extra-salt' + 'signer',
+                'hello', 'predictable-secret'))
         self.assertNotEqual(
-            signer.signature('hello', salt='one'),
-            signer.signature('hello', salt='two'))
+            signing.Signer('predictable-secret', salt='one').signature('hello'),
+            signing.Signer('predictable-secret', salt='two').signature('hello'))
 
     def test_sign_unsign(self):
         "sign/unsign should be reversible"

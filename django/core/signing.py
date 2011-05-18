@@ -33,7 +33,10 @@ There are 65 url-safe characters: the 64 used by url-safe base64 and the '.'.
 These functions make use of all of them.
 """
 import base64
+import hashlib
+import random
 import time
+import zlib
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -41,6 +44,7 @@ from django.utils import baseconv, simplejson
 from django.utils.crypto import constant_time_compare, salted_hmac
 from django.utils.encoding import force_unicode, smart_str
 from django.utils.importlib import import_module
+
 
 class BadSignature(Exception):
     """
@@ -69,7 +73,7 @@ def base64_hmac(salt, value, key):
     return b64_encode(salted_hmac(salt, value, key).digest())
 
 
-def get_cookie_signer():
+def get_cookie_signer(salt=''):
     modpath = settings.SIGNING_BACKEND
     module, attr = modpath.rsplit('.', 1)
     try:
@@ -82,7 +86,7 @@ def get_cookie_signer():
     except AttributeError, e:
         raise ImproperlyConfigured(
             'Error importing cookie signer %s: "%s"' % (modpath, e))
-    return Signer('django.http.cookies' + settings.SECRET_KEY)
+    return Signer('django.http.cookies' + settings.SECRET_KEY, salt=salt)
 
 
 def dumps(obj, key=None, salt='', compress=False):
@@ -104,7 +108,6 @@ def dumps(obj, key=None, salt='', compress=False):
 
     if compress:
         # Avoid zlib dependency unless compress is being used
-        import zlib
         compressed = zlib.compress(json)
         if len(compressed) < (len(json) - 1):
             json = compressed
@@ -112,7 +115,7 @@ def dumps(obj, key=None, salt='', compress=False):
     base64d = b64_encode(json)
     if is_compressed:
         base64d = '.' + base64d
-    return TimestampSigner(key).sign(base64d, salt=salt)
+    return TimestampSigner(key, salt=salt).sign(base64d)
 
 
 def loads(s, key=None, salt='', max_age=None):
@@ -120,7 +123,7 @@ def loads(s, key=None, salt='', max_age=None):
     Reverse of dumps(), raises BadSignature if signature fails
     """
     base64d = smart_str(
-        TimestampSigner(key).unsign(s, salt=salt, max_age=max_age))
+        TimestampSigner(key, salt=salt).unsign(s, max_age=max_age))
     decompress = False
     if base64d[0] == '.':
         # It's compressed; uncompress it first
@@ -133,23 +136,27 @@ def loads(s, key=None, salt='', max_age=None):
 
 
 class Signer(object):
-    def __init__(self, key=None, sep=':'):
+    def __init__(self, key=None, sep=':', salt=None):
         self.sep = sep
+        if salt is None:
+            salt = hashlib.sha1(
+                str(random.random()) + str(random.random())).hexdigest()[:5]
+        self.salt = salt
         self.key = key or settings.SECRET_KEY
 
-    def signature(self, value, salt=''):
-        return base64_hmac(salt + 'signer', value, self.key)
+    def signature(self, value):
+        return base64_hmac(self.salt + 'signer', value, self.key)
 
-    def sign(self, value, salt=''):
+    def sign(self, value):
         value = smart_str(value)
-        return '%s%s%s' % (value, self.sep, self.signature(value, salt=salt))
+        return '%s%s%s' % (value, self.sep, self.signature(value))
 
-    def unsign(self, signed_value, salt=''):
+    def unsign(self, signed_value):
         signed_value = smart_str(signed_value)
         if not self.sep in signed_value:
             raise BadSignature('No "%s" found in value' % self.sep)
         value, sig = signed_value.rsplit(self.sep, 1)
-        if constant_time_compare(sig, self.signature(value, salt=salt)):
+        if constant_time_compare(sig, self.signature(value)):
             return force_unicode(value)
         raise BadSignature('Signature "%s" does not match' % sig)
 
@@ -158,13 +165,13 @@ class TimestampSigner(Signer):
     def timestamp(self):
         return baseconv.base62.encode(int(time.time()))
 
-    def sign(self, value, salt=''):
+    def sign(self, value):
         value = smart_str('%s%s%s' % (value, self.sep, self.timestamp()))
-        return '%s%s%s' % (value, self.sep, self.signature(value, salt=salt))
+        return '%s%s%s' % (value, self.sep, self.signature(value))
 
-    def unsign(self, value, salt='', max_age=None):
-        value, timestamp = super(TimestampSigner, self).unsign(
-            value, salt=salt).rsplit(self.sep, 1)
+    def unsign(self, value, max_age=None):
+        result =  super(TimestampSigner, self).unsign(value)
+        value, timestamp = result.rsplit(self.sep, 1)
         timestamp = baseconv.base62.decode(timestamp)
         if max_age is not None:
             # Check timestamp is not older than max_age

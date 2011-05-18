@@ -81,17 +81,18 @@ Using the salt argument
 -----------------------
 
 If you do not wish to use the same key for every signing operation in your
-application, you can use the optional ``salt`` argument to the ``sign`` and
-``unsign`` methods to further strengthen your :setting:`SECRET_KEY` against
-brute force attacks. Using a salt will cause a new key to be derived from
-both the salt and your :setting:`SECRET_KEY`::
+application, you can use the optional ``salt`` argument to the ``Signer``
+class to further strengthen your :setting:`SECRET_KEY` against brute force
+attacks. Using a salt will cause a new key to be derived from both the salt
+and your :setting:`SECRET_KEY`::
 
     >>> signer = Signer()
     >>> signer.sign('My string')
     'My string:GdMGD6HNQ_qdgxYP8yBZAdAIV1w'
-    >>> signer.sign('My string', salt='extra')
+    >>> signer = Signer(salt='extra')
+    >>> signer.sign('My string')
     'My string:Ee7vGi-ING6n02gkcJ-QLHg6vFw'
-    >>> signer.unsign('My string:Ee7vGi-ING6n02gkcJ-QLHg6vFw', salt='extra')
+    >>> signer.unsign('My string:Ee7vGi-ING6n02gkcJ-QLHg6vFw')
     u'My string'
 
 Unlike your :setting:`SECRET_KEY`, your salt argument does not need to stay
