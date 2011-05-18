@@ -157,7 +157,7 @@ class Signer(object):
 
 class TimestampSigner(Signer):
     def timestamp(self):
-        return baseconv.base62.from_int(int(time.time()))
+        return baseconv.base62.encode(int(time.time()))
 
     def sign(self, value, salt=''):
         value = smart_str('%s%s%s' % (value, self.sep, self.timestamp()))
@@ -166,7 +166,7 @@ class TimestampSigner(Signer):
     def unsign(self, value, salt='', max_age=None):
         value, timestamp = super(TimestampSigner, self).unsign(
             value, salt=salt).rsplit(self.sep, 1)
-        timestamp = baseconv.base62.to_int(timestamp)
+        timestamp = baseconv.base62.decode(timestamp)
         if max_age is not None:
             # Check timestamp is not older than max_age
             age = time.time() - timestamp

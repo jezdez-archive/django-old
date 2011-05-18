@@ -7,7 +7,5 @@ class TestBaseConv(TestCase):
         nums = [-10 ** 10, 10 ** 10] + range(-100, 100)
         for convertor in [base2, base16, base36, base62]:
             for i in nums:
-                self.assertEqual(
-                    i, convertor.to_int(convertor.from_int(i))
-                )
+                self.assertEqual(i, convertor.decode(convertor.encode(i)))
 
