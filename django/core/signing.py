@@ -128,8 +128,7 @@ def loads(s, key=None, salt='', max_age=None):
         decompress = True
     json = b64_decode(base64d)
     if decompress:
-        import zlib
-        jsond = zlib.decompress(json)
+        json = zlib.decompress(json)
     return simplejson.loads(json)
 
 
