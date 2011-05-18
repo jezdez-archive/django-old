@@ -1,33 +1,13 @@
 from __future__ import with_statement
-from datetime import timedelta, date, datetime, tzinfo, timedelta
+from datetime import timedelta, date, datetime, tzinfo
 
-from django.conf import settings
-from django.template import Template, Context, add_to_builtins
+from django.template import Template, Context, add_to_builtins, defaultfilters
 from django.test import TestCase
-from django.utils import translation
-from django.utils.dateformat import DateFormat
+from django.utils import translation, tzinfo
 from django.utils.translation import ugettext as _
 from django.utils.html import escape
-from django.conf import settings
 
 add_to_builtins('django.contrib.humanize.templatetags.humanize')
-
-
-class FixedOffset(tzinfo):
-    """Fixed offset in hours east from UTC."""
-
-    def __init__(self, offset, name):
-        self.__offset = timedelta(hours=offset)
-        self.__name = name
-
-    def utcoffset(self, dt):
-        return self.__offset
-
-    def tzname(self, dt):
-        return self.__name
-
-    def dst(self, dt):
-        return timedelta(0)
 
 
 class HumanizeTests(TestCase):
@@ -35,12 +15,11 @@ class HumanizeTests(TestCase):
     def humanize_tester(self, test_list, result_list, method):
         # Using max below ensures we go through both lists
         # However, if the lists are not equal length, this raises an exception
-        for index in xrange(max(len(test_list), len(result_list))):
-            test_content = test_list[index]
+        for test_content, result in zip(test_list, result_list):
             t = Template('{{ test_content|%s }}' % method)
             rendered = t.render(Context(locals())).strip()
-            self.assertEqual(rendered, escape(result_list[index]),
-                             msg="%s test failed, produced %s, should've produced %s" % (method, rendered, result_list[index]))
+            self.assertEqual(rendered, escape(result),
+                             msg="%s test failed, produced '%s', should've produced '%s'" % (method, rendered, result))
 
     def test_ordinal(self):
         test_list = ('1','2','3','4','11','12',
@@ -98,7 +77,6 @@ class HumanizeTests(TestCase):
         self.humanize_tester(test_list, result_list, 'apnumber')
 
     def test_naturalday(self):
-        from django.template import defaultfilters
         today = date.today()
         yesterday = today - timedelta(days=1)
         tomorrow = today + timedelta(days=1)
@@ -111,37 +89,12 @@ class HumanizeTests(TestCase):
                        someday_result, u"I'm not a date value", None)
         self.humanize_tester(test_list, result_list, 'naturalday')
 
-    def test_naturaltime(self):
-        from django.template import defaultfilters
-        now = datetime.now()
-        seconds_ago = now - timedelta(seconds=30)
-        a_minute_ago = now - timedelta(minutes=1, seconds=30)
-        minutes_ago = now - timedelta(minutes=2)
-        an_hour_ago = now - timedelta(hours=1, minutes=30, seconds=30)
-        hours_ago = now - timedelta(hours=23, minutes=50, seconds=50)
-
-        test_list = (now, a_minute_ago, an_hour_ago)
-        result_list = (_(u'now'), _(u'a minute ago'), _(u'an hour ago'))
-        self.humanize_tester(test_list, result_list, 'naturaltime')
-
-        t = Template('{{ seconds_ago|%s }}' % 'naturaltime')
-        rendered = t.render(Context(locals())).strip()
-        self.assertTrue(u' seconds ago' in rendered)
-
-        t = Template('{{ minutes_ago|%s }}' % 'naturaltime')
-        rendered = t.render(Context(locals())).strip()
-        self.assertTrue(u' minutes ago' in rendered)
-
-        t = Template('{{ hours_ago|%s }}' % 'naturaltime')
-        rendered = t.render(Context(locals())).strip()
-        self.assertTrue(u' hours ago' in rendered)
-
     def test_naturalday_tz(self):
         from django.contrib.humanize.templatetags.humanize import naturalday
 
         today = date.today()
-        tz_one = FixedOffset(-12, 'TzOne')
-        tz_two = FixedOffset(12, 'TzTwo')
+        tz_one = tzinfo.FixedOffset(timedelta(hours=-12))
+        tz_two = tzinfo.FixedOffset(timedelta(hours=12))
 
         # Can be today or yesterday
         date_one = datetime(today.year, today.month, today.day, tzinfo=tz_one)
@@ -152,3 +105,45 @@ class HumanizeTests(TestCase):
 
         # As 24h of difference they will never be the same
         self.assertNotEqual(naturalday_one, naturalday_two)
+
+    def test_naturaltime(self):
+        now = datetime.now()
+        test_list = [
+            now,
+            now - timedelta(seconds=1),
+            now - timedelta(seconds=30),
+            now - timedelta(minutes=1, seconds=30),
+            now - timedelta(minutes=2),
+            now - timedelta(hours=1, minutes=30, seconds=30),
+            now - timedelta(hours=23, minutes=50, seconds=50),
+            now - timedelta(days=1),
+            now - timedelta(days=500),
+            now + timedelta(seconds=1),
+            now + timedelta(seconds=30),
+            now + timedelta(minutes=1, seconds=30),
+            now + timedelta(minutes=2),
+            now + timedelta(hours=1, minutes=30, seconds=30),
+            now + timedelta(hours=23, minutes=50, seconds=50),
+            now + timedelta(days=1),
+            now + timedelta(days=500),
+        ]
+        result_list = [
+            'now',
+            'a second ago',
+            '30 seconds ago',
+            'a minute ago',
+            '2 minutes ago',
+            'an hour ago',
+            '23 hours ago',
+            '1 day ago',
+            '1 year, 4 months ago',
+            'a second from now',
+            '30 seconds from now',
+            'a minute from now',
+            '2 minutes from now',
+            'an hour from now',
+            '23 hours from now',
+            '1 day from now',
+            '1 year, 4 months from now',
+        ]
+        self.humanize_tester(test_list, result_list, 'naturaltime')
