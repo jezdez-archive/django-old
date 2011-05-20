@@ -73,7 +73,7 @@ def base64_hmac(salt, value, key):
     return b64_encode(salted_hmac(salt, value, key).digest())
 
 
-def get_cookie_signer(salt=''):
+def get_cookie_signer(salt='django.core.signing.get_cookie_signer'):
     modpath = settings.SIGNING_BACKEND
     module, attr = modpath.rsplit('.', 1)
     try:
@@ -89,7 +89,7 @@ def get_cookie_signer(salt=''):
     return Signer('django.http.cookies' + settings.SECRET_KEY, salt=salt)
 
 
-def dumps(obj, key=None, salt='', compress=False):
+def dumps(obj, key=None, salt='django.core.signing', compress=False):
     """
     Returns URL-safe, sha1 signed base64 compressed JSON string. If key is
     None, settings.SECRET_KEY is used instead.
@@ -118,7 +118,7 @@ def dumps(obj, key=None, salt='', compress=False):
     return TimestampSigner(key, salt=salt).sign(base64d)
 
 
-def loads(s, key=None, salt='', max_age=None):
+def loads(s, key=None, salt='django.core.signing', max_age=None):
     """
     Reverse of dumps(), raises BadSignature if signature fails
     """
@@ -138,11 +138,9 @@ def loads(s, key=None, salt='', max_age=None):
 class Signer(object):
     def __init__(self, key=None, sep=':', salt=None):
         self.sep = sep
-        if salt is None:
-            salt = hashlib.sha1(
-                str(random.random()) + str(random.random())).hexdigest()[:5]
-        self.salt = salt
         self.key = key or settings.SECRET_KEY
+        self.salt = salt or ('%s.%s' %
+            (self.__class__.__module__, self.__class__.__name__))
 
     def signature(self, value):
         return base64_hmac(self.salt + 'signer', value, self.key)
