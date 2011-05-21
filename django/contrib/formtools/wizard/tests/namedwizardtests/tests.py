@@ -55,7 +55,8 @@ class NamedWizardTests(object):
 
     def test_form_post_error(self):
         response = self.client.post(
-            reverse(self.wizard_urlname, kwargs={'step':'form1'}))
+            reverse(self.wizard_urlname, kwargs={'step':'form1'}),
+            self.wizard_step_1_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form1')
@@ -233,6 +234,7 @@ class NamedWizardTests(object):
             reverse(self.wizard_urlname,
                     kwargs={'step': response.context['form_step']}),
             self.wizard_step_data[3])
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context.get('form_step', None), 'form1')
 
@@ -254,6 +256,9 @@ class NamedWizardTests(object):
 
 class NamedSessionWizardTests(NamedWizardTests, TestCase):
     wizard_urlname = 'nwiz_session'
+    wizard_step_1_data = {
+        'session_contact_wizard-current_step': 'form1',
+    }
     wizard_step_data = (
         {
             'form1-name': 'Pony',
@@ -281,6 +286,9 @@ class NamedSessionWizardTests(NamedWizardTests, TestCase):
 
 class NamedCookieWizardTests(NamedWizardTests, TestCase):
     wizard_urlname = 'nwiz_cookie'
+    wizard_step_1_data = {
+        'cookie_contact_wizard-current_step': 'form1',
+    }
     wizard_step_data = (
         {
             'form1-name': 'Pony',

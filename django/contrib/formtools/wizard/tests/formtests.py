@@ -74,14 +74,16 @@ class FormTests(TestCase):
         self.assertEquals(instance.get_current_or_first_step(), 'start')
 
     def test_persistence(self):
-        request = get_request({'name': 'data1'})
-
         testform = TestWizard.as_view([('start', Step1), ('step2', Step2)])
+        request = get_request({'test_wizard-current_step': 'start',
+                               'name': 'data1'})
         response, instance = testform(request)
         self.assertEquals(instance.get_current_or_first_step(), 'start')
+
         instance.storage.set_current_step('step2')
 
         testform2 = TestWizard.as_view([('start', Step1), ('step2', Step2)])
+        request.POST = {'test_wizard-current_step': 'step2'}
         response, instance = testform2(request)
         self.assertEquals(instance.get_current_or_first_step(), 'step2')
 
@@ -101,7 +103,7 @@ class FormTests(TestCase):
         self.assertEquals(instance.get_next_step(), 'step3')
 
     def test_add_extra_context(self):
-        request = get_request()
+        request = get_request({'test_wizard-current_step': 'start'})
 
         testform = TestWizard.as_view([('start', Step1), ('step2', Step2)])
         response, instance = testform(
