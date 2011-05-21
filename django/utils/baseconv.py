@@ -50,21 +50,26 @@ class BaseConverter(object):
     def __init__(self, digits, sign='-'):
         self.sign = sign
         self.digits = digits
+        if sign in self.digits:
+            raise ValueError('Sign character found in converter base digits.')
 
     def __repr__(self):
         return "<BaseConverter: base%s (%s)>" % (len(self.digits), self.digits)
 
     def encode(self, i):
-        return self.convert(i, self.decimal_digits, self.digits)
-
-    def decode(self, s):
-        value = self.convert(s, self.digits, self.decimal_digits)
-        if self.sign == '-':
-            return int(value)
+        neg, value = self.convert(i, self.decimal_digits, self.digits, '-')
+        if neg:
+            return self.sign + value
         return value
 
-    def convert(self, number, from_digits, to_digits):
-        if str(number)[0] == self.sign:
+    def decode(self, s):
+        neg, value = self.convert(s, self.digits, self.decimal_digits, self.sign)
+        if neg:
+            value = '-' + value
+        return int(value)
+
+    def convert(self, number, from_digits, to_digits, sign):
+        if str(number)[0] == sign:
             number = str(number)[1:]
             neg = 1
         else:
@@ -84,9 +89,7 @@ class BaseConverter(object):
                 digit = x % len(to_digits)
                 res = to_digits[digit] + res
                 x = int(x / len(to_digits))
-            if neg:
-                res = self.sign + res
-        return res
+        return neg, res
 
 base2 = BaseConverter(BASE2_ALPHABET)
 base16 = BaseConverter(BASE16_ALPHABET)
