@@ -1,5 +1,6 @@
 {% load i18n %}
 {% csrf_token %}
+{{ wizard.management_form }}
 {% if form.forms %}
     {{ form.management_form }}
     {% for fs in form.forms %}

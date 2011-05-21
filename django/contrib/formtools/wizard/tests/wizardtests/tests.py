@@ -9,27 +9,6 @@ from django.contrib.formtools import wizard
 class WizardTests(object):
     urls = 'django.contrib.formtools.wizard.tests.wizardtests.urls'
 
-    wizard_step_data = (
-        {
-            'form1-name': 'Pony',
-            'form1-thirsty': '2',
-        },
-        {
-            'form2-address1': '123 Main St',
-            'form2-address2': 'Djangoland',
-        },
-        {
-            'form3-random_crap': 'blah blah',
-        },
-        {
-            'form4-INITIAL_FORMS': '0',
-            'form4-TOTAL_FORMS': '2',
-            'form4-MAX_NUM_FORMS': '0',
-            'form4-0-random_crap': 'blah blah',
-            'form4-1-random_crap': 'blah blah',
-        }
-    )
-
     def setUp(self):
         self.testuser, created = User.objects.get_or_create(username='testuser1')
         self.wizard_step_data[0]['form1-user'] = self.testuser.pk
@@ -42,7 +21,6 @@ class WizardTests(object):
 
     def test_initial_call(self):
         response = self.client.get(self.wizard_url)
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form1')
         self.assertEqual(response.context['form_step0'], 0)
@@ -53,8 +31,7 @@ class WizardTests(object):
         self.assertEqual(response.context['form_step_count'], 4)
 
     def test_form_post_error(self):
-        response = self.client.post(self.wizard_url)
-
+        response = self.client.post(self.wizard_url, self.wizard_step_1_data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form1')
         self.assertEqual(response.context['form'].errors,
@@ -180,44 +157,97 @@ class WizardTests(object):
 
     def test_form_refresh(self):
         response = self.client.get(self.wizard_url)
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form1')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form2')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form2')
 
         post_data = self.wizard_step_data[1]
         post_data['form2-file1'] = open(__file__)
         response = self.client.post(self.wizard_url, post_data)
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form3')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[2])
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['form_step'], 'form4')
 
-        response = self.client.post(self.wizard_url, self.wizard_step_data[2])
-
+        response = self.client.post(self.wizard_url, self.wizard_step_data[0])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form4')
+        self.assertEqual(response.context['form_step'], 'form2')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[3])
         self.assertEqual(response.status_code, 200)
 
+        
+
 
 class SessionWizardTests(WizardTests, TestCase):
     wizard_url = '/wiz_session/'
+    wizard_name = 'session_contact_wizard'
+    wizard_step_1_data = {
+        'session_contact_wizard-current_step': 'form1',
+    }
+    wizard_step_data = (
+        {
+            'form1-name': 'Pony',
+            'form1-thirsty': '2',
+            'session_contact_wizard-current_step': 'form1',
+        },
+        {
+            'form2-address1': '123 Main St',
+            'form2-address2': 'Djangoland',
+            'session_contact_wizard-current_step': 'form2',
+        },
+        {
+            'form3-random_crap': 'blah blah',
+            'session_contact_wizard-current_step': 'form3',
+        },
+        {
+            'form4-INITIAL_FORMS': '0',
+            'form4-TOTAL_FORMS': '2',
+            'form4-MAX_NUM_FORMS': '0',
+            'form4-0-random_crap': 'blah blah',
+            'form4-1-random_crap': 'blah blah',
+            'session_contact_wizard-current_step': 'form4',
+        }
+    )
 
 class CookieWizardTests(WizardTests, TestCase):
     wizard_url = '/wiz_cookie/'
+    wizard_name = 'cookie_contact_wizard'
+    wizard_step_1_data = {
+        'cookie_contact_wizard-current_step': 'form1',
+    }
+    wizard_step_data = (
+        {
+            'form1-name': 'Pony',
+            'form1-thirsty': '2',
+            'cookie_contact_wizard-current_step': 'form1',
+        },
+        {
+            'form2-address1': '123 Main St',
+            'form2-address2': 'Djangoland',
+            'cookie_contact_wizard-current_step': 'form2',
+        },
+        {
+            'form3-random_crap': 'blah blah',
+            'cookie_contact_wizard-current_step': 'form3',
+        },
+        {
+            'form4-INITIAL_FORMS': '0',
+            'form4-TOTAL_FORMS': '2',
+            'form4-MAX_NUM_FORMS': '0',
+            'form4-0-random_crap': 'blah blah',
+            'form4-1-random_crap': 'blah blah',
+            'cookie_contact_wizard-current_step': 'form4',
+        }
+    )
+
 

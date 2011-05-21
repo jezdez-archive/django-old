@@ -9,7 +9,7 @@ try:
 except ImportError:
     import pickle
 
-from django import forms
+from django.forms import HiddenInput
 from django.conf import settings
 from django.contrib.formtools.utils import form_hmac
 from django.http import Http404
@@ -71,7 +71,7 @@ class FormWizard(object):
         """
         if 'extra_context' in kwargs:
             self.extra_context.update(kwargs['extra_context'])
-        current_step = self.determine_step(request, *args, **kwargs)
+        current_step = self.get_current_or_first_step(request, *args, **kwargs)
         self.parse_params(request, *args, **kwargs)
 
         # Validate and process all the previous forms before instantiating the
@@ -132,7 +132,7 @@ class FormWizard(object):
         old_data = request.POST
         prev_fields = []
         if old_data:
-            hidden = forms.HiddenInput()
+            hidden = HiddenInput()
             # Collect all data from previous steps and render it as HTML hidden fields.
             for i in range(step):
                 old_form = self.get_form(i, old_data)
@@ -177,7 +177,7 @@ class FormWizard(object):
         """
         return form_hmac(form)
 
-    def determine_step(self, request, *args, **kwargs):
+    def get_current_or_first_step(self, request, *args, **kwargs):
         """
         Given the request object and whatever *args and **kwargs were passed to
         __call__(), returns the current step (which is zero-based).

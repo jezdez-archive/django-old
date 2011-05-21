@@ -18,27 +18,6 @@ from django.contrib.formtools.wizard.tests.formtests import (get_request,
 class NamedWizardTests(object):
     urls = 'django.contrib.formtools.wizard.tests.namedwizardtests.urls'
 
-    wizard_step_data = (
-        {
-            'form1-name': 'Pony',
-            'form1-thirsty': '2',
-        },
-        {
-            'form2-address1': '123 Main St',
-            'form2-address2': 'Djangoland',
-        },
-        {
-            'form3-random_crap': 'blah blah',
-        },
-        {
-            'form4-INITIAL_FORMS': '0',
-            'form4-TOTAL_FORMS': '2',
-            'form4-MAX_NUM_FORMS': '0',
-            'form4-0-random_crap': 'blah blah',
-            'form4-1-random_crap': 'blah blah',
-        }
-    )
-
     def setUp(self):
         self.testuser, created = User.objects.get_or_create(username='testuser1')
         self.wizard_step_data[0]['form1-user'] = self.testuser.pk
@@ -275,9 +254,58 @@ class NamedWizardTests(object):
 
 class NamedSessionWizardTests(NamedWizardTests, TestCase):
     wizard_urlname = 'nwiz_session'
+    wizard_step_data = (
+        {
+            'form1-name': 'Pony',
+            'form1-thirsty': '2',
+            'session_contact_wizard-current_step': 'form1',
+        },
+        {
+            'form2-address1': '123 Main St',
+            'form2-address2': 'Djangoland',
+            'session_contact_wizard-current_step': 'form2',
+        },
+        {
+            'form3-random_crap': 'blah blah',
+            'session_contact_wizard-current_step': 'form3',
+        },
+        {
+            'form4-INITIAL_FORMS': '0',
+            'form4-TOTAL_FORMS': '2',
+            'form4-MAX_NUM_FORMS': '0',
+            'form4-0-random_crap': 'blah blah',
+            'form4-1-random_crap': 'blah blah',
+            'session_contact_wizard-current_step': 'form4',
+        }
+    )
 
 class NamedCookieWizardTests(NamedWizardTests, TestCase):
     wizard_urlname = 'nwiz_cookie'
+    wizard_step_data = (
+        {
+            'form1-name': 'Pony',
+            'form1-thirsty': '2',
+            'cookie_contact_wizard-current_step': 'form1',
+        },
+        {
+            'form2-address1': '123 Main St',
+            'form2-address2': 'Djangoland',
+            'cookie_contact_wizard-current_step': 'form2',
+        },
+        {
+            'form3-random_crap': 'blah blah',
+            'cookie_contact_wizard-current_step': 'form3',
+        },
+        {
+            'form4-INITIAL_FORMS': '0',
+            'form4-TOTAL_FORMS': '2',
+            'form4-MAX_NUM_FORMS': '0',
+            'form4-0-random_crap': 'blah blah',
+            'form4-1-random_crap': 'blah blah',
+            'cookie_contact_wizard-current_step': 'form4',
+        }
+    )
+
 
 class NamedFormTests(object):
     urls = 'django.contrib.formtools.wizard.tests.namedwizardtests.urls'
@@ -328,7 +356,7 @@ class NamedSessionFormTests(NamedFormTests, TestCase):
     formwizard_class = TestNamedUrlSessionFormWizard
     wizard_urlname = 'nwiz_session'
 
+
 class NamedCookieFormTests(NamedFormTests, TestCase):
     formwizard_class = TestNamedUrlCookieFormWizard
     wizard_urlname = 'nwiz_cookie'
-
