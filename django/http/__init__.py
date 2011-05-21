@@ -716,3 +716,4 @@ def str_to_unicode(s, encoding):
         return unicode(s, encoding, 'replace')
     else:
         return s
+

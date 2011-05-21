@@ -1658,7 +1658,7 @@ Default: 'django.core.signing.TimestampSigner'
 
 The backend used for signing cookies and other data.
 
-See also the :ref:`topics-signing` documentation.
+See also the :doc:`/topics/signing` documentation.
 
 .. setting:: SITE_ID
 

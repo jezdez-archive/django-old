@@ -275,7 +275,7 @@ Methods
           >>> request.get_signed_cookie('name', False, max_age=60)
           False
 
-   See :ref:`cryptographic signing <topics-signing>` for more information.
+   See :doc:`cryptographic signing </topics/signing>` for more information.
 
 .. method:: HttpRequest.is_secure()
 
@@ -660,7 +660,7 @@ Methods
     .. versionadded:: 1.4
 
     Like :meth:`~HttpResponse.set_cookie()`, but
-    :ref:`cryptographically signs <topics-signing>` the cookie before setting
+    :doc:`cryptographic signing </topics/signing>` the cookie before setting
     it. Use in conjunction with :meth:`HttpRequest.get_signed_cookie`.
     You can use the optional ``salt`` argument for added key strength, but
     you will need to remember to pass it to the corresponding
