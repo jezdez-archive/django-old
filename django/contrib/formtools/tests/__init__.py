@@ -8,6 +8,8 @@ from django.test import TestCase
 from django.test.utils import get_warnings_state, restore_warnings_state
 from django.utils import unittest
 
+from django.contrib.formtools.wizard.tests import *
+
 
 success_string = "Done was called!"
 
