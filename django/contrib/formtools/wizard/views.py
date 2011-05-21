@@ -98,32 +98,30 @@ class WizardView(TemplateView):
         kwargs['form_list'] = init_form_list
         return kwargs
 
+    def __repr__(self):
+        return '<%s: form_list: %s>' % (self.__class__.__name__,
+            self.form_list)
+
     @property
-    def prefix(self):
+    def wizard_name(self):
         return normalize_name(self.__class__.__name__)
 
-    def __repr__(self):
-        return '<%s: form_list: %s, initial_list: %s>' % (
-            self.__class__.__name__, self.form_list, self.initial_list)
-
-    def dispatch(self, request, *args, **kwargs):
+    @property
+    def prefix(self):
         """
-        This method gets called by the routing engine. The first argument is
-        `request` which contains a `HttpRequest` instance.
-        The request is stored in `self.request` for later use. The storage
-        instance is stored in `self.storage`.
-
-        After processing the request using the `dispatch` method, the
-        response gets updated by the storage engine (for example add cookies).
+        Returns the prefix for forms and storage.
         """
-        # add the storage engine to the current formwizard instance
-        self.storage = get_storage(self.storage_name, self.prefix, request,
-            getattr(self, 'file_storage', None))
-        response = super(WizardView, self).dispatch(request, *args, **kwargs)
 
-        # update the response (e.g. adding cookies)
-        self.storage.update_response(response)
-        return response
+        # TODO: Add some kind of unique id.
+        return self.wizard_name
+
+    @property
+    def management_form(self):
+        """
+        Returns the ManagementForm instance for this wizard.
+        """
+        return ManagementForm(prefix=self.prefix, initial={
+            'current_step': self.get_current_or_first_step()})
 
     def get_form_list(self):
         """
@@ -148,11 +146,24 @@ class WizardView(TemplateView):
                 form_list[form_key] = form_class
         return form_list
 
-    @property
-    def management_form(self):
-        """Returns the ManagementForm instance for this FormSet."""
-        return ManagementForm(prefix=self.prefix, initial={
-            'current_step': self.get_current_or_first_step()})
+    def dispatch(self, request, *args, **kwargs):
+        """
+        This method gets called by the routing engine. The first argument is
+        `request` which contains a `HttpRequest` instance.
+        The request is stored in `self.request` for later use. The storage
+        instance is stored in `self.storage`.
+
+        After processing the request using the `dispatch` method, the
+        response gets updated by the storage engine (for example add cookies).
+        """
+        # add the storage engine to the current formwizard instance
+        self.storage = get_storage(self.storage_name, self.prefix, request,
+            getattr(self, 'file_storage', None))
+        response = super(WizardView, self).dispatch(request, *args, **kwargs)
+
+        # update the response (e.g. adding cookies)
+        self.storage.update_response(response)
+        return response
 
     def get(self, request, *args, **kwargs):
         """
@@ -199,9 +210,11 @@ class WizardView(TemplateView):
         management_form = ManagementForm(self.request.POST, prefix=self.prefix)
         if not management_form.is_valid():
             raise ValidationError(
-                'ManagementForm data is missing or has been tampered with %s' % management_form.errors)
+                'ManagementForm data is missing or has been tampered.')
+
         form_current_step = management_form.cleaned_data['current_step']
-        if form_current_step != self.get_current_or_first_step():
+        if (form_current_step != self.get_current_or_first_step()
+            and self.storage.get_current_step() is not None):
             # form refreshed, change current step
             self.storage.set_current_step(form_current_step)
 
@@ -468,7 +481,21 @@ class WizardView(TemplateView):
     def get_context_data(self, form, *args, **kwargs):
         """
         Returns the template context for a step. You can overwrite this method
-        to add more data for all or some steps.
+        to add more data for all or some steps. This method returns a
+        dictionary containing the rendered form step. Available template
+        context variables are:
+
+         * `extra_context` - current extra context data
+         * `form_step` - name of the current step
+         * `form_first_step` - name of the first step
+         * `form_last_step` - name of the last step
+         * `form_prev_step`- name of the previous step
+         * `form_next_step` - name of the next step
+         * `form_step0` - index of the current step
+         * `form_step1` - index of the current step as a 1-index
+         * `form_step_count` - total number of steps
+         * `form` - form instance of the current step
+
         Example:
 
         .. code-block:: python
@@ -514,30 +541,10 @@ class WizardView(TemplateView):
         context.update(new_context)
         return self.storage.set_extra_context_data(context)
 
-    def render(self, form, **kwargs):
+    def render(self, form=None, **kwargs):
         """
-        Renders the acutal `form`. This method can be used to pre-process data
-        or conditionally skip steps.
+        Returns a ``HttpResponse`` containing a all needed context data.
         """
-        return self.render_template(form, **kwargs)
-
-    def render_template(self, form=None, **kwargs):
-        """
-        Returns a `HttpResponse` containing the rendered form step. Available
-        template context variables are:
-
-         * `extra_context` - current extra context data
-         * `form_step` - name of the current step
-         * `form_first_step` - name of the first step
-         * `form_last_step` - name of the last step
-         * `form_prev_step`- name of the previous step
-         * `form_next_step` - name of the next step
-         * `form_step0` - index of the current step
-         * `form_step1` - index of the current step as a 1-index
-         * `form_step_count` - total number of steps
-         * `form` - form instance of the current step
-        """
-
         form = form or self.get_form()
         context = self.get_context_data(form, **kwargs)
         return self.render_to_response(context)
