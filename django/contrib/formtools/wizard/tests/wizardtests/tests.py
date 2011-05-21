@@ -185,12 +185,9 @@ class WizardTests(object):
         response = self.client.post(self.wizard_url, self.wizard_step_data[3])
         self.assertEqual(response.status_code, 200)
 
-        
-
 
 class SessionWizardTests(WizardTests, TestCase):
     wizard_url = '/wiz_session/'
-    wizard_name = 'session_contact_wizard'
     wizard_step_1_data = {
         'session_contact_wizard-current_step': 'form1',
     }
@@ -221,7 +218,6 @@ class SessionWizardTests(WizardTests, TestCase):
 
 class CookieWizardTests(WizardTests, TestCase):
     wizard_url = '/wiz_cookie/'
-    wizard_name = 'cookie_contact_wizard'
     wizard_step_1_data = {
         'cookie_contact_wizard-current_step': 'form1',
     }
