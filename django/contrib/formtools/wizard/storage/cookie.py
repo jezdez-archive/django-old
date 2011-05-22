@@ -10,7 +10,7 @@ class CookieStorage(BaseStorage):
     step_cookie_key = 'step'
     step_data_cookie_key = 'step_data'
     step_files_cookie_key = 'step_files'
-    extra_context_cookie_key = 'extra_context'
+    extra_data_cookie_key = 'extra_data'
 
     def __init__(self, prefix, request, file_storage, *args, **kwargs):
         super(CookieStorage, self).__init__(prefix)
@@ -25,7 +25,7 @@ class CookieStorage(BaseStorage):
             self.step_cookie_key: None,
             self.step_data_cookie_key: {},
             self.step_files_cookie_key: {},
-            self.extra_context_cookie_key: {},
+            self.extra_data_cookie_key: {},
         }
         return True
 
@@ -53,7 +53,7 @@ class CookieStorage(BaseStorage):
         if step not in self.cookie_data[self.step_files_cookie_key]:
             self.cookie_data[self.step_files_cookie_key][step] = {}
 
-        for field, field_file in (files or {}).items():
+        for field, field_file in (files or {}).iteritems():
             tmp_filename = self.file_storage.save(field_file.name, field_file)
             file_dict = {
                 'tmp_name': tmp_filename,
@@ -76,7 +76,7 @@ class CookieStorage(BaseStorage):
             raise NoFileStorageConfigured
 
         files = {}
-        for field, field_dict in session_files.items():
+        for field, field_dict in session_files.iteritems():
             files[field] = UploadedFile(
                 file=self.file_storage.open(field_dict['tmp_name']),
                 name=field_dict['name'],
@@ -86,11 +86,11 @@ class CookieStorage(BaseStorage):
             )
         return files or None
 
-    def get_extra_context_data(self):
-        return self.cookie_data[self.extra_context_cookie_key] or {}
+    def get_extra_data(self):
+        return self.cookie_data[self.extra_data_cookie_key] or {}
 
-    def set_extra_context_data(self, extra_context):
-        self.cookie_data[self.extra_context_cookie_key] = extra_context
+    def set_extra_data(self, extra_data):
+        self.cookie_data[self.extra_data_cookie_key] = extra_data
         return True
 
     def reset(self):

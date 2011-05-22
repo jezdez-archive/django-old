@@ -82,14 +82,14 @@ class WizardView(TemplateView):
                 init_form_list[unicode(i)] = form
 
         # walk through the ne created list of forms
-        for form in init_form_list.values():
+        for form in init_form_list.itervalues():
             if issubclass(form, formsets.BaseFormSet):
                 # if the element is based on BaseFormSet (FormSet/ModelFormSet)
                 # we need to override the form variable.
                 form = form.form
             # check if any form contains a FileField, if yes, we need a
             # file_storage added to the formwizard (by subclassing).
-            for field in form.base_fields.values():
+            for field in form.base_fields.itervalues():
                 if (isinstance(field, forms.FileField) and
                         not hasattr(cls, 'file_storage')):
                     raise NoFileStorageConfigured
@@ -99,8 +99,7 @@ class WizardView(TemplateView):
         return kwargs
 
     def __repr__(self):
-        return '<%s: form_list: %s>' % (self.__class__.__name__,
-            self.form_list)
+        return '<%s: form_list: %s>' % (self.__class__.__name__, self.form_list)
 
     @property
     def wizard_name(self):
@@ -111,7 +110,6 @@ class WizardView(TemplateView):
         """
         Returns the prefix for forms and storage.
         """
-
         # TODO: Add some kind of unique id.
         return self.wizard_name
 
@@ -175,9 +173,9 @@ class WizardView(TemplateView):
         """
         self.storage.reset()
 
-        # if there is an extra_context item in the kwars, pass the data to the
-        # storage engine.
-        self.update_extra_context(kwargs.get('extra_context', {}))
+        # if there is an extra_context item in the kwargs,
+        # pass the data to the storage engine.
+        self.update_extra_data(kwargs.get('extra_context', {}))
 
         # reset the current step to the first step.
         self.storage.set_current_step(self.first_step)
@@ -193,7 +191,7 @@ class WizardView(TemplateView):
         """
         # if there is an extra_context item in the kwargs,
         # pass the data to the storage engine.
-        self.update_extra_context(kwargs.get('extra_context', {}))
+        self.update_extra_data(kwargs.get('extra_context', {}))
 
         # Look for a wizard_prev_step element in the posted data which
         # contains a valid step name. If one was found, render the requested
@@ -213,8 +211,8 @@ class WizardView(TemplateView):
                 'ManagementForm data is missing or has been tampered.')
 
         form_current_step = management_form.cleaned_data['current_step']
-        if (form_current_step != self.current_step
-            and self.storage.get_current_step() is not None):
+        if (form_current_step != self.current_step and
+                self.storage.get_current_step() is not None):
             # form refreshed, change current step
             self.storage.set_current_step(form_current_step)
 
@@ -261,15 +259,11 @@ class WizardView(TemplateView):
         final_form_list = []
         # walk through the form list and try to validate the data again.
         for form_key in self.get_form_list():
-            form_obj = self.get_form(
-                step=form_key,
+            form_obj = self.get_form(step=form_key,
                 data=self.storage.get_step_data(form_key),
-                files=self.storage.get_step_files(form_key)
-            )
+                files=self.storage.get_step_files(form_key))
             if not form_obj.is_valid():
-                return self.render_revalidation_failure(form_key,
-                                                        form_obj,
-                                                        **kwargs)
+                return self.render_revalidation_failure(form_key, form_obj, **kwargs)
             final_form_list.append(form_obj)
 
         # render the done view and reset the wizard before returning the
@@ -492,7 +486,7 @@ class WizardView(TemplateView):
         dictionary containing the rendered form step. Available template
         context variables are:
 
-         * `extra_context` - current extra context data
+         * `extra_data` - current extra data
          * `form` - form instance of the current step
          * `wizard` - the wizard instance itself
 
@@ -509,29 +503,26 @@ class WizardView(TemplateView):
         """
         context = super(WizardView, self).get_context_data(*args, **kwargs)
         context.update({
-            'extra_context': self.get_extra_context(),
+            'extra_data': self.get_extra_data(),
             'form': form,
             'wizard': self,
         })
-        # if there is an extra_context item in the kwars, pass the data to the
-        # storage engine.
-        self.update_extra_context(kwargs.get('extra_context', {}))
         return context
 
-    def get_extra_context(self):
+    def get_extra_data(self):
         """
         Returns the extra data currently stored in the storage backend.
         """
-        return self.storage.get_extra_context_data()
+        return self.storage.get_extra_data()
 
-    def update_extra_context(self, new_context):
+    def update_extra_data(self, new_data):
         """
-        Updates the currently stored extra context data. Already stored extra
+        Updates the currently stored extra data. Already stored extra
         context will be kept!
         """
-        context = self.get_extra_context()
-        context.update(new_context)
-        return self.storage.set_extra_context_data(context)
+        extra_data = self.get_extra_data()
+        extra_data.update(new_data)
+        return self.storage.set_extra_data(extra_data)
 
     def render(self, form=None, **kwargs):
         """
@@ -600,7 +591,7 @@ class NamedUrlWizardView(WizardView):
         """
         This renders the form or, if needed, does the http redirects.
         """
-        self.update_extra_context(kwargs.get('extra_context', {}))
+        self.update_extra_data(kwargs.get('extra_context', {}))
         step_url = kwargs.get('step', None)
         if step_url is None:
             if 'reset' in self.request.GET:

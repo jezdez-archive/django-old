@@ -7,7 +7,7 @@ class SessionStorage(BaseStorage):
     step_session_key = 'step'
     step_data_session_key = 'step_data'
     step_files_session_key = 'step_files'
-    extra_context_session_key = 'extra_context'
+    extra_data_session_key = 'extra_data'
 
     def __init__(self, prefix, request, file_storage=None, *args, **kwargs):
         super(SessionStorage, self).__init__(prefix)
@@ -21,7 +21,7 @@ class SessionStorage(BaseStorage):
             self.step_session_key: None,
             self.step_data_session_key: {},
             self.step_files_session_key: {},
-            self.extra_context_session_key: {},
+            self.extra_data_session_key: {},
         }
         self.request.session.modified = True
         return True
@@ -52,7 +52,7 @@ class SessionStorage(BaseStorage):
         if step not in self.request.session[self.prefix][self.step_files_session_key]:
             self.request.session[self.prefix][self.step_files_session_key][step] = {}
 
-        for field, field_file in (files or {}).items():
+        for field, field_file in (files or {}).iteritems():
             tmp_filename = self.file_storage.save(field_file.name, field_file)
             file_dict = {
                 'tmp_name': tmp_filename,
@@ -76,7 +76,7 @@ class SessionStorage(BaseStorage):
             raise NoFileStorageConfigured
 
         files = {}
-        for field, field_dict in session_files.items():
+        for field, field_dict in session_files.iteritems():
             files[field] = UploadedFile(
                 file=self.file_storage.open(field_dict['tmp_name']),
                 name=field_dict['name'],
@@ -86,21 +86,20 @@ class SessionStorage(BaseStorage):
             )
         return files or None
 
-    def get_extra_context_data(self):
-        return self.request.session[self.prefix][self.extra_context_session_key] or {}
+    def get_extra_data(self):
+        return self.request.session[self.prefix][self.extra_data_session_key] or {}
 
-    def set_extra_context_data(self, extra_context):
-        self.request.session[self.prefix][self.extra_context_session_key] = extra_context
+    def set_extra_data(self, extra_data):
+        self.request.session[self.prefix][self.extra_data_session_key] = extra_data
         self.request.session.modified = True
         return True
 
     def reset(self):
         if self.file_storage:
-            for step_fields in self.request.session[self.prefix][self.step_files_session_key].values():
-                for file_dict in step_fields.values():
+            for step_fields in self.request.session[self.prefix][self.step_files_session_key].itervalues():
+                for file_dict in step_fields.itervalues():
                     self.file_storage.delete(file_dict['tmp_name'])
         return self.init_storage()
 
     def update_response(self, response):
         return response
-

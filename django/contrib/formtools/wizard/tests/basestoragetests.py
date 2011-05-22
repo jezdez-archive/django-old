@@ -21,13 +21,13 @@ class TestBaseStorage(TestCase):
         self.assertRaises(NotImplementedError,
                           self.storage.set_step_data, None, None)
 
-    def test_get_extra_context_data(self):
+    def test_get_extra_data(self):
         self.assertRaises(NotImplementedError,
-                          self.storage.get_extra_context_data)
+                          self.storage.get_extra_data)
 
-    def test_set_extra_context_data(self):
+    def test_set_extra_data(self):
         self.assertRaises(NotImplementedError,
-                          self.storage.set_extra_context_data, None)
+                          self.storage.set_extra_data, None)
 
     def test_reset(self):
         self.assertRaises(NotImplementedError,
