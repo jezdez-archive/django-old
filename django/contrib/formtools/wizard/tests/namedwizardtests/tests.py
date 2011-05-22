@@ -332,7 +332,7 @@ class NamedFormTests(object):
                                       extra_context={'key1': 'value1'})
         self.assertEqual(instance.get_extra_context(), {'key1': 'value1'})
 
-        instance.reset_wizard()
+        instance.storage.reset()
 
         response, instance = testform(request,
                                       extra_context={'key2': 'value2'})

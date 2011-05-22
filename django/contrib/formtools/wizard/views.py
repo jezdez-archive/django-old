@@ -173,7 +173,7 @@ class WizardView(TemplateView):
         just starts at the first step or wants to restart the process.
         The data of the wizard will be resetted before rendering the first step.
         """
-        self.reset_wizard()
+        self.storage.reset()
 
         # if there is an extra_context item in the kwars, pass the data to the
         # storage engine.
@@ -201,7 +201,8 @@ class WizardView(TemplateView):
         wizard_prev_step = self.request.POST.get('wizard_prev_step', None)
         if wizard_prev_step and wizard_prev_step in self.get_form_list():
             self.storage.set_current_step(wizard_prev_step)
-            form = self.get_form(data=self.storage.get_step_data(self.current_step),
+            form = self.get_form(
+                data=self.storage.get_step_data(self.current_step),
                 files=self.storage.get_step_files(self.current_step))
             return self.render(form)
 
@@ -275,7 +276,7 @@ class WizardView(TemplateView):
         # response. This is needed to prevent from rendering done with the
         # same data twice.
         done_response = self.done(final_form_list, **kwargs)
-        self.reset_wizard()
+        self.storage.reset()
         return done_response
 
     def get_form_prefix(self, step=None, form=None):
@@ -484,12 +485,6 @@ class WizardView(TemplateView):
         """
         return len(self.get_form_list())
 
-    def reset_wizard(self):
-        """
-        Resets the user-state of the wizard.
-        """
-        self.storage.reset()
-
     def get_context_data(self, form, *args, **kwargs):
         """
         Returns the template context for a step. You can overwrite this method
@@ -609,7 +604,7 @@ class NamedUrlWizardView(WizardView):
         step_url = kwargs.get('step', None)
         if step_url is None:
             if 'reset' in self.request.GET:
-                self.reset_wizard()
+                self.storage.reset()
                 self.storage.set_current_step(self.first_step)
 
             if self.request.GET:
