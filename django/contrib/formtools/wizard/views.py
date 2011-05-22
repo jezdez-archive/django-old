@@ -566,7 +566,7 @@ class CookieWizardView(WizardView):
 
 class NamedUrlWizardView(WizardView):
     """
-    A WizardView with url-named steps support.
+    A WizardView with URL named steps support.
     """
     url_name = None
     done_step_name = None
@@ -574,13 +574,13 @@ class NamedUrlWizardView(WizardView):
     @classmethod
     def get_initkwargs(cls, *args, **kwargs):
         """
-        We require a url_name to reverse urls later. Additionally users can
-        pass a done_step_name to change the url-name of the "done" view.
+        We require a url_name to reverse URLs later. Additionally users can
+        pass a done_step_name to change the URL name of the "done" view.
         """
         extra_kwargs = {
             'done_step_name': 'done'
         }
-        assert 'url_name' in kwargs, 'url name is needed to resolve correct wizard urls'
+        assert 'url_name' in kwargs, 'URL name is needed to resolve correct wizard URLs'
         extra_kwargs['url_name'] = kwargs['url_name']
         del kwargs['url_name']
 
@@ -683,7 +683,7 @@ class NamedUrlWizardView(WizardView):
 
     def render_done(self, form, **kwargs):
         """
-        When rendering the done view, we have to redirect first (if the url
+        When rendering the done view, we have to redirect first (if the URL
         name doesn't fit).
         """
         step_url = kwargs.get('step', None)
