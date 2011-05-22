@@ -33,13 +33,14 @@ class NamedWizardTests(object):
         self.assertEqual(response.status_code, 302)
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
-        self.assertEqual(response.context['form_step0'], 0)
-        self.assertEqual(response.context['form_step1'], 1)
-        self.assertEqual(response.context['form_last_step'], 'form4')
-        self.assertEqual(response.context['form_prev_step'], None)
-        self.assertEqual(response.context['form_next_step'], 'form2')
-        self.assertEqual(response.context['form_step_count'], 4)
+        wizard = response.context['wizard']
+        self.assertEqual(wizard.current_step, 'form1')
+        self.assertEqual(wizard.step0, 0)
+        self.assertEqual(wizard.step1, 1)
+        self.assertEqual(wizard.last_step, 'form4')
+        self.assertEqual(wizard.prev_step, None)
+        self.assertEqual(wizard.next_step, 'form2')
+        self.assertEqual(wizard.num_steps, 4)
 
     def test_initial_call_with_params(self):
         get_params = {'getvar1': 'getval1', 'getvar2': 'getval2'}
@@ -55,100 +56,101 @@ class NamedWizardTests(object):
 
     def test_form_post_error(self):
         response = self.client.post(
-            reverse(self.wizard_urlname, kwargs={'step':'form1'}),
+            reverse(self.wizard_urlname, kwargs={'step': 'form1'}),
             self.wizard_step_1_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
         self.assertEqual(response.context['form'].errors,
                          {'name': [u'This field is required.'],
                           'user': [u'This field is required.']})
 
     def test_form_post_success(self):
         response = self.client.post(
-            reverse(self.wizard_urlname, kwargs={'step':'form1'}),
+            reverse(self.wizard_urlname, kwargs={'step': 'form1'}),
             self.wizard_step_data[0])
         response = self.client.get(response['Location'])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
-        self.assertEqual(response.context['form_step0'], 1)
-        self.assertEqual(response.context['form_prev_step'], 'form1')
-        self.assertEqual(response.context['form_next_step'], 'form3')
+        wizard = response.context['wizard']
+        self.assertEqual(wizard.current_step, 'form2')
+        self.assertEqual(wizard.step0, 1)
+        self.assertEqual(wizard.prev_step, 'form1')
+        self.assertEqual(wizard.next_step, 'form3')
 
     def test_form_stepback(self):
         response = self.client.get(
-            reverse(self.wizard_urlname, kwargs={'step':'form1'}))
+            reverse(self.wizard_urlname, kwargs={'step': 'form1'}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
         response = self.client.post(
-            reverse(self.wizard_urlname, kwargs={'step':'form1'}),
+            reverse(self.wizard_urlname, kwargs={'step': 'form1'}),
             self.wizard_step_data[0])
         response = self.client.get(response['Location'])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
         response = self.client.post(
-            reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
-            {'form_prev_step': response.context['form_prev_step']})
+            reverse(self.wizard_urlname, kwargs={
+                'step': response.context['wizard'].current_step
+            }), {'wizard_prev_step': response.context['wizard'].prev_step})
         response = self.client.get(response['Location'])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
     def test_form_jump(self):
         response = self.client.get(
-            reverse(self.wizard_urlname, kwargs={'step':'form1'}))
+            reverse(self.wizard_urlname, kwargs={'step': 'form1'}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
         response = self.client.get(
-            reverse(self.wizard_urlname, kwargs={'step':'form3'}))
+            reverse(self.wizard_urlname, kwargs={'step': 'form3'}))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form3')
+        self.assertEqual(response.context['wizard'].current_step, 'form3')
 
     def test_form_finish(self):
         response = self.client.get(
             reverse(self.wizard_urlname, kwargs={'step': 'form1'}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[0])
         response = self.client.get(response['Location'])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[1])
         response = self.client.get(response['Location'])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form3')
+        self.assertEqual(response.context['wizard'].current_step, 'form3')
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[2])
         response = self.client.get(response['Location'])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form4')
+        self.assertEqual(response.context['wizard'].current_step, 'form4')
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[3])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
@@ -166,28 +168,28 @@ class NamedWizardTests(object):
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[0])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[1])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[2])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[3])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
@@ -208,21 +210,21 @@ class NamedWizardTests(object):
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[0])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[1])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[2])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
@@ -232,19 +234,19 @@ class NamedWizardTests(object):
 
         response = self.client.post(
             reverse(self.wizard_urlname,
-                    kwargs={'step': response.context['form_step']}),
+                    kwargs={'step': response.context['wizard'].current_step}),
             self.wizard_step_data[3])
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context.get('form_step', None), 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
     def test_form_reset(self):
         response = self.client.post(
-            reverse(self.wizard_urlname, kwargs={'step':'form1'}),
+            reverse(self.wizard_urlname, kwargs={'step': 'form1'}),
             self.wizard_step_data[0])
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
         response = self.client.get(
             '%s?reset=1' % reverse('%s_start' % self.wizard_urlname))
@@ -252,7 +254,7 @@ class NamedWizardTests(object):
 
         response = self.client.get(response['Location'])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
 class NamedSessionWizardTests(NamedWizardTests, TestCase):
     wizard_urlname = 'nwiz_session'

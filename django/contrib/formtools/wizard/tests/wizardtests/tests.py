@@ -21,85 +21,76 @@ class WizardTests(object):
 
     def test_initial_call(self):
         response = self.client.get(self.wizard_url)
+        wizard = response.context['wizard']
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
-        self.assertEqual(response.context['form_step0'], 0)
-        self.assertEqual(response.context['form_step1'], 1)
-        self.assertEqual(response.context['form_last_step'], 'form4')
-        self.assertEqual(response.context['form_prev_step'], None)
-        self.assertEqual(response.context['form_next_step'], 'form2')
-        self.assertEqual(response.context['form_step_count'], 4)
+        self.assertEqual(wizard.current_step, 'form1')
+        self.assertEqual(wizard.step0, 0)
+        self.assertEqual(wizard.step1, 1)
+        self.assertEqual(wizard.last_step, 'form4')
+        self.assertEqual(wizard.prev_step, None)
+        self.assertEqual(wizard.next_step, 'form2')
+        self.assertEqual(wizard.num_steps, 4)
 
     def test_form_post_error(self):
         response = self.client.post(self.wizard_url, self.wizard_step_1_data)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
         self.assertEqual(response.context['form'].errors,
                          {'name': [u'This field is required.'],
                           'user': [u'This field is required.']})
 
     def test_form_post_success(self):
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
-
+        wizard = response.context['wizard']
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
-        self.assertEqual(response.context['form_step0'], 1)
-        self.assertEqual(response.context['form_prev_step'], 'form1')
-        self.assertEqual(response.context['form_next_step'], 'form3')
+        self.assertEqual(wizard.current_step, 'form2')
+        self.assertEqual(wizard.step0, 1)
+        self.assertEqual(wizard.prev_step, 'form1')
+        self.assertEqual(wizard.next_step, 'form3')
 
     def test_form_stepback(self):
         response = self.client.get(self.wizard_url)
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
-        response = self.client.post(
-            self.wizard_url,
-            {'form_prev_step': response.context['form_prev_step']})
-
+        response = self.client.post(self.wizard_url, {
+            'wizard_prev_step': response.context['wizard'].prev_step})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
     def test_template_context(self):
         response = self.client.get(self.wizard_url)
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
         self.assertEqual(response.context.get('another_var', None), None)
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
         self.assertEqual(response.context.get('another_var', None), True)
 
     def test_form_finish(self):
         response = self.client.get(self.wizard_url)
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
         post_data = self.wizard_step_data[1]
         post_data['form2-file1'] = open(__file__)
         response = self.client.post(self.wizard_url, post_data)
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form3')
+        self.assertEqual(response.context['wizard'].current_step, 'form3')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[2])
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form4')
+        self.assertEqual(response.context['wizard'].current_step, 'form4')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[3])
         self.assertEqual(response.status_code, 200)
@@ -117,14 +108,18 @@ class WizardTests(object):
     def test_cleaned_data(self):
         response = self.client.get(self.wizard_url)
         self.assertEqual(response.status_code, 200)
+
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
         self.assertEqual(response.status_code, 200)
+
         post_data = self.wizard_step_data[1]
         post_data['form2-file1'] = open(__file__)
         response = self.client.post(self.wizard_url, post_data)
         self.assertEqual(response.status_code, 200)
+
         response = self.client.post(self.wizard_url, self.wizard_step_data[2])
         self.assertEqual(response.status_code, 200)
+
         response = self.client.post(self.wizard_url, self.wizard_step_data[3])
         self.assertEqual(response.status_code, 200)
 
@@ -141,46 +136,50 @@ class WizardTests(object):
     def test_manipulated_data(self):
         response = self.client.get(self.wizard_url)
         self.assertEqual(response.status_code, 200)
+
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
         self.assertEqual(response.status_code, 200)
+
         post_data = self.wizard_step_data[1]
         post_data['form2-file1'] = open(__file__)
         response = self.client.post(self.wizard_url, post_data)
         self.assertEqual(response.status_code, 200)
+
         response = self.client.post(self.wizard_url, self.wizard_step_data[2])
         self.assertEqual(response.status_code, 200)
         self.client.cookies.pop('sessionid', None)
         self.client.cookies.pop('wizard_cookie_contact_wizard', None)
+
         response = self.client.post(self.wizard_url, self.wizard_step_data[3])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context.get('form_step', None), 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
     def test_form_refresh(self):
         response = self.client.get(self.wizard_url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form1')
+        self.assertEqual(response.context['wizard'].current_step, 'form1')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
         post_data = self.wizard_step_data[1]
         post_data['form2-file1'] = open(__file__)
         response = self.client.post(self.wizard_url, post_data)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form3')
+        self.assertEqual(response.context['wizard'].current_step, 'form3')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[2])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form4')
+        self.assertEqual(response.context['wizard'].current_step, 'form4')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[0])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['form_step'], 'form2')
+        self.assertEqual(response.context['wizard'].current_step, 'form2')
 
         response = self.client.post(self.wizard_url, self.wizard_step_data[3])
         self.assertEqual(response.status_code, 200)

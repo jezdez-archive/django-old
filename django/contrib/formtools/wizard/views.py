@@ -135,7 +135,7 @@ class WizardView(TemplateView):
         could use data from other (maybe previous forms).
         """
         form_list = SortedDict()
-        for form_key, form_class in self.form_list.items():
+        for form_key, form_class in self.form_list.iteritems():
             # try to fetch the value from condition list, by default, the form
             # gets passed to the new list.
             condition = self.condition_list.get(form_key, True)
@@ -195,12 +195,12 @@ class WizardView(TemplateView):
         # pass the data to the storage engine.
         self.update_extra_context(kwargs.get('extra_context', {}))
 
-        # Look for a form_prev_step element in the posted data which contains
-        # a valid step name. If one was found, render the requested form.
-        # (This makes stepping back a lot easier).
-        form_prev_step = self.request.POST.get('form_prev_step', None)
-        if form_prev_step and form_prev_step in self.get_form_list():
-            self.storage.set_current_step(form_prev_step)
+        # Look for a wizard_prev_step element in the posted data which
+        # contains a valid step name. If one was found, render the requested
+        # form. (This makes stepping back a lot easier).
+        wizard_prev_step = self.request.POST.get('wizard_prev_step', None)
+        if wizard_prev_step and wizard_prev_step in self.get_form_list():
+            self.storage.set_current_step(wizard_prev_step)
             form = self.get_form(data=self.storage.get_step_data(self.current_step),
                 files=self.storage.get_step_files(self.current_step))
             return self.render(form)
@@ -470,6 +470,14 @@ class WizardView(TemplateView):
     step_index = property(get_step_index)
 
     @property
+    def step0(self):
+        return int(self.step_index)
+
+    @property
+    def step1(self):
+        return self.step0 + 1
+
+    @property
     def num_steps(self):
         """
         Returns the total number of steps/forms in this the wizard.
@@ -490,14 +498,8 @@ class WizardView(TemplateView):
         context variables are:
 
          * `extra_context` - current extra context data
-         * `form_step` - name of the current step
-         * `form_last_step` - name of the last step
-         * `form_prev_step`- name of the previous step
-         * `form_next_step` - name of the next step
-         * `form_step0` - index of the current step
-         * `form_step1` - index of the current step as a 1-index
-         * `form_step_count` - total number of steps
          * `form` - form instance of the current step
+         * `wizard` - the wizard instance itself
 
         Example:
 
@@ -506,21 +508,13 @@ class WizardView(TemplateView):
             class MyWizard(FormWizard):
                 def get_context_data(self, form, **kwargs):
                     context = super(MyWizard, self).get_context_data(form, **kwargs)
-                    if self.storage.get_current_step() == 'my_step_name':
+                    if self.current_step == 'my_step_name':
                         context.update({'another_var': True})
                     return context
         """
         context = super(WizardView, self).get_context_data(*args, **kwargs)
         context.update({
             'extra_context': self.get_extra_context(),
-            'form_step': self.current_step,
-            'form_first_step': self.first_step,
-            'form_last_step': self.last_step,
-            'form_prev_step': self.prev_step,
-            'form_next_step': self.next_step,
-            'form_step0': int(self.step_index),
-            'form_step1': int(self.step_index) + 1,
-            'form_step_count': self.num_steps,
             'form': form,
             'wizard': self,
         })
@@ -661,7 +655,7 @@ class NamedUrlWizardView(WizardView):
         Do a redirect if user presses the prev. step button. The rest of this
         is super'd from FormWizard.
         """
-        prev_step = self.request.POST.get('form_prev_step', None)
+        prev_step = self.request.POST.get('wizard_prev_step', None)
         if prev_step and prev_step in self.get_form_list():
             self.storage.set_current_step(prev_step)
             current_step_url = reverse(self.url_name, kwargs={
