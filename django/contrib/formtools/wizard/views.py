@@ -1,9 +1,9 @@
 import re
 
 from django import forms
+from django.shortcuts import redirect
 from django.core.urlresolvers import reverse
 from django.forms import formsets, ValidationError
-from django.http import HttpResponseRedirect
 from django.views.generic import TemplateView
 from django.utils.datastructures import SortedDict
 from django.utils.decorators import classonlymethod
@@ -606,7 +606,6 @@ class NamedUrlWizardView(WizardView):
             if 'reset' in self.request.GET:
                 self.storage.reset()
                 self.storage.set_current_step(self.first_step)
-
             if self.request.GET:
                 query_string = "?%s" % self.request.GET.urlencode()
             else:
@@ -614,36 +613,35 @@ class NamedUrlWizardView(WizardView):
             next_step_url = reverse(self.url_name, kwargs={
                 'step': self.current_step
             }) + query_string
-            return HttpResponseRedirect(next_step_url)
-        else:
-            # is the current step the "done" name/view?
-            if step_url == self.done_step_name:
-                return self.render_done(self.get_form(step=self.last_step,
-                    data=self.storage.get_step_data(self.last_step),
-                    files=self.storage.get_step_files(self.last_step)
-                ), **kwargs)
+            return redirect(next_step_url)
 
-            # is the url step name not equal to the step in the storage?
-            # if yes, change the step in the storage (if name exists)
-            if step_url == self.current_step:
-                # url step name and storage step name are equal, render!
-                return self.render(self.get_form(
-                    data=self.storage.get_current_step_data(),
-                    files=self.storage.get_current_step_files()
-                ), **kwargs)
-            if step_url in self.get_form_list():
-                self.storage.set_current_step(step_url)
-                return self.render(self.get_form(
-                    data=self.storage.get_current_step_data(),
-                    files=self.storage.get_current_step_files()
-                ), **kwargs)
-            else:
-                # invalid step name, reset to first and redirect.
-                self.storage.set_current_step(self.first_step)
-                first_step_url = reverse(self.url_name, kwargs={
-                    'step': self.storage.get_current_step()
-                })
-                return HttpResponseRedirect(first_step_url)
+        # is the current step the "done" name/view?
+        elif step_url == self.done_step_name:
+            return self.render_done(self.get_form(step=self.last_step,
+                data=self.storage.get_step_data(self.last_step),
+                files=self.storage.get_step_files(self.last_step)
+            ), **kwargs)
+
+        # is the url step name not equal to the step in the storage?
+        # if yes, change the step in the storage (if name exists)
+        elif step_url == self.current_step:
+            # URL step name and storage step name are equal, render!
+            return self.render(self.get_form(
+                data=self.storage.get_current_step_data(),
+                files=self.storage.get_current_step_files()
+            ), **kwargs)
+
+        elif step_url in self.get_form_list():
+            self.storage.set_current_step(step_url)
+            return self.render(self.get_form(
+                data=self.storage.get_current_step_data(),
+                files=self.storage.get_current_step_files()
+            ), **kwargs)
+
+        # invalid step name, reset to first and redirect.
+        else:
+            self.storage.set_current_step(self.first_step)
+            return redirect(self.url_name, step=self.storage.get_current_step())
 
     def post(self, *args, **kwargs):
         """
@@ -653,23 +651,17 @@ class NamedUrlWizardView(WizardView):
         prev_step = self.request.POST.get('wizard_prev_step', None)
         if prev_step and prev_step in self.get_form_list():
             self.storage.set_current_step(prev_step)
-            current_step_url = reverse(self.url_name, kwargs={
-                'step': self.storage.get_current_step(),
-            })
-            return HttpResponseRedirect(current_step_url)
+            return redirect(self.url_name, step=self.storage.get_current_step())
         return super(NamedUrlWizardView, self).post(*args, **kwargs)
 
     def render_next_step(self, form, **kwargs):
         """
         When using the NamedUrlFormWizard, we have to redirect to update the
-        browser's url to match the shown step.
+        browser's URL to match the shown step.
         """
         next_step = self.get_next_step()
-        next_step_url = reverse(self.url_name, kwargs={
-            'step': next_step,
-        })
         self.storage.set_current_step(next_step)
-        return HttpResponseRedirect(next_step_url)
+        return redirect(self.url_name, step=next_step)
 
     def render_revalidation_failure(self, failed_step, form, **kwargs):
         """
@@ -677,21 +669,17 @@ class NamedUrlWizardView(WizardView):
         step.
         """
         self.storage.set_current_step(failed_step)
-        return HttpResponseRedirect(reverse(self.url_name, kwargs={
-            'step': self.storage.get_current_step()
-        }))
+        return redirect(self.url_name, step=self.storage.get_current_step())
 
     def render_done(self, form, **kwargs):
         """
         When rendering the done view, we have to redirect first (if the URL
         name doesn't fit).
         """
-        step_url = kwargs.get('step', None)
-        if step_url != self.done_step_name:
-            return HttpResponseRedirect(reverse(self.url_name, kwargs={
-                'step': self.done_step_name
-            }))
+        if kwargs.get('step', None) != self.done_step_name:
+            return redirect(self.url_name, step=self.done_step_name)
         return super(NamedUrlWizardView, self).render_done(form, **kwargs)
+
 
 class NamedUrlSessionWizardView(NamedUrlWizardView):
     """
