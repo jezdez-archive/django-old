@@ -26,7 +26,7 @@ class WizardView(TemplateView):
     initial_list = None
     instance_list = None
     condition_list = None
-    template_name = 'formtools/wizard/wizard.html'
+    template_name = 'formtools/wizard/wizard_form.html'
 
     @classonlymethod
     def as_view(cls, *args, **kwargs):
