@@ -25,44 +25,46 @@ class StepsHelper(object):
 
     @property
     def all(self):
+        "Returns the names of all steps/forms."
         return self._wizard.get_form_list().keys()
 
     @property
     def count(self):
-        """
-        Returns the total number of steps/forms in this the wizard.
-        """
+        "Returns the total number of steps/forms in this the wizard."
         return len(self.all)
 
     @property
     def current(self):
         """
-        Returns the current step. If no current step is stored in the storage
-        backend, the first step will be returned.
+        Returns the current step. If no current step is stored in the
+        storage backend, the first step will be returned.
         """
         return self._wizard.storage.get_current_step() or self.first
 
     @property
     def first(self):
-        """
-        Returns the name of the first step.
-        """
+        "Returns the name of the first step."
         return self.all[0]
 
     @property
     def last(self):
-        """
-        Returns the name of the last step.
-        """
+        "Returns the name of the last step."
         return self.all[-1]
 
     @property
     def next(self):
+        "Returns the next step."
         return self._wizard.get_next_step()
 
     @property
     def prev(self):
+        "Returns the previous step."
         return self._wizard.get_prev_step()
+
+    @property
+    def index(self):
+        "Returns the index for the current step."
+        return self._wizard.get_step_index()
 
     @property
     def step0(self):
@@ -71,10 +73,6 @@ class StepsHelper(object):
     @property
     def step1(self):
         return int(self.index) + 1
-
-    @property
-    def index(self):
-        return self._wizard.get_step_index()
 
 
 class WizardView(TemplateView):
