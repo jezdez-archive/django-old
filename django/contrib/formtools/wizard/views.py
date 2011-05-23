@@ -20,8 +20,14 @@ class StepsHelper(object):
     def __init__(self, wizard):
         self._wizard = wizard
 
+    def __dir__(self):
+        return self.all
+
     def __len__(self):
         return self.count
+
+    def __repr__(self):
+        return '<StepsHelper for %s (steps: %s)>' % (self._wizard, self.all)
 
     @property
     def all(self):
