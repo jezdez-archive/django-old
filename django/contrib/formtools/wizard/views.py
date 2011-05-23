@@ -161,21 +161,12 @@ class WizardView(TemplateView):
     def __init__(self, *args, **kwargs):
         super(WizardView, self).__init__(*args, **kwargs)
         self.steps = StepsHelper(self)
+        self.wizard_name = normalize_name(self.__class__.__name__)
+        # TODO: Add some kind of unique id to prefix
+        self.prefix = self.wizard_name
 
     def __repr__(self):
-        return '<%s: form_list: %s>' % (self.__class__.__name__, self.form_list)
-
-    @property
-    def wizard_name(self):
-        return normalize_name(self.__class__.__name__)
-
-    @property
-    def prefix(self):
-        """
-        Returns the prefix for forms and storage.
-        """
-        # TODO: Add some kind of unique id.
-        return self.wizard_name
+        return '<%s: forms: %s>' % (self.__class__.__name__, self.form_list)
 
     def get_form_list(self):
         """
