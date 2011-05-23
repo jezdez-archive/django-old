@@ -15,6 +15,68 @@ def normalize_name(name):
     new = re.sub('(((?<=[a-z])[A-Z])|([A-Z](?![A-Z]|$)))', '_\\1', name)
     return new.lower().strip('_')
 
+class StepsHelper(object):
+
+    def __init__(self, wizard):
+        self._wizard = wizard
+
+    def __len__(self):
+        return self.count
+
+    @property
+    def all(self):
+        return self._wizard.get_form_list().keys()
+
+    @property
+    def count(self):
+        """
+        Returns the total number of steps/forms in this the wizard.
+        """
+        return len(self.all)
+
+    @property
+    def current(self):
+        """
+        Returns the current step. If no current step is stored in the storage
+        backend, the first step will be returned.
+        """
+        return self._wizard.storage.get_current_step() or self.first
+
+    @property
+    def first(self):
+        """
+        Returns the name of the first step.
+        """
+        return self.all[0]
+
+    @property
+    def last(self):
+        """
+        Returns the name of the last step.
+        """
+        return self.all[-1]
+
+    @property
+    def next(self):
+        return self._wizard.get_next_step()
+
+    @property
+    def prev(self):
+        return self._wizard.get_prev_step()
+
+    @property
+    def step0(self):
+        return int(self.index)
+
+    @property
+    def step1(self):
+        return int(self.index) + 1
+
+    @property
+    def index(self):
+        return self._wizard.get_step_index()
+
+
 class WizardView(TemplateView):
     """
     The WizardView is used to create multi-page forms and handles all the
@@ -98,6 +160,10 @@ class WizardView(TemplateView):
         kwargs['form_list'] = init_form_list
         return kwargs
 
+    def __init__(self, *args, **kwargs):
+        super(WizardView, self).__init__(*args, **kwargs)
+        self.steps = StepsHelper(self)
+
     def __repr__(self):
         return '<%s: form_list: %s>' % (self.__class__.__name__, self.form_list)
 
@@ -112,14 +178,6 @@ class WizardView(TemplateView):
         """
         # TODO: Add some kind of unique id.
         return self.wizard_name
-
-    @property
-    def management_form(self):
-        """
-        Returns the ManagementForm instance for this wizard.
-        """
-        return ManagementForm(prefix=self.prefix,
-                              initial={'current_step': self.current_step})
 
     def get_form_list(self):
         """
@@ -178,7 +236,7 @@ class WizardView(TemplateView):
         self.update_extra_data(kwargs.get('extra_context', {}))
 
         # reset the current step to the first step.
-        self.storage.set_current_step(self.first_step)
+        self.storage.set_current_step(self.steps.first)
         return self.render(self.get_form())
 
     def post(self, *args, **kwargs):
@@ -200,8 +258,8 @@ class WizardView(TemplateView):
         if wizard_prev_step and wizard_prev_step in self.get_form_list():
             self.storage.set_current_step(wizard_prev_step)
             form = self.get_form(
-                data=self.storage.get_step_data(self.current_step),
-                files=self.storage.get_step_files(self.current_step))
+                data=self.storage.get_step_data(self.steps.current),
+                files=self.storage.get_step_files(self.steps.current))
             return self.render(form)
 
         # Check if form was refreshed
@@ -211,7 +269,7 @@ class WizardView(TemplateView):
                 'ManagementForm data is missing or has been tampered.')
 
         form_current_step = management_form.cleaned_data['current_step']
-        if (form_current_step != self.current_step and
+        if (form_current_step != self.steps.current and
                 self.storage.get_current_step() is not None):
             # form refreshed, change current step
             self.storage.set_current_step(form_current_step)
@@ -222,11 +280,11 @@ class WizardView(TemplateView):
         # and try to validate
         if form.is_valid():
             # if the form is valid, store the cleaned data and files.
-            self.storage.set_step_data(self.current_step, self.process_step(form))
-            self.storage.set_step_files(self.current_step, self.process_step_files(form))
+            self.storage.set_step_data(self.steps.current, self.process_step(form))
+            self.storage.set_step_files(self.steps.current, self.process_step_files(form))
 
             # check if the current step is the last step
-            if self.current_step == self.last_step:
+            if self.steps.current == self.steps.last:
                 # no more steps, render done view
                 return self.render_done(form, **kwargs)
             else:
@@ -241,12 +299,13 @@ class WizardView(TemplateView):
         """
         # get the form instance based on the data from the storage backend
         # (if available).
-        new_form = self.get_form(self.next_step,
-            data=self.storage.get_step_data(self.next_step),
-            files=self.storage.get_step_files(self.next_step))
+        next_step = self.steps.next
+        new_form = self.get_form(next_step,
+            data=self.storage.get_step_data(next_step),
+            files=self.storage.get_step_files(next_step))
 
         # change the stored current step
-        self.storage.set_current_step(self.next_step)
+        self.storage.set_current_step(next_step)
         return self.render(new_form, **kwargs)
 
     def render_done(self, form, **kwargs):
@@ -283,7 +342,7 @@ class WizardView(TemplateView):
         automatically.
         """
         if step is None:
-            step = self.current_step
+            step = self.steps.current
         return str(step)
 
     def get_form_initial(self, step):
@@ -312,8 +371,7 @@ class WizardView(TemplateView):
         `ModelFormSet`) will be added too.
         """
         if step is None:
-            step = self.current_step
-
+            step = self.steps.current
         # prepare the kwargs for the form instance.
         kwargs = {
             'data': data,
@@ -402,28 +460,6 @@ class WizardView(TemplateView):
                 return form_obj.cleaned_data
         return None
 
-    @property
-    def current_step(self):
-        """
-        Returns the current step. If no current step is stored in the storage
-        backend, the first step will be returned.
-        """
-        return self.storage.get_current_step() or self.first_step
-
-    @property
-    def first_step(self):
-        """
-        Returns the name of the first step.
-        """
-        return self.get_form_list().keys()[0]
-
-    @property
-    def last_step(self):
-        """
-        Returns the name of the last step.
-        """
-        return self.get_form_list().keys()[-1]
-
     def get_next_step(self, step=None):
         """
         Returns the next step after the given `step`. If no more steps are
@@ -431,13 +467,12 @@ class WizardView(TemplateView):
         current step will be determined automatically.
         """
         if step is None:
-            step = self.current_step
+            step = self.steps.current
         form_list = self.get_form_list()
         key = form_list.keyOrder.index(step) + 1
         if len(form_list.keyOrder) > key:
             return form_list.keyOrder[key]
         return None
-    next_step = property(get_next_step)
 
     def get_prev_step(self, step=None):
         """
@@ -446,13 +481,12 @@ class WizardView(TemplateView):
         None, the current step will be determined automatically.
         """
         if step is None:
-            step = self.current_step
+            step = self.steps.current
         form_list = self.get_form_list()
         key = form_list.keyOrder.index(step) - 1
         if key >= 0:
             return form_list.keyOrder[key]
         return None
-    prev_step = property(get_prev_step)
 
     def get_step_index(self, step=None):
         """
@@ -460,24 +494,8 @@ class WizardView(TemplateView):
         the current step will be used to get the index.
         """
         if step is None:
-            step = self.current_step
+            step = self.steps.current
         return self.get_form_list().keyOrder.index(step)
-    step_index = property(get_step_index)
-
-    @property
-    def step0(self):
-        return int(self.step_index)
-
-    @property
-    def step1(self):
-        return self.step0 + 1
-
-    @property
-    def num_steps(self):
-        """
-        Returns the total number of steps/forms in this the wizard.
-        """
-        return len(self.get_form_list())
 
     def get_context_data(self, form, *args, **kwargs):
         """
@@ -497,16 +515,19 @@ class WizardView(TemplateView):
             class MyWizard(FormWizard):
                 def get_context_data(self, form, **kwargs):
                     context = super(MyWizard, self).get_context_data(form, **kwargs)
-                    if self.current_step == 'my_step_name':
+                    if self.steps.current == 'my_step_name':
                         context.update({'another_var': True})
                     return context
         """
         context = super(WizardView, self).get_context_data(*args, **kwargs)
-        context.update({
-            'extra_data': self.get_extra_data(),
+        context.update(self.get_extra_data())
+        context['wizard'] = {
             'form': form,
-            'wizard': self,
-        })
+            'steps': self.steps,
+            'managenent_form': ManagementForm(prefix=self.prefix, initial={
+                'current_step': self.steps.current,
+            }),
+        }
         return context
 
     def get_extra_data(self):
@@ -596,26 +617,27 @@ class NamedUrlWizardView(WizardView):
         if step_url is None:
             if 'reset' in self.request.GET:
                 self.storage.reset()
-                self.storage.set_current_step(self.first_step)
+                self.storage.set_current_step(self.steps.first)
             if self.request.GET:
                 query_string = "?%s" % self.request.GET.urlencode()
             else:
                 query_string = ""
             next_step_url = reverse(self.url_name, kwargs={
-                'step': self.current_step
+                'step': self.steps.current
             }) + query_string
             return redirect(next_step_url)
 
         # is the current step the "done" name/view?
         elif step_url == self.done_step_name:
-            return self.render_done(self.get_form(step=self.last_step,
-                data=self.storage.get_step_data(self.last_step),
-                files=self.storage.get_step_files(self.last_step)
+            last_step = self.steps.last
+            return self.render_done(self.get_form(step=last_step,
+                data=self.storage.get_step_data(last_step),
+                files=self.storage.get_step_files(last_step)
             ), **kwargs)
 
         # is the url step name not equal to the step in the storage?
         # if yes, change the step in the storage (if name exists)
-        elif step_url == self.current_step:
+        elif step_url == self.steps.current:
             # URL step name and storage step name are equal, render!
             return self.render(self.get_form(
                 data=self.storage.get_current_step_data(),
@@ -631,7 +653,7 @@ class NamedUrlWizardView(WizardView):
 
         # invalid step name, reset to first and redirect.
         else:
-            self.storage.set_current_step(self.first_step)
+            self.storage.set_current_step(self.steps.first)
             return redirect(self.url_name, step=self.storage.get_current_step())
 
     def post(self, *args, **kwargs):

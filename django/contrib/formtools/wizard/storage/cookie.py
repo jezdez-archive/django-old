@@ -66,9 +66,6 @@ class CookieStorage(BaseStorage):
 
         return True
 
-    def get_current_step_files(self):
-        return self.get_step_files(self.get_current_step())
-
     def get_step_files(self, step):
         session_files = self.cookie_data[self.step_files_cookie_key].get(step, {})
 
@@ -85,6 +82,9 @@ class CookieStorage(BaseStorage):
                 charset=field_dict['charset'],
             )
         return files or None
+
+    def get_current_step_files(self):
+        return self.get_step_files(self.get_current_step())
 
     def get_extra_data(self):
         return self.cookie_data[self.extra_data_cookie_key] or {}
