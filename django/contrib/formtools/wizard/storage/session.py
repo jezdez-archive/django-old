@@ -19,7 +19,13 @@ class SessionStorage(storage.BaseStorage):
             self.extra_data_key: {},
         }
         self.request.session.modified = True
-        return True
+
+    def reset(self):
+        if self.file_storage:
+            for step_fields in self.request.session[self.prefix][self.step_files_key].itervalues():
+                for file_dict in step_fields.itervalues():
+                    self.file_storage.delete(file_dict['tmp_name'])
+        self.init_data()
 
     def _get_current_step(self):
         return self.request.session[self.prefix][self.step_key]
@@ -80,10 +86,3 @@ class SessionStorage(storage.BaseStorage):
                 size=field_dict['size'],
                 charset=field_dict['charset'])
         return files or None
-
-    def reset(self):
-        if self.file_storage:
-            for step_fields in self.request.session[self.prefix][self.step_files_key].itervalues():
-                for file_dict in step_fields.itervalues():
-                    self.file_storage.delete(file_dict['tmp_name'])
-        return self.init_data()

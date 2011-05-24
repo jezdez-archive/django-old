@@ -6,8 +6,6 @@ from django.utils import simplejson as json
 from django.contrib.formtools.wizard import storage
 
 
-
-
 class CookieStorage(storage.BaseStorage):
     encoder = json.JSONEncoder(separators=(',', ':'))
 
@@ -26,10 +24,9 @@ class CookieStorage(storage.BaseStorage):
             self.step_files_key: {},
             self.extra_data_key: {},
         }
-        return True
 
     def reset(self):
-        return self.init_data()
+        self.init_data()
 
     def load_data(self):
         try:
