@@ -7,11 +7,19 @@ class TestBaseStorage(TestCase):
 
     def test_get_current_step(self):
         self.assertRaises(NotImplementedError,
-                          self.storage.get_current_step)
+                          self.storage._get_current_step)
 
     def test_set_current_step(self):
         self.assertRaises(NotImplementedError,
-                          self.storage.set_current_step, None)
+                          self.storage._set_current_step, None)
+
+    def test_get_extra_data(self):
+        self.assertRaises(NotImplementedError,
+                          self.storage._get_extra_data)
+
+    def test_set_extra_data(self):
+        self.assertRaises(NotImplementedError,
+                          self.storage._set_extra_data, None)
 
     def test_get_step_data(self):
         self.assertRaises(NotImplementedError,
@@ -21,19 +29,5 @@ class TestBaseStorage(TestCase):
         self.assertRaises(NotImplementedError,
                           self.storage.set_step_data, None, None)
 
-    def test_get_extra_data(self):
-        self.assertRaises(NotImplementedError,
-                          self.storage.get_extra_data)
-
-    def test_set_extra_data(self):
-        self.assertRaises(NotImplementedError,
-                          self.storage.set_extra_data, None)
-
     def test_reset(self):
-        self.assertRaises(NotImplementedError,
-                          self.storage.reset)
-
-    def test_update_response(self):
-        self.assertRaises(NotImplementedError,
-                          self.storage.update_response, None)
-
+        self.assertRaises(NotImplementedError, self.storage.reset)

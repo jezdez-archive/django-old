@@ -1,3 +1,4 @@
+import copy
 import re
 
 from django import forms
@@ -45,7 +46,7 @@ class StepsHelper(object):
         Returns the current step. If no current step is stored in the
         storage backend, the first step will be returned.
         """
-        return self._wizard.storage.get_current_step() or self.first
+        return self._wizard.storage.current_step or self.first
 
     @property
     def first(self):
@@ -231,7 +232,7 @@ class WizardView(TemplateView):
         self.update_extra_data(kwargs.get('extra_context', {}))
 
         # reset the current step to the first step.
-        self.storage.set_current_step(self.steps.first)
+        self.storage.current_step = self.steps.first
         return self.render(self.get_form())
 
     def post(self, *args, **kwargs):
@@ -251,7 +252,7 @@ class WizardView(TemplateView):
         # form. (This makes stepping back a lot easier).
         wizard_prev_step = self.request.POST.get('wizard_prev_step', None)
         if wizard_prev_step and wizard_prev_step in self.get_form_list():
-            self.storage.set_current_step(wizard_prev_step)
+            self.storage.current_step = wizard_prev_step
             form = self.get_form(
                 data=self.storage.get_step_data(self.steps.current),
                 files=self.storage.get_step_files(self.steps.current))
@@ -265,9 +266,9 @@ class WizardView(TemplateView):
 
         form_current_step = management_form.cleaned_data['current_step']
         if (form_current_step != self.steps.current and
-                self.storage.get_current_step() is not None):
+                self.storage.current_step is not None):
             # form refreshed, change current step
-            self.storage.set_current_step(form_current_step)
+            self.storage.current_step = form_current_step
 
         # get the form for the current step
         form = self.get_form(data=self.request.POST, files=self.request.FILES)
@@ -300,7 +301,7 @@ class WizardView(TemplateView):
             files=self.storage.get_step_files(next_step))
 
         # change the stored current step
-        self.storage.set_current_step(next_step)
+        self.storage.current_step = next_step
         return self.render(new_form, **kwargs)
 
     def render_done(self, form, **kwargs):
@@ -402,7 +403,7 @@ class WizardView(TemplateView):
         view. By default, it changed the current step to failing forms step
         and renders the form.
         """
-        self.storage.set_current_step(step)
+        self.storage.current_step = step
         return self.render(form, **kwargs)
 
     def get_form_step_data(self, form):
@@ -529,16 +530,16 @@ class WizardView(TemplateView):
         """
         Returns the extra data currently stored in the storage backend.
         """
-        return self.storage.get_extra_data()
+        return self.storage.extra_data
 
-    def update_extra_data(self, new_data):
+    def update_extra_data(self, data):
         """
         Updates the currently stored extra data. Already stored extra
         context will be kept!
         """
-        extra_data = self.get_extra_data()
-        extra_data.update(new_data)
-        return self.storage.set_extra_data(extra_data)
+        new_extra_data = copy.copy(self.get_extra_data())
+        new_extra_data.update(data)
+        self.storage.extra_data = new_extra_data
 
     def render(self, form=None, **kwargs):
         """
@@ -612,7 +613,7 @@ class NamedUrlWizardView(WizardView):
         if step_url is None:
             if 'reset' in self.request.GET:
                 self.storage.reset()
-                self.storage.set_current_step(self.steps.first)
+                self.storage.current_step = self.steps.first
             if self.request.GET:
                 query_string = "?%s" % self.request.GET.urlencode()
             else:
@@ -635,21 +636,21 @@ class NamedUrlWizardView(WizardView):
         elif step_url == self.steps.current:
             # URL step name and storage step name are equal, render!
             return self.render(self.get_form(
-                data=self.storage.get_current_step_data(),
-                files=self.storage.get_current_step_files()
+                data=self.storage.current_step_data,
+                files=self.storage.current_step_data,
             ), **kwargs)
 
         elif step_url in self.get_form_list():
-            self.storage.set_current_step(step_url)
+            self.storage.current_step = step_url
             return self.render(self.get_form(
-                data=self.storage.get_current_step_data(),
-                files=self.storage.get_current_step_files()
+                data=self.storage.current_step_data,
+                files=self.storage.current_step_data,
             ), **kwargs)
 
         # invalid step name, reset to first and redirect.
         else:
-            self.storage.set_current_step(self.steps.first)
-            return redirect(self.url_name, step=self.storage.get_current_step())
+            self.storage.current_step = self.steps.first
+            return redirect(self.url_name, step=self.steps.first)
 
     def post(self, *args, **kwargs):
         """
@@ -658,8 +659,8 @@ class NamedUrlWizardView(WizardView):
         """
         prev_step = self.request.POST.get('wizard_prev_step', None)
         if prev_step and prev_step in self.get_form_list():
-            self.storage.set_current_step(prev_step)
-            return redirect(self.url_name, step=self.storage.get_current_step())
+            self.storage.current_step = prev_step
+            return redirect(self.url_name, step=prev_step)
         return super(NamedUrlWizardView, self).post(*args, **kwargs)
 
     def render_next_step(self, form, **kwargs):
@@ -668,7 +669,7 @@ class NamedUrlWizardView(WizardView):
         browser's URL to match the shown step.
         """
         next_step = self.get_next_step()
-        self.storage.set_current_step(next_step)
+        self.storage.current_step = next_step
         return redirect(self.url_name, step=next_step)
 
     def render_revalidation_failure(self, failed_step, form, **kwargs):
@@ -676,8 +677,8 @@ class NamedUrlWizardView(WizardView):
         When a step fails, we have to redirect the user to the first failing
         step.
         """
-        self.storage.set_current_step(failed_step)
-        return redirect(self.url_name, step=self.storage.get_current_step())
+        self.storage.current_step = failed_step
+        return redirect(self.url_name, step=failed_step)
 
     def render_done(self, form, **kwargs):
         """

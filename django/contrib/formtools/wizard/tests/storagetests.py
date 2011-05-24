@@ -21,17 +21,17 @@ class TestStorage(object):
         storage = self.get_storage()('wizard1', request, None)
         my_step = 2
 
-        self.assertEqual(storage.get_current_step(), None)
+        self.assertEqual(storage.current_step, None)
 
-        storage.set_current_step(my_step)
-        self.assertEqual(storage.get_current_step(), my_step)
+        storage.current_step = my_step
+        self.assertEqual(storage.current_step, my_step)
 
         storage.reset()
-        self.assertEqual(storage.get_current_step(), None)
+        self.assertEqual(storage.current_step, None)
 
-        storage.set_current_step(my_step)
+        storage.current_step = my_step
         storage2 = self.get_storage()('wizard2', request, None)
-        self.assertEqual(storage2.get_current_step(), None)
+        self.assertEqual(storage2.current_step, None)
 
     def test_step_data(self):
         request = get_request()
@@ -62,15 +62,15 @@ class TestStorage(object):
                          'key3': datetime.now(),
                          'key4': self.testuser}
 
-        self.assertEqual(storage.get_extra_data(), {})
+        self.assertEqual(storage.extra_data, {})
 
-        storage.set_extra_data(extra_context)
-        self.assertEqual(storage.get_extra_data(), extra_context)
+        storage.extra_data = extra_context
+        self.assertEqual(storage.extra_data, extra_context)
 
         storage.reset()
-        self.assertEqual(storage.get_extra_data(), {})
+        self.assertEqual(storage.extra_data, {})
 
-        storage.set_extra_data(extra_context)
+        storage.extra_data = extra_context
         storage2 = self.get_storage()('wizard2', request, None)
-        self.assertEqual(storage2.get_extra_data(), {})
+        self.assertEqual(storage2.extra_data, {})
 

@@ -80,7 +80,7 @@ class FormTests(TestCase):
         response, instance = testform(request)
         self.assertEquals(instance.steps.current, 'start')
 
-        instance.storage.set_current_step('step2')
+        instance.storage.current_step = 'step2'
 
         testform2 = TestWizard.as_view([('start', Step1), ('step2', Step2)])
         request.POST = {'test_wizard-current_step': 'step2'}
@@ -177,7 +177,7 @@ class FormTests(TestCase):
         testform = TestWizard.as_view([('start', Step1), ('step2', Step2)])
         response, instance = testform(request)
         instance.render_done(None)
-        self.assertEqual(instance.storage.get_current_step(), 'start')
+        self.assertEqual(instance.storage.current_step, 'start')
 
 
 class SessionFormTests(TestCase):

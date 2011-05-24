@@ -45,7 +45,7 @@ class ContactWizard(WizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super(ContactWizard, self).get_context_data(form, **kwargs)
-        if self.storage.get_current_step() == 'form2':
+        if self.storage.current_step == 'form2':
             context.update({'another_var': True})
         return context
 

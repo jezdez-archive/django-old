@@ -348,7 +348,7 @@ class NamedFormTests(object):
         response, instance = testform(request, step='done')
 
         instance.render_done(None)
-        self.assertEqual(instance.storage.get_current_step(), 'start')
+        self.assertEqual(instance.storage.current_step, 'start')
 
 class TestNamedUrlSessionFormWizard(NamedUrlSessionWizardView):
 
