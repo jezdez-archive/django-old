@@ -9,48 +9,14 @@ from StringIO import StringIO
 import tempfile
 import threading
 
-from django.conf import settings
 from django.core import mail
 from django.core.mail import (EmailMessage, mail_admins, mail_managers,
         EmailMultiAlternatives, send_mail, send_mass_mail)
 from django.core.mail.backends import console, dummy, locmem, filebased, smtp
 from django.core.mail.message import BadHeaderError
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.utils.translation import ugettext_lazy
-from django.utils.functional import wraps
-
-
-def alter_django_settings(**kwargs):
-    oldvalues = {}
-    nonexistant = []
-    for setting, newvalue in kwargs.iteritems():
-        try:
-            oldvalues[setting] = getattr(settings, setting)
-        except AttributeError:
-            nonexistant.append(setting)
-        setattr(settings, setting, newvalue)
-    return oldvalues, nonexistant
-
-
-def restore_django_settings(state):
-    oldvalues, nonexistant = state
-    for setting, oldvalue in oldvalues.iteritems():
-        setattr(settings, setting, oldvalue)
-    for setting in nonexistant:
-        delattr(settings, setting)
-
-
-def with_django_settings(**kwargs):
-    def decorator(test):
-        @wraps(test)
-        def decorated_test(self):
-            state = alter_django_settings(**kwargs)
-            try:
-                return test(self)
-            finally:
-                restore_django_settings(state)
-        return decorated_test
-    return decorator
 
 
 class MailTests(TestCase):
@@ -120,7 +86,7 @@ class MailTests(TestCase):
         """
         headers = {"date": "Fri, 09 Nov 2001 01:08:47 -0000", "Message-ID": "foo"}
         email = EmailMessage('subject', 'content', 'from@example.com', ['to@example.com'], headers=headers)
-        self.assertEqual(email.message().as_string(), 'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: quoted-printable\nSubject: subject\nFrom: from@example.com\nTo: to@example.com\ndate: Fri, 09 Nov 2001 01:08:47 -0000\nMessage-ID: foo\n\ncontent')
+        self.assertEqual(email.message().as_string(), 'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: 7bit\nSubject: subject\nFrom: from@example.com\nTo: to@example.com\ndate: Fri, 09 Nov 2001 01:08:47 -0000\nMessage-ID: foo\n\ncontent')
 
     def test_from_header(self):
         """
@@ -251,7 +217,7 @@ class MailTests(TestCase):
             shutil.rmtree(tmp_dir)
         self.assertTrue(isinstance(mail.get_connection(), locmem.EmailBackend))
 
-    @with_django_settings(
+    @override_settings(
         EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
         ADMINS=[('nobody', 'nobody@example.com')],
         MANAGERS=[('nobody', 'nobody@example.com')])
@@ -294,15 +260,40 @@ class MailTests(TestCase):
         email = EmailMessage('Subject', 'From the future', 'bounce@example.com', ['to@example.com'], headers={'From': 'from@example.com'})
         self.assertFalse('>From the future' in email.message().as_string())
 
+    def test_dont_base64_encode(self):
+        # Ticket #3472
+        # Shouldn't use Base64 encoding at all
+        msg = EmailMessage('Subject', 'UTF-8 encoded body', 'bounce@example.com', ['to@example.com'], headers={'From': 'from@example.com'})
+        self.assertFalse('Content-Transfer-Encoding: base64' in msg.message().as_string())
+
+        # Ticket #11212
+        # Shouldn't use quoted printable, should detect it can represent content with 7 bit data
+        msg = EmailMessage('Subject', 'Body with only ASCII characters.', 'bounce@example.com', ['to@example.com'], headers={'From': 'from@example.com'})
+        s = msg.message().as_string()
+        self.assertFalse('Content-Transfer-Encoding: quoted-printable' in s)
+        self.assertTrue('Content-Transfer-Encoding: 7bit' in s)
+
+        # Shouldn't use quoted printable, should detect it can represent content with 8 bit data
+        msg = EmailMessage('Subject', 'Body with latin characters: àáä.', 'bounce@example.com', ['to@example.com'], headers={'From': 'from@example.com'})
+        s = msg.message().as_string()
+        self.assertFalse('Content-Transfer-Encoding: quoted-printable' in s)
+        self.assertTrue('Content-Transfer-Encoding: 8bit' in s)
+
+        msg = EmailMessage('Subject', u'Body with non latin characters: А Б В Г Д Е Ж Ѕ З И І К Л М Н О П.', 'bounce@example.com', ['to@example.com'], headers={'From': 'from@example.com'})
+        s = msg.message().as_string()
+        self.assertFalse('Content-Transfer-Encoding: quoted-printable' in s)
+        self.assertTrue('Content-Transfer-Encoding: 8bit' in s)
+
 
 class BaseEmailBackendTests(object):
     email_backend = None
 
     def setUp(self):
-        self.__settings_state = alter_django_settings(EMAIL_BACKEND=self.email_backend)
+        self.settings_override = override_settings(EMAIL_BACKEND=self.email_backend)
+        self.settings_override.enable()
 
     def tearDown(self):
-        restore_django_settings(self.__settings_state)
+        self.settings_override.disable()
 
     def assertStartsWith(self, first, second):
         if not first.startswith(second):
@@ -351,7 +342,7 @@ class BaseEmailBackendTests(object):
         self.assertEqual(message.get_payload(), "Content")
         self.assertEqual(message["from"], "=?utf-8?q?Firstname_S=C3=BCrname?= <from@example.com>")
 
-    @with_django_settings(MANAGERS=[('nobody', 'nobody@example.com')])
+    @override_settings(MANAGERS=[('nobody', 'nobody@example.com')])
     def test_html_mail_managers(self):
         """Test html_message argument to mail_managers"""
         mail_managers('Subject', 'Content', html_message='HTML Content')
@@ -366,7 +357,7 @@ class BaseEmailBackendTests(object):
         self.assertEqual(message.get_payload(1).get_payload(), 'HTML Content')
         self.assertEqual(message.get_payload(1).get_content_type(), 'text/html')
 
-    @with_django_settings(ADMINS=[('nobody', 'nobody@example.com')])
+    @override_settings(ADMINS=[('nobody', 'nobody@example.com')])
     def test_html_mail_admins(self):
         """Test html_message argument to mail_admins """
         mail_admins('Subject', 'Content', html_message='HTML Content')
@@ -381,8 +372,9 @@ class BaseEmailBackendTests(object):
         self.assertEqual(message.get_payload(1).get_payload(), 'HTML Content')
         self.assertEqual(message.get_payload(1).get_content_type(), 'text/html')
 
-    @with_django_settings(ADMINS=[('nobody', 'nobody+admin@example.com')],
-                         MANAGERS=[('nobody', 'nobody+manager@example.com')])
+    @override_settings(
+        ADMINS=[('nobody', 'nobody+admin@example.com')],
+        MANAGERS=[('nobody', 'nobody+manager@example.com')])
     def test_manager_and_admin_mail_prefix(self):
         """
         String prefix + lazy translated subject = bad output
@@ -397,7 +389,7 @@ class BaseEmailBackendTests(object):
         message = self.get_the_message()
         self.assertEqual(message.get('subject'), '[Django] Subject')
 
-    @with_django_settings(ADMINS=(), MANAGERS=())
+    @override_settings(ADMINS=(), MANAGERS=())
     def test_empty_admins(self):
         """
         Test that mail_admins/mail_managers doesn't connect to the mail server
@@ -415,7 +407,7 @@ class BaseEmailBackendTests(object):
         email = EmailMessage('Subject', 'Content', 'from@example.com', ['to@example.com'], cc=['cc@example.com'])
         mail.get_connection().send_messages([email])
         message = self.get_the_message()
-        self.assertStartsWith(message.as_string(), 'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: quoted-printable\nSubject: Subject\nFrom: from@example.com\nTo: to@example.com\nCc: cc@example.com\nDate: ')
+        self.assertStartsWith(message.as_string(), 'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: 7bit\nSubject: Subject\nFrom: from@example.com\nTo: to@example.com\nCc: cc@example.com\nDate: ')
 
     def test_idn_send(self):
         """
@@ -477,13 +469,14 @@ class FileBackendTests(BaseEmailBackendTests, TestCase):
     email_backend = 'django.core.mail.backends.filebased.EmailBackend'
 
     def setUp(self):
-        super(FileBackendTests, self).setUp()
         self.tmp_dir = tempfile.mkdtemp()
-        self.__settings_state = alter_django_settings(EMAIL_FILE_PATH=self.tmp_dir)
+        self.addCleanup(shutil.rmtree, self.tmp_dir)
+        self.settings_override = override_settings(EMAIL_FILE_PATH=self.tmp_dir)
+        self.settings_override.enable()
+        super(FileBackendTests, self).setUp()
 
     def tearDown(self):
-        restore_django_settings(self.__settings_state)
-        shutil.rmtree(self.tmp_dir)
+        self.settings_override.disable()
         super(FileBackendTests, self).tearDown()
 
     def flush_mailbox(self):
@@ -553,7 +546,7 @@ class ConsoleBackendTests(BaseEmailBackendTests, TestCase):
         s = StringIO()
         connection = mail.get_connection('django.core.mail.backends.console.EmailBackend', stream=s)
         send_mail('Subject', 'Content', 'from@example.com', ['to@example.com'], connection=connection)
-        self.assertTrue(s.getvalue().startswith('Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: quoted-printable\nSubject: Subject\nFrom: from@example.com\nTo: to@example.com\nDate: '))
+        self.assertTrue(s.getvalue().startswith('Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-Transfer-Encoding: 7bit\nSubject: Subject\nFrom: from@example.com\nTo: to@example.com\nDate: '))
 
 
 class FakeSMTPServer(smtpd.SMTPServer, threading.Thread):
@@ -618,13 +611,15 @@ class SMTPBackendTests(BaseEmailBackendTests, TestCase):
     @classmethod
     def setUpClass(cls):
         cls.server = FakeSMTPServer(('127.0.0.1', 0), None)
-        cls.settings = alter_django_settings(
+        cls.settings_override = override_settings(
             EMAIL_HOST="127.0.0.1",
             EMAIL_PORT=cls.server.socket.getsockname()[1])
+        cls.settings_override.enable()
         cls.server.start()
 
     @classmethod
     def tearDownClass(cls):
+        cls.settings_override.disable()
         cls.server.stop()
 
     def setUp(self):

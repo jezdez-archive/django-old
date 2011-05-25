@@ -462,6 +462,12 @@ class AggregationTests(TestCase):
             lambda b: b.name
         )
 
+        # Regression for #15709 - Ensure each group_by field only exists once
+        # per query
+        qs = Book.objects.values('publisher').annotate(max_pages=Max('pages')).order_by()
+        grouping, gb_params = qs.query.get_compiler(qs.db).get_grouping()
+        self.assertEqual(len(grouping), 1)
+
     def test_duplicate_alias(self):
         # Regression for #11256 - duplicating a default alias raises ValueError.
         self.assertRaises(ValueError, Book.objects.all().annotate, Avg('authors__age'), authors__age__avg=Avg('authors__age'))
@@ -656,6 +662,13 @@ class AggregationTests(TestCase):
             {"pk__count": None}
         )
 
+    def test_none_call_before_aggregate(self):
+        # Regression for #11789
+        self.assertEqual(
+            Author.objects.none().aggregate(Avg('age')),
+            {'age__avg': None}
+        )
+
     def test_annotate_and_join(self):
         self.assertEqual(
             Author.objects.annotate(c=Count("friends__name")).exclude(friends__name="Joe").count(),
@@ -820,4 +833,31 @@ class AggregationTests(TestCase):
         self.assertEqual(
             Book.objects.aggregate(Variance('price', sample=True)),
             {'price__variance': Approximate(700.53, 2)}
+        )
+
+    def test_filtering_by_annotation_name(self):
+        # Regression test for #14476
+
+        # The name of the explicitly provided annotation name in this case
+        # poses no problem
+        qs = Author.objects.annotate(book_cnt=Count('book')).filter(book_cnt=2)
+        self.assertQuerysetEqual(
+            qs,
+            ['Peter Norvig'],
+            lambda b: b.name
+        )
+        # Neither in this case
+        qs = Author.objects.annotate(book_count=Count('book')).filter(book_count=2)
+        self.assertQuerysetEqual(
+            qs,
+            ['Peter Norvig'],
+            lambda b: b.name
+        )
+        # This case used to fail because the ORM couldn't resolve the
+        # automatically generated annotation name `book__count`
+        qs = Author.objects.annotate(Count('book')).filter(book__count=2)
+        self.assertQuerysetEqual(
+            qs,
+            ['Peter Norvig'],
+            lambda b: b.name
         )

@@ -6,7 +6,7 @@ from functools import wraps
 from urlparse import urlsplit, urlunsplit
 from xml.dom.minidom import parseString, Node
 
-from django.conf import settings
+from django.conf import settings, UserSettingsHolder
 from django.core import mail
 from django.core.management import call_command
 from django.core.signals import request_started
@@ -16,7 +16,7 @@ from django.db import (transaction, connection, connections, DEFAULT_DB_ALIAS,
 from django.http import QueryDict
 from django.test import _doctest as doctest
 from django.test.client import Client
-from django.test.utils import get_warnings_state, restore_warnings_state
+from django.test.utils import get_warnings_state, restore_warnings_state, override_settings
 from django.utils import simplejson, unittest as ut2
 from django.utils.encoding import smart_str
 
@@ -340,6 +340,13 @@ class TransactionTestCase(ut2.TestCase):
         saved by save_warnings_state()
         """
         restore_warnings_state(self._warnings_state)
+
+    def settings(self, **kwargs):
+        """
+        A context manager that temporarily sets a setting and reverts
+        back to the original value when exiting the context.
+        """
+        return override_settings(**kwargs)
 
     def assertRedirects(self, response, expected_url, status_code=302,
                         target_status_code=200, host=None, msg_prefix=''):

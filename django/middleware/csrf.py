@@ -107,7 +107,8 @@ class CsrfViewMiddleware(object):
         if getattr(callback, 'csrf_exempt', False):
             return None
 
-        if request.method == 'POST':
+        # Assume that anything not defined as 'safe' by RC2616 needs protection.
+        if request.method not in ('GET', 'HEAD', 'OPTIONS', 'TRACE'):
             if getattr(request, '_dont_enforce_csrf_checks', False):
                 # Mechanism to turn off CSRF checks for test suite.  It comes after
                 # the creation of CSRF cookies, so that everything else continues to
@@ -165,10 +166,14 @@ class CsrfViewMiddleware(object):
                 )
                 return self._reject(request, REASON_NO_CSRF_COOKIE)
 
-            # check incoming token
-            request_csrf_token = request.POST.get('csrfmiddlewaretoken', '')
+            # check non-cookie token for match
+            request_csrf_token = ""
+            if request.method == "POST":
+                request_csrf_token = request.POST.get('csrfmiddlewaretoken', '')
+
             if request_csrf_token == "":
-                # Fall back to X-CSRFToken, to make things easier for AJAX
+                # Fall back to X-CSRFToken, to make things easier for AJAX,
+                # and possible for PUT/DELETE
                 request_csrf_token = request.META.get('HTTP_X_CSRFTOKEN', '')
 
             if not constant_time_compare(request_csrf_token, csrf_token):
@@ -197,8 +202,12 @@ class CsrfViewMiddleware(object):
 
         # Set the CSRF cookie even if it's already set, so we renew the expiry timer.
         response.set_cookie(settings.CSRF_COOKIE_NAME,
-                request.META["CSRF_COOKIE"], max_age = 60 * 60 * 24 * 7 * 52,
-                domain=settings.CSRF_COOKIE_DOMAIN)
+                            request.META["CSRF_COOKIE"],
+                            max_age = 60 * 60 * 24 * 7 * 52,
+                            domain=settings.CSRF_COOKIE_DOMAIN,
+                            path=settings.CSRF_COOKIE_PATH,
+                            secure=settings.CSRF_COOKIE_SECURE
+                            )
         # Content varies with the CSRF cookie, so set the Vary header.
         patch_vary_headers(response, ('Cookie',))
         response.csrf_processing_done = True

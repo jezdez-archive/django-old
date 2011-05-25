@@ -119,6 +119,10 @@ Methods
     rendered :class:`~django.template.response.SimpleTemplateResponse`
     instance.
 
+    If the callback returns a value that is not `None`, this will be
+    used as the response instead of the original response object (and
+    will be passed to the next post rendering callback etc.)
+
 .. method:: SimpleTemplateResponse.render():
 
     Sets :attr:`response.content` to the result obtained by
@@ -273,7 +277,7 @@ Using TemplateResponse and SimpleTemplateResponse
 
 A TemplateResponse object can be used anywhere that a normal
 HttpResponse can be used. It can also be used as an alternative to
-calling :meth:`~django.shortcuts.render_to_response()`.
+calling :func:`~django.shortcuts.render_to_response()`.
 
 For example, the following simple view returns a
 :class:`TemplateResponse()` with a simple template, and a context

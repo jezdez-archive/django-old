@@ -358,19 +358,20 @@ issues reported to us, however, query string lookup arguments in the
 admin must be for fields or relations specified in ``list_filter`` or
 ``date_hierarchy``.
 
-FileField no longer deletes files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Deleting a model doesn't delete associated files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In earlier Django versions, when a model instance containing a
 :class:`~django.db.models.FileField` was deleted,
 :class:`~django.db.models.FileField` took it upon itself to also delete the
 file from the backend storage. This opened the door to several data-loss
 scenarios, including rolled-back transactions and fields on different models
-referencing the same file. In Django 1.3, :class:`~django.db.models.FileField`
-will never delete files from the backend storage. If you need cleanup of
-orphaned files, you'll need to handle it yourself (for instance, with a custom
-management command that can be run manually or scheduled to run periodically
-via e.g. cron).
+referencing the same file. In Django 1.3, when a model is deleted the
+:class:`~django.db.models.FileField`'s
+:func:`~django.db.models.FileField.delete` method won't be called.  If you
+need cleanup of orphaned files, you'll need to handle it yourself (for
+instance, with a custom management command that can be run manually or
+scheduled to run periodically via e.g. cron).
 
 PasswordInput default rendering behavior
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -520,7 +521,7 @@ Callables in templates
 Previously, a callable in a template would only be called automatically as part
 of the variable resolution process if it was retrieved via attribute
 lookup. This was an inconsistency that could result in confusing and unhelpful
-behaviour::
+behavior::
 
     >>> Template("{{ user.get_full_name }}").render(Context({'user': user}))
     u'Joe Bloggs'
@@ -528,7 +529,7 @@ behaviour::
     u'&lt;bound method User.get_full_name of &lt;...
 
 This has been resolved in Django 1.3 - the result in both cases will be ``u'Joe
-Bloggs'``. Although the previous behaviour was not useful for a template language
+Bloggs'``. Although the previous behavior was not useful for a template language
 designed for web designers, and was never deliberately supported, it is possible
 that some templates may be broken by this change.
 

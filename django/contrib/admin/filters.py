@@ -63,10 +63,10 @@ class SimpleListFilter(ListFilter):
             raise ImproperlyConfigured(
                 "The list filter '%s' does not specify "
                 "a 'parameter_name'." % self.__class__.__name__)
-        lookup_choices = self.lookups(request)
+        lookup_choices = self.lookups(request, model_admin)
         if lookup_choices is None:
             lookup_choices = ()
-        self.lookup_choices = lookup_choices
+        self.lookup_choices = list(lookup_choices)
 
     def has_output(self):
         return len(self.lookup_choices) > 0
@@ -78,7 +78,7 @@ class SimpleListFilter(ListFilter):
         """
         return self.params.get(self.parameter_name, None)
 
-    def lookups(self, request):
+    def lookups(self, request, model_admin):
         """
         Must be overriden to return a list of tuples (value, verbose value)
         """
@@ -110,7 +110,7 @@ class FieldListFilter(ListFilter):
     def __init__(self, field, request, params, model, model_admin, field_path):
         self.field = field
         self.field_path = field_path
-        self.title = field_path
+        self.title = getattr(field, 'verbose_name', field_path)
         super(FieldListFilter, self).__init__(request, params, model, model_admin)
 
     def has_output(self):

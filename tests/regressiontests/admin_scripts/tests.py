@@ -37,8 +37,7 @@ class AdminScriptTestCase(unittest.TestCase):
         if apps is None:
             apps = ['django.contrib.auth', 'django.contrib.contenttypes', 'admin_scripts']
 
-        if apps:
-            settings_file.write("INSTALLED_APPS = %s\n" % apps)
+        settings_file.write("INSTALLED_APPS = %s\n" % apps)
 
         if sdict:
             for k, v in sdict.items():
@@ -119,11 +118,12 @@ class AdminScriptTestCase(unittest.TestCase):
         os.chdir(test_dir)
         try:
             from subprocess import Popen, PIPE
+        except ImportError:
+            stdin, stdout, stderr = os.popen3(cmd)
+        else:
             p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             stdin, stdout, stderr = (p.stdin, p.stdout, p.stderr)
             p.wait()
-        except ImportError:
-            stdin, stdout, stderr = os.popen3(cmd)
         out, err = stdout.read(), stderr.read()
 
         # Restore the old environment
@@ -157,7 +157,18 @@ class AdminScriptTestCase(unittest.TestCase):
 
     def assertNoOutput(self, stream):
         "Utility assertion: assert that the given stream is empty"
+        # HACK: Under Windows, ignore warnings of the form:
+        # 'warning: Not loading directory '...\tests\regressiontests\locale': missing __init__.py'
+        # It has been impossible to filter them out using other means like:
+        # * Using warning.filterwarnings() (for the Python interpreter running the
+        #   tests) and/or
+        # * Using -Wignore:... (for the python interpreter spawned in self.run_test())
+        # Instead use a strategy copied from Mercurial's setup.py
+        if sys.platform == 'win32':
+            stream = [e for e in stream.splitlines()
+                if not e.startswith('warning: Not importing directory')]
         self.assertEqual(len(stream), 0, "Stream should be empty: actually contains '%s'" % stream)
+
     def assertOutput(self, stream, msg):
         "Utility assertion: assert that the given message exists in the output"
         self.assertTrue(msg in stream, "'%s' does not match actual output text '%s'" % (msg, stream))
@@ -545,10 +556,11 @@ class DjangoAdminSettingsDirectory(AdminScriptTestCase):
         "directory: startapp creates the correct directory"
         test_dir = os.path.dirname(os.path.dirname(__file__))
         args = ['startapp','settings_test']
+        app_path = os.path.join(test_dir, 'settings_test')
         out, err = self.run_django_admin(args,'settings')
+        self.addCleanup(shutil.rmtree, app_path)
         self.assertNoOutput(err)
-        self.assertTrue(os.path.exists(os.path.join(test_dir, 'settings_test')))
-        shutil.rmtree(os.path.join(test_dir, 'settings_test'))
+        self.assertTrue(os.path.exists(app_path))
 
     def test_builtin_command(self):
         "directory: django-admin builtin commands fail with an import error when no settings provided"
@@ -665,8 +677,8 @@ class ManageDefaultSettings(AdminScriptTestCase):
         "default: manage.py builtin commands fail if settings file (from environment) doesn't exist"
         args = ['sqlall','admin_scripts']
         out, err = self.run_manage(args,'bad_settings')
-        self.assertNoOutput(err)
-        self.assertOutput(out, 'CREATE TABLE')
+        self.assertNoOutput(out)
+        self.assertOutput(err, "Could not import settings 'bad_settings'")
 
     def test_custom_command(self):
         "default: manage.py can execute user commands when default settings are appropriate"
@@ -732,8 +744,8 @@ class ManageFullPathDefaultSettings(AdminScriptTestCase):
         "fulldefault: manage.py builtin commands fail if settings file (from environment) doesn't exist"
         args = ['sqlall','admin_scripts']
         out, err = self.run_manage(args,'bad_settings')
-        self.assertNoOutput(err)
-        self.assertOutput(out, 'CREATE TABLE')
+        self.assertNoOutput(out)
+        self.assertOutput(err, "Could not import settings 'bad_settings'")
 
     def test_custom_command(self):
         "fulldefault: manage.py can execute user commands when default settings are appropriate"
@@ -799,7 +811,7 @@ class ManageMinimalSettings(AdminScriptTestCase):
         args = ['sqlall','admin_scripts']
         out, err = self.run_manage(args,'bad_settings')
         self.assertNoOutput(out)
-        self.assertOutput(err, 'App with label admin_scripts could not be found')
+        self.assertOutput(err, "Could not import settings 'bad_settings'")
 
     def test_custom_command(self):
         "minimal: manage.py can't execute user commands without appropriate settings"
@@ -918,12 +930,11 @@ class ManageMultipleSettings(AdminScriptTestCase):
         self.assertOutput(out, 'CREATE TABLE')
 
     def test_builtin_with_environment(self):
-        "multiple: manage.py builtin commands fail if settings are provided in the environment"
-        # FIXME: This doesn't seem to be the correct output.
+        "multiple: manage.py can execute builtin commands if settings are provided in the environment"
         args = ['sqlall','admin_scripts']
         out, err = self.run_manage(args,'alternate_settings')
-        self.assertNoOutput(out)
-        self.assertOutput(err, 'App with label admin_scripts could not be found.')
+        self.assertNoOutput(err)
+        self.assertOutput(out, 'CREATE TABLE')
 
     def test_builtin_with_bad_settings(self):
         "multiple: manage.py builtin commands fail if settings file (from argument) doesn't exist"
@@ -937,7 +948,7 @@ class ManageMultipleSettings(AdminScriptTestCase):
         args = ['sqlall','admin_scripts']
         out, err = self.run_manage(args,'bad_settings')
         self.assertNoOutput(out)
-        self.assertOutput(err, "App with label admin_scripts could not be found")
+        self.assertOutput(err, "Could not import settings 'bad_settings'")
 
     def test_custom_command(self):
         "multiple: manage.py can't execute user commands using default settings"
@@ -957,8 +968,8 @@ class ManageMultipleSettings(AdminScriptTestCase):
         "multiple: manage.py can execute user commands if settings are provided in environment"
         args = ['noargs_command']
         out, err = self.run_manage(args,'alternate_settings')
-        self.assertNoOutput(out)
-        self.assertOutput(err, "Unknown command: 'noargs_command'")
+        self.assertNoOutput(err)
+        self.assertOutput(out, "EXECUTE:NoArgsCommand")
 
 class ManageSettingsWithImportError(AdminScriptTestCase):
     """Tests for manage.py when using the default settings.py file

@@ -43,6 +43,12 @@ Examples:
     * ``450000`` becomes ``450,000``.
     * ``4500000`` becomes ``4,500,000``.
 
+:ref:`Format localization <format-localization>` will be respected if enabled,
+e.g. with the ``'de'`` language:
+
+    * ``45000`` becomes ``'45.000'``.
+    * ``450000`` becomes ``'450.000'``.
+
 You can pass in either an integer or a string representation of an integer.
 
 .. templatefilter:: intword
@@ -60,6 +66,13 @@ Examples:
     * ``1200000000`` becomes ``1.2 billion``.
 
 Values up to 1000000000000000 (one quadrillion) are supported.
+
+:ref:`Format localization <format-localization>` will be respected if enabled,
+e.g. with the ``'de'`` language:
+
+    * ``1000000`` becomes ``'1,0 Million'``.
+    * ``1200000`` becomes ``'1,2 Million'``.
+    * ``1200000000`` becomes ``'1,2 Milliarden'``.
 
 You can pass in either an integer or a string representation of an integer.
 
@@ -89,11 +102,10 @@ naturaltime
 
 .. versionadded:: 1.4
 
-For date and time values shows how many seconds, minutes or hours ago compared
-to current timestamp returns representing string. Otherwise, it behaves like
-:tfilter:`naturaldate`, so it can also take string argument for date formating.
-
-**Argument:** Date formatting string as described in the :tfilter:`date` tag.
+For datetime values, returns a string representing how many seconds,
+minutes or hours ago it was -- falling back to a longer date format if the
+value is more than a day old. In case the datetime value is in the future
+the return value will automatically use an appropriate phrase.
 
 Examples (when 'now' is 17 Feb 2007 16:30:00):
 
@@ -103,9 +115,13 @@ Examples (when 'now' is 17 Feb 2007 16:30:00):
     * ``17 Feb 2007 16:25:35`` becomes ``4 minutes ago``.
     * ``17 Feb 2007 15:30:29`` becomes ``an hour ago``.
     * ``17 Feb 2007 13:31:29`` becomes ``2 hours ago``.
-    * ``16 Feb 2007 13:31:29`` becomes ``yesterday``.
-    * Any other day is formatted according to given argument or the
-      :setting:`DATE_FORMAT` setting if no argument is given.
+    * ``16 Feb 2007 13:31:29`` becomes ``1 day ago``.
+    * ``17 Feb 2007 16:30:30`` becomes ``29 seconds from now``.
+    * ``17 Feb 2007 16:31:00`` becomes ``a minute from now``.
+    * ``17 Feb 2007 16:34:35`` becomes ``4 minutes from now``.
+    * ``17 Feb 2007 16:30:29`` becomes ``an hour from now``.
+    * ``17 Feb 2007 18:31:29`` becomes ``2 hours from now``.
+    * ``18 Feb 2007 16:31:29`` becomes ``1 day from now``.
 
 .. templatefilter:: ordinal
 

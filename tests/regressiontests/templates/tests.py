@@ -21,6 +21,7 @@ from django.template.loaders import app_directories, filesystem, cached
 from django.test.utils import get_warnings_state, restore_warnings_state,\
     setup_test_template_loader, restore_template_loaders
 from django.utils import unittest
+from django.utils.formats import date_format
 from django.utils.translation import activate, deactivate, ugettext as _
 from django.utils.safestring import mark_safe
 from django.utils.tzinfo import LocalTimezone
@@ -160,8 +161,8 @@ class Templates(unittest.TestCase):
         fs_loader = filesystem.Loader()
         def test_template_sources(path, template_dirs, expected_sources):
             if isinstance(expected_sources, list):
-                # Fix expected sources so they are normcased and abspathed
-                expected_sources = [os.path.normcase(os.path.abspath(s)) for s in expected_sources]
+                # Fix expected sources so they are abspathed
+                expected_sources = [os.path.abspath(s) for s in expected_sources]
             # Test the two loaders (app_directores and filesystem).
             func1 = lambda p, t: list(ad_loader.get_template_sources(p, t))
             func2 = lambda p, t: list(fs_loader.get_template_sources(p, t))
@@ -204,9 +205,9 @@ class Templates(unittest.TestCase):
         if os.path.normcase('/TEST') == os.path.normpath('/test'):
             template_dirs = ['/dir1', '/DIR2']
             test_template_sources('index.html', template_dirs,
-                                  ['/dir1/index.html', '/dir2/index.html'])
+                                  ['/dir1/index.html', '/DIR2/index.html'])
             test_template_sources('/DIR1/index.HTML', template_dirs,
-                                  ['/dir1/index.html'])
+                                  ['/DIR1/index.HTML'])
 
     def test_loader_debug_origin(self):
         # Turn TEMPLATE_DEBUG on, so that the origin file name will be kept with
@@ -1422,6 +1423,8 @@ class Templates(unittest.TestCase):
             'now02': ('{% now "j "n" Y"%}', {}, template.TemplateSyntaxError),
         #    'now03': ('{% now "j \"n\" Y"%}', {}, str(datetime.now().day) + '"' + str(datetime.now().month) + '"' + str(datetime.now().year)),
         #    'now04': ('{% now "j \nn\n Y"%}', {}, str(datetime.now().day) + '\n' + str(datetime.now().month) + '\n' + str(datetime.now().year))
+            # Check parsing of locale strings
+            'now05': ('{% now "DATE_FORMAT" %}', {},  date_format(datetime.now())),
 
             ### URL TAG ########################################################
             # Successes

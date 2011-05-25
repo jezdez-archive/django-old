@@ -457,7 +457,11 @@ class Query(object):
                 # An unused alias.
                 continue
             promote = (rhs.alias_map[alias][JOIN_TYPE] == self.LOUTER)
-            new_alias = self.join(rhs.rev_join_map[alias],
+            lhs, table, lhs_col, col = rhs.rev_join_map[alias]
+            # If the left side of the join was already relabeled, use the
+            # updated alias.
+            lhs = change_map.get(lhs, lhs)
+            new_alias = self.join((lhs, table, lhs_col, col),
                     (conjunction and not first), used, promote, not conjunction)
             used.add(new_alias)
             change_map[alias] = new_alias
@@ -549,7 +553,10 @@ class Query(object):
         columns = set()
         orig_opts = self.model._meta
         seen = {}
-        must_include = {self.model: set([orig_opts.pk])}
+        if orig_opts.proxy:
+            must_include = {orig_opts.proxy_for_model: set([orig_opts.pk])}
+        else:
+            must_include = {self.model: set([orig_opts.pk])}
         for field_name in field_names:
             parts = field_name.split(LOOKUP_SEP)
             cur_model = self.model
@@ -1046,14 +1053,14 @@ class Query(object):
             value = SQLEvaluator(value, self)
             having_clause = value.contains_aggregate
 
-        if parts[0] in self.aggregates:
-            aggregate = self.aggregates[parts[0]]
-            entry = self.where_class()
-            entry.add((aggregate, lookup_type, value), AND)
-            if negate:
-                entry.negate()
-            self.having.add(entry, connector)
-            return
+        for alias, aggregate in self.aggregates.items():
+            if alias in (parts[0], LOOKUP_SEP.join(parts)):
+                entry = self.where_class()
+                entry.add((aggregate, lookup_type, value), AND)
+                if negate:
+                    entry.negate()
+                self.having.add(entry, connector)
+                return
 
         opts = self.get_meta()
         alias = self.get_initial_alias()

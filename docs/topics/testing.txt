@@ -36,7 +36,8 @@ two test frameworks that ship in the Python standard library. The two
 frameworks are:
 
     * **Unit tests** -- tests that are expressed as methods on a Python class
-      that subclasses ``unittest.TestCase``. For example::
+      that subclasses ``unittest.TestCase`` or Django's customized
+      :class:`TestCase`. For example::
 
           import unittest
 
@@ -94,7 +95,7 @@ module defines tests in class-based approach.
 
         import unittest
 
-    If you want to continue to use the base unittest libary, you can --
+    If you want to continue to use the base unittest library, you can --
     you just won't get any of the nice new unittest2 features.
 
 .. _unittest2: http://pypi.python.org/pypi/unittest2
@@ -1102,7 +1103,16 @@ Converting a normal ``unittest.TestCase`` to a Django ``TestCase`` is easy:
 just change the base class of your test from ``unittest.TestCase`` to
 ``django.test.TestCase``. All of the standard Python unit test functionality
 will continue to be available, but it will be augmented with some useful
-additions.
+additions, including:
+
+    * Automatic loading of fixtures.
+
+    * Wraps each test in a transaction.
+
+    * Creates a TestClient instance.
+
+    * Django-specific assertions for testing for things
+      like redirection and form errors.
 
 .. class:: TransactionTestCase()
 
@@ -1350,6 +1360,91 @@ For example::
 
 This test case will flush *all* the test databases before running
 ``testIndexPageView``.
+
+.. _overriding-setting:
+
+Overriding settings
+~~~~~~~~~~~~~~~~~~~
+
+.. method:: TestCase.settings
+
+.. versionadded:: 1.4
+
+For testing purposes it's often useful to change a setting temporarily
+and revert to the original value after running the testing code. For
+this use case Django provides a standard `Python context manager`_
+:meth:`~django.test.TestCase.settings`, which can be used like this::
+
+    from django.test import TestCase
+
+    class LoginTestCase(TestCase):
+
+        def test_login(self):
+
+            # First check for the default behavior
+            response = self.client.get('/sekrit/')
+            self.assertRedirects(response, '/accounts/login/?next=/sekrit/')
+
+            # Then override the LOGIN_URL setting
+            with self.settings(LOGIN_URL='/other/login/'):
+                response = self.client.get('/sekrit/')
+                self.assertRedirects(response, '/other/login/?next=/sekrit/')
+
+This example will override the :setting:`LOGIN_URL` setting for the code
+in the ``with`` block and reset its value to the previous state afterwards.
+
+.. function:: utils.override_settings
+
+In case you want to override a setting for just one test method or even the
+whole TestCase class, Django provides the
+:func:`django.test.utils.override_settings` decorator_. It's used like this::
+
+    from django.test import TestCase
+    from django.test.utils import override_settings
+
+    class LoginTestCase(TestCase):
+
+        @override_settings(LOGIN_URL='/other/login/')
+        def test_login(self):
+            response = self.client.get('/sekrit/')
+            self.assertRedirects(response, '/other/login/?next=/sekrit/')
+
+The decorator can also be applied to test case classes::
+
+    from django.test import TestCase
+    from django.test.utils import override_settings
+
+    class LoginTestCase(TestCase):
+
+        def test_login(self):
+            response = self.client.get('/sekrit/')
+            self.assertRedirects(response, '/other/login/?next=/sekrit/')
+
+    LoginTestCase = override_settings(LOGIN_URL='/other/login/')(LoginTestCase)
+
+On Python 2.6 and higher you can also use the well known decorator syntax to
+decorate the class::
+
+    from django.test import TestCase
+    from django.test.utils import override_settings
+
+    @override_settings(LOGIN_URL='/other/login/')
+    class LoginTestCase(TestCase):
+
+        def test_login(self):
+            response = self.client.get('/sekrit/')
+            self.assertRedirects(response, '/other/login/?next=/sekrit/')
+
+.. note::
+
+    When overriding settings make sure to also handle the cases in which
+    Django or your app's code uses a cache or similar feature that retains
+    state even if the setting is changed. Django provides the
+    :data:`django.test.signals.setting_changed` signal to connect cleanup
+    and other state-resetting callbacks to.
+
+.. _`Python context manager`: http://www.python.org/dev/peps/pep-0343/
+.. _`decorator`: http://www.python.org/dev/peps/pep-0318/
 
 Emptying the test outbox
 ~~~~~~~~~~~~~~~~~~~~~~~~

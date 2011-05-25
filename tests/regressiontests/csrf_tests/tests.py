@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import with_statement
 import warnings
 
 from django.test import TestCase
 from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import CsrfViewMiddleware
-from django.views.decorators.csrf import csrf_exempt, requires_csrf_token
+from django.views.decorators.csrf import csrf_exempt, requires_csrf_token, ensure_csrf_cookie
 from django.core.context_processors import csrf
 from django.conf import settings
 from django.template import RequestContext, Template
@@ -82,13 +83,21 @@ class CsrfViewMiddlewareTest(TestCase):
         patched.
         """
         req = self._get_GET_no_csrf_cookie_request()
-        # token_view calls get_token() indirectly
-        CsrfViewMiddleware().process_view(req, token_view, (), {})
-        resp = token_view(req)
-        resp2 = CsrfViewMiddleware().process_response(req, resp)
 
-        csrf_cookie = resp2.cookies.get(settings.CSRF_COOKIE_NAME, False)
+        # Put tests for CSRF_COOKIE_* settings here
+        with self.settings(CSRF_COOKIE_NAME='myname',
+                           CSRF_COOKIE_DOMAIN='.example.com',
+                           CSRF_COOKIE_PATH='/test/',
+                           CSRF_COOKIE_SECURE=True):
+            # token_view calls get_token() indirectly
+            CsrfViewMiddleware().process_view(req, token_view, (), {})
+            resp = token_view(req)
+            resp2 = CsrfViewMiddleware().process_response(req, resp)
+        csrf_cookie = resp2.cookies.get('myname', False)
         self.assertNotEqual(csrf_cookie, False)
+        self.assertEqual(csrf_cookie['domain'], '.example.com')
+        self.assertEqual(csrf_cookie['secure'], True)
+        self.assertEqual(csrf_cookie['path'], '/test/')
         self.assertTrue('Cookie' in resp2.get('Vary',''))
 
     def test_process_response_get_token_not_used(self):
@@ -152,6 +161,37 @@ class CsrfViewMiddlewareTest(TestCase):
         Check that we can pass in the token in a header instead of in the form
         """
         req = self._get_POST_csrf_cookie_request()
+        req.META['HTTP_X_CSRFTOKEN'] = self._csrf_id
+        req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
+        self.assertEqual(None, req2)
+
+    def test_put_and_delete_rejected(self):
+        """
+        Tests that HTTP PUT and DELETE methods have protection
+        """
+        req = TestingHttpRequest()
+        req.method = 'PUT'
+        req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
+        self.assertEqual(403, req2.status_code)
+
+        req = TestingHttpRequest()
+        req.method = 'DELETE'
+        req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
+        self.assertEqual(403, req2.status_code)
+
+    def test_put_and_delete_allowed(self):
+        """
+        Tests that HTTP PUT and DELETE methods can get through with
+        X-CSRFToken and a cookie
+        """
+        req = self._get_GET_csrf_cookie_request()
+        req.method = 'PUT'
+        req.META['HTTP_X_CSRFTOKEN'] = self._csrf_id
+        req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
+        self.assertEqual(None, req2)
+
+        req = self._get_GET_csrf_cookie_request()
+        req.method = 'DELETE'
         req.META['HTTP_X_CSRFTOKEN'] = self._csrf_id
         req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
         self.assertEqual(None, req2)
@@ -249,3 +289,35 @@ class CsrfViewMiddlewareTest(TestCase):
         req.META['HTTP_REFERER'] = 'https://www.example.com'
         req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
         self.assertEqual(None, req2)
+
+    def test_ensures_csrf_cookie_no_middleware(self):
+        """
+        Tests that ensures_csrf_cookie decorator fulfils its promise
+        with no middleware
+        """
+        @ensure_csrf_cookie
+        def view(request):
+            # Doesn't insert a token or anything
+            return HttpResponse(content="")
+
+        req = self._get_GET_no_csrf_cookie_request()
+        resp = view(req)
+        self.assertTrue(resp.cookies.get(settings.CSRF_COOKIE_NAME, False))
+        self.assertTrue('Cookie' in resp.get('Vary',''))
+
+    def test_ensures_csrf_cookie_with_middleware(self):
+        """
+        Tests that ensures_csrf_cookie decorator fulfils its promise
+        with the middleware enabled.
+        """
+        @ensure_csrf_cookie
+        def view(request):
+            # Doesn't insert a token or anything
+            return HttpResponse(content="")
+
+        req = self._get_GET_no_csrf_cookie_request()
+        CsrfViewMiddleware().process_view(req, view, (), {})
+        resp = view(req)
+        resp2 = CsrfViewMiddleware().process_response(req, resp)
+        self.assertTrue(resp2.cookies.get(settings.CSRF_COOKIE_NAME, False))
+        self.assertTrue('Cookie' in resp2.get('Vary',''))
