@@ -132,12 +132,14 @@ class ManyToManyCallableInitialTests(TestCase):
         # Create a ModelForm, instantiate it, and check that the output is as expected
         ModelForm = modelform_factory(Article, formfield_callback=formfield_for_dbfield)
         form = ModelForm()
-        self.assertEqual(form.as_ul(), u"""<li><label for="id_headline">Headline:</label> <input id="id_headline" type="text" name="headline" maxlength="100" /></li>
-<li><label for="id_publications">Publications:</label> <select multiple="multiple" name="publications" id="id_publications">
+        self.assertEqual(form.as_ul(), u"""<li><label for="id_headline">Headline:</label> <input type="text" name="headline" id="id_headline" maxlength="100" />
+</li>
+<li><label for="id_publications">Publications:</label> <select name="publications" multiple="multiple" id="id_publications">
 <option value="%d" selected="selected">First Book</option>
 <option value="%d" selected="selected">Second Book</option>
 <option value="%d">Third Book</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>"""
+</select>
+ <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>"""
             % (book1.pk, book2.pk, book3.pk))
 
 class CFFForm(forms.ModelForm):
