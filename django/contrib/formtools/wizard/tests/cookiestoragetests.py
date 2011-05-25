@@ -4,7 +4,7 @@ from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponse
 
 from django.contrib.formtools.wizard.storage.cookie import CookieStorage
-from django.contrib.formtools.wizard.tests.storagetests import *
+from django.contrib.formtools.wizard.tests.storagetests import get_request, TestStorage
 
 class TestCookieStorage(TestStorage, TestCase):
     def get_storage(self):
@@ -24,9 +24,7 @@ class TestCookieStorage(TestStorage, TestCase):
         storage.request.COOKIES[storage.prefix] = 'i_am_manipulated'
         self.assertRaises(SuspiciousOperation, storage.load_data)
 
-        #raise SuspiciousOperation('FormWizard cookie manipulated')
-
-    def test_delete_cookie(self):
+    def test_reset_cookie(self):
         request = get_request()
         storage = self.get_storage()('wizard1', request, None)
 
@@ -39,6 +37,7 @@ class TestCookieStorage(TestStorage, TestCase):
         signed_cookie_data = cookie_signer.sign(storage.encoder.encode(storage.data))
         self.assertEqual(response.cookies[storage.prefix].value, signed_cookie_data)
 
-        storage.data = {}
+        storage.init_data()
         storage.update_response(response)
-        self.assertEqual(response.cookies[storage.prefix].value, '')
+        unsigned_cookie_data = cookie_signer.unsign(response.cookies[storage.prefix].value)
+        self.assertEqual(unsigned_cookie_data, '{"step_files":{},"step":null,"extra_data":{},"step_data":{}}')
