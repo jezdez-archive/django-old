@@ -9,8 +9,10 @@ from django.views.generic import TemplateView
 from django.utils.datastructures import SortedDict
 from django.utils.decorators import classonlymethod
 
-from django.contrib.formtools.wizard.storage import get_storage, NoFileStorageConfigured
+from django.contrib.formtools.wizard.storage import get_storage
+from django.contrib.formtools.wizard.storage.exceptions import NoFileStorageConfigured
 from django.contrib.formtools.wizard.forms import ManagementForm
+
 
 def normalize_name(name):
     new = re.sub('(((?<=[a-z])[A-Z])|([A-Z](?![A-Z]|$)))', '_\\1', name)

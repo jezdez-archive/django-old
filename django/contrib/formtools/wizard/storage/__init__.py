@@ -1,16 +1,9 @@
-from django.core.exceptions import ImproperlyConfigured
 from django.utils.importlib import import_module
 
 from django.contrib.formtools.wizard.storage.base import BaseStorage
+from django.contrib.formtools.wizard.storage.exceptions import (
+    MissingStorageModule, MissingStorageClass, NoFileStorageConfigured)
 
-class MissingStorageModule(ImproperlyConfigured):
-    pass
-
-class MissingStorageClass(ImproperlyConfigured):
-    pass
-
-class NoFileStorageConfigured(ImproperlyConfigured):
-    pass
 
 def get_storage(path, *args, **kwargs):
     i = path.rfind('.')

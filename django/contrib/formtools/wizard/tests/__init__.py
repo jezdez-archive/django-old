@@ -1,5 +1,4 @@
 from django.contrib.formtools.wizard.tests.formtests import *
-from django.contrib.formtools.wizard.tests.basestoragetests import *
 from django.contrib.formtools.wizard.tests.sessionstoragetests import *
 from django.contrib.formtools.wizard.tests.cookiestoragetests import *
 from django.contrib.formtools.wizard.tests.loadstoragetests import *
