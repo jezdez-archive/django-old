@@ -347,13 +347,13 @@ Using 'widgets'
 ...         }
 
 >>> str(CategoryForm()['name'])
-'<textarea id="id_name" rows="10" cols="40" name="name"></textarea>'
+'<textarea id="id_name" name="name" rows="10" cols="40"></textarea>\n'
 
 >>> str(CategoryForm()['url'])
-'<input id="id_url" type="text" class="url" name="url" maxlength="40" />'
+'<input id="id_url" type="text" class="url" name="url" maxlength="40" />\n'
 
 >>> str(CategoryForm()['slug'])
-'<input id="id_slug" type="text" name="slug" maxlength="20" />'
+'<input id="id_slug" type="text" name="slug" maxlength="20" />\n'
 
 Don't allow more than one 'model' definition in the inheritance hierarchy.
 Technically, it would generate a valid form, but the fact that the resulting
@@ -407,9 +407,12 @@ We can also subclass the Meta inner class to change the fields list.
 ...         exclude = ['url']
 
 >>> print SubCategoryForm()
-<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="20" /></td></tr>
-<tr><th><label for="id_slug">Slug:</label></th><td><input id="id_slug" type="text" name="slug" maxlength="20" /></td></tr>
-<tr><th><label for="id_checkbox">Checkbox:</label></th><td><input type="checkbox" name="checkbox" id="id_checkbox" /></td></tr>
+<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="20" />
+</td></tr>
+<tr><th><label for="id_slug">Slug:</label></th><td><input id="id_slug" type="text" name="slug" maxlength="20" />
+</td></tr>
+<tr><th><label for="id_checkbox">Checkbox:</label></th><td><input type="checkbox" name="checkbox" id="id_checkbox" />
+</td></tr>
 
 # test using fields to provide ordering to the fields
 >>> class CategoryForm(ModelForm):
@@ -422,8 +425,10 @@ We can also subclass the Meta inner class to change the fields list.
 
 
 >>> print CategoryForm()
-<tr><th><label for="id_url">The URL:</label></th><td><input id="id_url" type="text" name="url" maxlength="40" /></td></tr>
-<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="20" /></td></tr>
+<tr><th><label for="id_url">The URL:</label></th><td><input id="id_url" type="text" name="url" maxlength="40" />
+</td></tr>
+<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="20" />
+</td></tr>
 
 >>> class CategoryForm(ModelForm):
 ...     class Meta:
@@ -447,21 +452,31 @@ We can also subclass the Meta inner class to change the fields list.
 ...         model = Category
 >>> f = CategoryForm()
 >>> print f
-<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="20" /></td></tr>
-<tr><th><label for="id_slug">Slug:</label></th><td><input id="id_slug" type="text" name="slug" maxlength="20" /></td></tr>
-<tr><th><label for="id_url">The URL:</label></th><td><input id="id_url" type="text" name="url" maxlength="40" /></td></tr>
+<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="20" />
+</td></tr>
+<tr><th><label for="id_slug">Slug:</label></th><td><input id="id_slug" type="text" name="slug" maxlength="20" />
+</td></tr>
+<tr><th><label for="id_url">The URL:</label></th><td><input id="id_url" type="text" name="url" maxlength="40" />
+</td></tr>
 >>> print f.as_ul()
-<li><label for="id_name">Name:</label> <input id="id_name" type="text" name="name" maxlength="20" /></li>
-<li><label for="id_slug">Slug:</label> <input id="id_slug" type="text" name="slug" maxlength="20" /></li>
-<li><label for="id_url">The URL:</label> <input id="id_url" type="text" name="url" maxlength="40" /></li>
+<li><label for="id_name">Name:</label> <input id="id_name" type="text" name="name" maxlength="20" />
+</li>
+<li><label for="id_slug">Slug:</label> <input id="id_slug" type="text" name="slug" maxlength="20" />
+</li>
+<li><label for="id_url">The URL:</label> <input id="id_url" type="text" name="url" maxlength="40" />
+</li>
 >>> print f['name']
-<input id="id_name" type="text" name="name" maxlength="20" />
+<input type="text" name="name" id="id_name" maxlength="20" />
+<BLANKLINE>
 
 >>> f = CategoryForm(auto_id=False)
 >>> print f.as_ul()
-<li>Name: <input type="text" name="name" maxlength="20" /></li>
-<li>Slug: <input type="text" name="slug" maxlength="20" /></li>
-<li>The URL: <input type="text" name="url" maxlength="40" /></li>
+<li>Name: <input type="text" name="name" maxlength="20" />
+</li>
+<li>Slug: <input type="text" name="slug" maxlength="20" />
+</li>
+<li>The URL: <input type="text" name="url" maxlength="40" />
+</li>
 
 >>> f = CategoryForm({'name': 'Entertainment', 'slug': 'entertainment', 'url': 'entertainment'})
 >>> f.is_valid()
@@ -547,26 +562,33 @@ fields with the 'choices' attribute are represented by a ChoiceField.
 ...         model = Article
 >>> f = ArticleForm(auto_id=False)
 >>> print f
-<tr><th>Headline:</th><td><input type="text" name="headline" maxlength="50" /></td></tr>
-<tr><th>Slug:</th><td><input type="text" name="slug" maxlength="50" /></td></tr>
-<tr><th>Pub date:</th><td><input type="text" name="pub_date" /></td></tr>
+<tr><th>Headline:</th><td><input type="text" name="headline" maxlength="50" />
+</td></tr>
+<tr><th>Slug:</th><td><input type="text" name="slug" maxlength="50" />
+</td></tr>
+<tr><th>Pub date:</th><td><input type="text" name="pub_date" />
+</td></tr>
 <tr><th>Writer:</th><td><select name="writer">
 <option value="" selected="selected">---------</option>
 <option value="...">Bob Woodward</option>
 <option value="...">Mike Royko</option>
-</select></td></tr>
-<tr><th>Article:</th><td><textarea rows="10" cols="40" name="article"></textarea></td></tr>
-<tr><th>Categories:</th><td><select multiple="multiple" name="categories">
+</select>
+</td></tr>
+<tr><th>Article:</th><td><textarea name="article" rows="10" cols="40"></textarea>
+</td></tr>
+<tr><th>Categories:</th><td><select name="categories" multiple="multiple">
 <option value="...">Entertainment</option>
 <option value="...">It&#39;s a test</option>
 <option value="...">Third test</option>
-</select><br /><span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></td></tr>
+</select>
+<br /><span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></td></tr>
 <tr><th>Status:</th><td><select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
 <option value="2">Pending</option>
 <option value="3">Live</option>
-</select></td></tr>
+</select>
+</td></tr>
 
 You can restrict a form to a subset of the complete list of fields
 by providing a 'fields' argument. If you try to save a
@@ -580,8 +602,10 @@ from the form can't provide a value for that field!
 ...         fields = ('headline','pub_date')
 >>> f = PartialArticleForm(auto_id=False)
 >>> print f
-<tr><th>Headline:</th><td><input type="text" name="headline" maxlength="50" /></td></tr>
-<tr><th>Pub date:</th><td><input type="text" name="pub_date" /></td></tr>
+<tr><th>Headline:</th><td><input type="text" name="headline" maxlength="50" />
+</td></tr>
+<tr><th>Pub date:</th><td><input type="text" name="pub_date" />
+</td></tr>
 
 When the ModelForm is passed an instance, that instance's current values are
 inserted as 'initial' data in each Field.
@@ -591,7 +615,8 @@ inserted as 'initial' data in each Field.
 ...         model = Writer
 >>> f = RoykoForm(auto_id=False, instance=w)
 >>> print f
-<tr><th>Name:</th><td><input type="text" name="name" value="Mike Royko" maxlength="50" /><br /><span class="helptext">Use both first and last names.</span></td></tr>
+<tr><th>Name:</th><td><input type="text" name="name" value="Mike Royko" maxlength="50" />
+<br /><span class="helptext">Use both first and last names.</span></td></tr>
 
 >>> art = Article(headline='Test article', slug='test-article', pub_date=datetime.date(1988, 1, 4), writer=w, article='Hello.')
 >>> art.save()
@@ -603,26 +628,33 @@ True
 ...         model = Article
 >>> f = TestArticleForm(auto_id=False, instance=art)
 >>> print f.as_ul()
-<li>Headline: <input type="text" name="headline" value="Test article" maxlength="50" /></li>
-<li>Slug: <input type="text" name="slug" value="test-article" maxlength="50" /></li>
-<li>Pub date: <input type="text" name="pub_date" value="1988-01-04" /></li>
+<li>Headline: <input type="text" name="headline" value="Test article" maxlength="50" />
+</li>
+<li>Slug: <input type="text" name="slug" value="test-article" maxlength="50" />
+</li>
+<li>Pub date: <input type="text" name="pub_date" value="1988-01-04" />
+</li>
 <li>Writer: <select name="writer">
 <option value="">---------</option>
 <option value="...">Bob Woodward</option>
 <option value="..." selected="selected">Mike Royko</option>
-</select></li>
-<li>Article: <textarea rows="10" cols="40" name="article">Hello.</textarea></li>
-<li>Categories: <select multiple="multiple" name="categories">
+</select>
+</li>
+<li>Article: <textarea name="article" rows="10" cols="40">Hello.</textarea>
+</li>
+<li>Categories: <select name="categories" multiple="multiple">
 <option value="...">Entertainment</option>
 <option value="...">It&#39;s a test</option>
 <option value="...">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select>
+ <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
 <option value="2">Pending</option>
 <option value="3">Live</option>
-</select></li>
+</select>
+</li>
 >>> f = TestArticleForm({'headline': u'Test headline', 'slug': 'test-headline', 'pub_date': u'1984-02-06', 'writer': unicode(w_royko.pk), 'article': 'Hello.'}, instance=art)
 >>> f.errors
 {}
@@ -643,9 +675,12 @@ by specifying a 'fields' argument to form_for_instance.
 ...         fields=('headline', 'slug', 'pub_date')
 >>> f = PartialArticleForm({'headline': u'New headline', 'slug': 'new-headline', 'pub_date': u'1988-01-04'}, auto_id=False, instance=art)
 >>> print f.as_ul()
-<li>Headline: <input type="text" name="headline" value="New headline" maxlength="50" /></li>
-<li>Slug: <input type="text" name="slug" value="new-headline" maxlength="50" /></li>
-<li>Pub date: <input type="text" name="pub_date" value="1988-01-04" /></li>
+<li>Headline: <input type="text" name="headline" value="New headline" maxlength="50" />
+</li>
+<li>Slug: <input type="text" name="slug" value="new-headline" maxlength="50" />
+</li>
+<li>Pub date: <input type="text" name="pub_date" value="1988-01-04" />
+</li>
 >>> f.is_valid()
 True
 >>> new_art = f.save()
@@ -666,50 +701,64 @@ Add some categories and test the many-to-many form output.
 ...         model = Article
 >>> f = TestArticleForm(auto_id=False, instance=new_art)
 >>> print f.as_ul()
-<li>Headline: <input type="text" name="headline" value="New headline" maxlength="50" /></li>
-<li>Slug: <input type="text" name="slug" value="new-headline" maxlength="50" /></li>
-<li>Pub date: <input type="text" name="pub_date" value="1988-01-04" /></li>
+<li>Headline: <input type="text" name="headline" value="New headline" maxlength="50" />
+</li>
+<li>Slug: <input type="text" name="slug" value="new-headline" maxlength="50" />
+</li>
+<li>Pub date: <input type="text" name="pub_date" value="1988-01-04" />
+</li>
 <li>Writer: <select name="writer">
 <option value="">---------</option>
 <option value="...">Bob Woodward</option>
 <option value="..." selected="selected">Mike Royko</option>
-</select></li>
-<li>Article: <textarea rows="10" cols="40" name="article">Hello.</textarea></li>
-<li>Categories: <select multiple="multiple" name="categories">
+</select>
+</li>
+<li>Article: <textarea name="article" rows="10" cols="40">Hello.</textarea>
+</li>
+<li>Categories: <select name="categories" multiple="multiple">
 <option value="..." selected="selected">Entertainment</option>
 <option value="...">It&#39;s a test</option>
 <option value="...">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select>
+ <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
 <option value="2">Pending</option>
 <option value="3">Live</option>
-</select></li>
+</select>
+</li>
 
 Initial values can be provided for model forms
 >>> f = TestArticleForm(auto_id=False, initial={'headline': 'Your headline here', 'categories': [str(c1.id), str(c2.id)]})
 >>> print f.as_ul()
-<li>Headline: <input type="text" name="headline" value="Your headline here" maxlength="50" /></li>
-<li>Slug: <input type="text" name="slug" maxlength="50" /></li>
-<li>Pub date: <input type="text" name="pub_date" /></li>
+<li>Headline: <input type="text" name="headline" value="Your headline here" maxlength="50" />
+</li>
+<li>Slug: <input type="text" name="slug" maxlength="50" />
+</li>
+<li>Pub date: <input type="text" name="pub_date" />
+</li>
 <li>Writer: <select name="writer">
 <option value="" selected="selected">---------</option>
 <option value="...">Bob Woodward</option>
 <option value="...">Mike Royko</option>
-</select></li>
-<li>Article: <textarea rows="10" cols="40" name="article"></textarea></li>
-<li>Categories: <select multiple="multiple" name="categories">
+</select>
+</li>
+<li>Article: <textarea name="article" rows="10" cols="40"></textarea>
+</li>
+<li>Categories: <select name="categories" multiple="multiple">
 <option value="..." selected="selected">Entertainment</option>
 <option value="..." selected="selected">It&#39;s a test</option>
 <option value="...">Third test</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select>
+ <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
 <option value="2">Pending</option>
 <option value="3">Live</option>
-</select></li>
+</select>
+</li>
 
 >>> f = TestArticleForm({'headline': u'New headline', 'slug': u'new-headline', 'pub_date': u'1988-01-04',
 ...     'writer': unicode(w_royko.pk), 'article': u'Hello.', 'categories': [unicode(c1.id), unicode(c2.id)]}, instance=new_art)
@@ -809,54 +858,68 @@ the data in the database when the form is instantiated.
 ...         model = Article
 >>> f = ArticleForm(auto_id=False)
 >>> print f.as_ul()
-<li>Headline: <input type="text" name="headline" maxlength="50" /></li>
-<li>Slug: <input type="text" name="slug" maxlength="50" /></li>
-<li>Pub date: <input type="text" name="pub_date" /></li>
+<li>Headline: <input type="text" name="headline" maxlength="50" />
+</li>
+<li>Slug: <input type="text" name="slug" maxlength="50" />
+</li>
+<li>Pub date: <input type="text" name="pub_date" />
+</li>
 <li>Writer: <select name="writer">
 <option value="" selected="selected">---------</option>
 <option value="...">Bob Woodward</option>
 <option value="...">Mike Royko</option>
-</select></li>
-<li>Article: <textarea rows="10" cols="40" name="article"></textarea></li>
-<li>Categories: <select multiple="multiple" name="categories">
+</select>
+</li>
+<li>Article: <textarea name="article" rows="10" cols="40"></textarea>
+</li>
+<li>Categories: <select name="categories" multiple="multiple">
 <option value="...">Entertainment</option>
 <option value="...">It&#39;s a test</option>
 <option value="...">Third</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select>
+ <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
 <option value="2">Pending</option>
 <option value="3">Live</option>
-</select></li>
+</select>
+</li>
 >>> c4 = Category.objects.create(name='Fourth', url='4th')
 >>> c4
 <Category: Fourth>
 >>> Writer.objects.create(name='Carl Bernstein')
 <Writer: Carl Bernstein>
 >>> print f.as_ul()
-<li>Headline: <input type="text" name="headline" maxlength="50" /></li>
-<li>Slug: <input type="text" name="slug" maxlength="50" /></li>
-<li>Pub date: <input type="text" name="pub_date" /></li>
+<li>Headline: <input type="text" name="headline" maxlength="50" />
+</li>
+<li>Slug: <input type="text" name="slug" maxlength="50" />
+</li>
+<li>Pub date: <input type="text" name="pub_date" />
+</li>
 <li>Writer: <select name="writer">
 <option value="" selected="selected">---------</option>
 <option value="...">Bob Woodward</option>
 <option value="...">Carl Bernstein</option>
 <option value="...">Mike Royko</option>
-</select></li>
-<li>Article: <textarea rows="10" cols="40" name="article"></textarea></li>
-<li>Categories: <select multiple="multiple" name="categories">
+</select>
+</li>
+<li>Article: <textarea name="article" rows="10" cols="40"></textarea>
+</li>
+<li>Categories: <select name="categories" multiple="multiple">
 <option value="...">Entertainment</option>
 <option value="...">It&#39;s a test</option>
 <option value="...">Third</option>
 <option value="...">Fourth</option>
-</select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
+</select>
+ <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></li>
 <li>Status: <select name="status">
 <option value="" selected="selected">---------</option>
 <option value="1">Draft</option>
 <option value="2">Pending</option>
 <option value="3">Live</option>
-</select></li>
+</select>
+</li>
 
 # ModelChoiceField ############################################################
 
@@ -1070,8 +1133,10 @@ True
 <option value="...">Carl Bernstein</option>
 <option value="...">Joe Better</option>
 <option value="...">Mike Royko</option>
-</select></p>
-<p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" /></p>
+</select>
+</p>
+<p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" />
+</p>
 
 >>> data = {
 ...     'writer': unicode(w_woodward.pk),
@@ -1090,8 +1155,10 @@ True
 <option value="...">Carl Bernstein</option>
 <option value="...">Joe Better</option>
 <option value="...">Mike Royko</option>
-</select></p>
-<p><label for="id_age">Age:</label> <input type="text" name="age" value="65" id="id_age" /></p>
+</select>
+</p>
+<p><label for="id_age">Age:</label> <input type="text" name="age" value="65" id="id_age" />
+</p>
 
 # PhoneNumberField ############################################################
 
@@ -1554,6 +1621,7 @@ ValidationError: [u'Select a valid choice. z is not one of the available choices
 <option value="87">Core</option>
 <option value="22">Pear</option>
 </select>
+<BLANKLINE>
 
 >>> data = model_to_dict(core)
 >>> data['parent'] = '22'
@@ -1572,8 +1640,10 @@ ValidationError: [u'Select a valid choice. z is not one of the available choices
 ['description', 'url']
 
 >>> print CategoryForm()
-<tr><th><label for="id_description">Description:</label></th><td><input type="text" name="description" id="id_description" /></td></tr>
-<tr><th><label for="id_url">The URL:</label></th><td><input id="id_url" type="text" name="url" maxlength="40" /></td></tr>
+<tr><th><label for="id_description">Description:</label></th><td><input type="text" name="description" id="id_description" />
+</td></tr>
+<tr><th><label for="id_url">The URL:</label></th><td><input id="id_url" type="text" name="url" maxlength="40" />
+</td></tr>
 
 # to_field_name should also work on ModelMultipleChoiceField ##################
 
@@ -1605,7 +1675,8 @@ True
 ['name']
 
 >>> print CustomFieldForExclusionForm()
-<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="10" /></td></tr>
+<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="10" />
+</td></tr>
 
 # Clean up
 >>> import shutil
