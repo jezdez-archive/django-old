@@ -3,14 +3,7 @@ FormWizard class -- implements a multi-page form, validating between each
 step and storing the form's state as HTML hidden fields so that no state is
 stored on the server side.
 """
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
 from django.forms import HiddenInput
-from django.conf import settings
 from django.contrib.formtools.utils import form_hmac
 from django.http import Http404
 from django.shortcuts import render_to_response
