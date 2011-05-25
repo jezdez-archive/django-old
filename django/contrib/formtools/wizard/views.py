@@ -92,10 +92,13 @@ class WizardView(TemplateView):
     """
     storage_name = None
     form_list = None
-    initial_list = None
-    instance_list = None
-    condition_list = None
+    initial_dict = None
+    instance_dict = None
+    condition_dict = None
     template_name = 'formtools/wizard/wizard_form.html'
+
+    def __repr__(self):
+        return '<%s: forms: %s>' % (self.__class__.__name__, self.form_list)
 
     @classonlymethod
     def as_view(cls, *args, **kwargs):
@@ -109,7 +112,7 @@ class WizardView(TemplateView):
 
     @classmethod
     def get_initkwargs(cls, form_list,
-            initial_list=None, instance_list=None, condition_list=None):
+            initial_dict=None, instance_dict=None, condition_dict=None):
         """
         Creates a dict with all needed parameters for the form wizard instances.
 
@@ -118,23 +121,23 @@ class WizardView(TemplateView):
           of forms, the formwizard will convert the class list to
           (`zero_based_counter`, `form_class`). This is needed to access the
           form for a specific step.
-        * `initial_list` - contains a dictionary of initial data dictionaries.
+        * `initial_dict` - contains a dictionary of initial data dictionaries.
           The key should be equal to the `step_name` in the `form_list` (or
           the str of the zero based counter - if no step_names added in the
           `form_list`)
-        * `instance_list` - contains a dictionary of instance objects. This list
+        * `instance_dict` - contains a dictionary of instance objects. This list
           is only used when `ModelForm`s are used. The key should be equal to
-          the `step_name` in the `form_list`. Same rules as for `initial_list`
+          the `step_name` in the `form_list`. Same rules as for `initial_dict`
           apply.
-        * `condition_list` - contains a dictionary of boolean values or
+        * `condition_dict` - contains a dictionary of boolean values or
           callables. If the value of for a specific `step_name` is callable it
           will be called with the formwizard instance as the only argument.
           If the return value is true, the step's form will be used.
         """
         kwargs = {
-            'initial_list': initial_list or {},
-            'instance_list': instance_list or {},
-            'condition_list': condition_list or {},
+            'initial_dict': initial_dict or {},
+            'instance_dict': instance_dict or {},
+            'condition_dict': condition_dict or {},
         }
         init_form_list = SortedDict()
 
@@ -167,15 +170,14 @@ class WizardView(TemplateView):
         kwargs['form_list'] = init_form_list
         return kwargs
 
-    def __init__(self, *args, **kwargs):
-        super(WizardView, self).__init__(*args, **kwargs)
-        self.steps = StepsHelper(self)
-        self.wizard_name = normalize_name(self.__class__.__name__)
-        # TODO: Add some kind of unique id to prefix
-        self.prefix = self.wizard_name
+    @property
+    def wizard_name(self):
+        return normalize_name(self.__class__.__name__)
 
-    def __repr__(self):
-        return '<%s: forms: %s>' % (self.__class__.__name__, self.form_list)
+    @property
+    def prefix(self):
+        # TODO: Add some kind of unique id to prefix
+        return self.wizard_name
 
     def get_form_list(self):
         """
@@ -192,7 +194,7 @@ class WizardView(TemplateView):
         for form_key, form_class in self.form_list.iteritems():
             # try to fetch the value from condition list, by default, the form
             # gets passed to the new list.
-            condition = self.condition_list.get(form_key, True)
+            condition = self.condition_dict.get(form_key, True)
             if callable(condition):
                 # call the value if needed, passes the current instance.
                 condition = condition(self)
@@ -213,6 +215,7 @@ class WizardView(TemplateView):
         # add the storage engine to the current formwizard instance
         self.storage = get_storage(self.storage_name, self.prefix, request,
             getattr(self, 'file_storage', None))
+        self.steps = StepsHelper(self)
         response = super(WizardView, self).dispatch(request, *args, **kwargs)
 
         # update the response (e.g. adding cookies)
@@ -349,7 +352,7 @@ class WizardView(TemplateView):
         as `initial`. If no initial data was provied while initializing the
         form wizard, a empty dictionary will be returned.
         """
-        return self.initial_list.get(step, {})
+        return self.initial_dict.get(step, {})
 
     def get_form_instance(self, step):
         """
@@ -357,7 +360,7 @@ class WizardView(TemplateView):
         as `instance`. If no instance object was provied while initializing
         the form wizard, None be returned.
         """
-        return self.instance_list.get(step, None)
+        return self.instance_dict.get(step, None)
 
     def get_form(self, step=None, data=None, files=None):
         """

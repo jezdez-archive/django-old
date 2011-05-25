@@ -92,13 +92,13 @@ class FormTests(TestCase):
 
         testform = TestWizard.as_view(
             [('start', Step1), ('step2', Step2), ('step3', Step3)],
-            condition_list={'step2': True})
+            condition_dict={'step2': True})
         response, instance = testform(request)
         self.assertEquals(instance.get_next_step(), 'step2')
 
         testform = TestWizard.as_view(
             [('start', Step1), ('step2', Step2), ('step3', Step3)],
-            condition_list={'step2': False})
+            condition_dict={'step2': False})
         response, instance = testform(request)
         self.assertEquals(instance.get_next_step(), 'step3')
 
@@ -128,7 +128,7 @@ class FormTests(TestCase):
         request = get_request()
 
         testform = TestWizard.as_view([('start', Step1), ('step2', Step2)],
-            initial_list={'start': {'name': 'value1'}})
+            initial_dict={'start': {'name': 'value1'}})
         response, instance = testform(request)
 
         self.assertEqual(instance.get_form_initial('start'), {'name': 'value1'})
@@ -138,7 +138,7 @@ class FormTests(TestCase):
         request = get_request()
         the_instance = User()
         testform = TestWizard.as_view([('start', UserForm), ('step2', Step2)],
-            instance_list={'start': the_instance})
+            instance_dict={'start': the_instance})
         response, instance = testform(request)
 
         self.assertEqual(
@@ -155,7 +155,7 @@ class FormTests(TestCase):
         the_instance2, created = User.objects.get_or_create(
             username='testuser2')
         testform = TestWizard.as_view([('start', UserFormSet), ('step2', Step2)],
-            instance_list={'start': User.objects.filter(username='testuser1')})
+            instance_dict={'start': User.objects.filter(username='testuser1')})
         response, instance = testform(request)
 
         self.assertEqual(list(instance.get_form_instance('start')), [the_instance1])
