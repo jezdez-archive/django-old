@@ -1,6 +1,11 @@
 import re
+import warnings
 from django import forms
 from django.test import TestCase
+
+warnings.filterwarnings('ignore', category=PendingDeprecationWarning,
+                        module='django.contrib.formtools.wizard')
+
 
 class FormWizardWithNullBooleanField(TestCase):
     urls = 'regressiontests.formwizard.urls'

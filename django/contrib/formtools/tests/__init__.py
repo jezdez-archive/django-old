@@ -10,6 +10,9 @@ from django.utils import unittest
 
 from django.contrib.formtools.wizard.tests import *
 
+warnings.filterwarnings('ignore', category=PendingDeprecationWarning,
+                        module='django.contrib.formtools.wizard')
+
 
 success_string = "Done was called!"
 

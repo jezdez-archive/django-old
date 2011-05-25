@@ -42,6 +42,12 @@ class FormWizard(object):
         # A zero-based counter keeping track of which step we're in.
         self.step = 0
 
+        import warnings
+        warnings.warn(
+            'Old-style form wizards have been deprecated; use the class-based '
+            'views in django.contrib.formtools.wizard.views instead.',
+            PendingDeprecationWarning)
+
     def __repr__(self):
         return "step: %d\nform_list: %s\ninitial_data: %s" % (self.step, self.form_list, self.initial)
 
