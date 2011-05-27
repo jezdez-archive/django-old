@@ -49,6 +49,7 @@ class AssertNumQueriesTests(TestCase):
             self.client.get("/test_utils/get_person/%s/" % person.pk)
         self.assertNumQueries(2, test_func)
 
+
 class AssertNumQueriesContextManagerTests(TestCase):
     urls = 'regressiontests.test_utils.urls'
 
@@ -114,6 +115,98 @@ class SaveRestoreWarningState(TestCase):
 
         # Remove the filter we just added.
         self.restore_warnings_state()
+
+
+class HTMLEqualTests(TestCase):
+    def test_html_parser(self):
+        from django.test.html import parse_html
+        element = parse_html('<div><p>Hello</p></div>')
+        self.assertEqual(len(element.children), 1)
+        self.assertEqual(element.children[0].name, 'p')
+        self.assertEqual(element.children[0].children[0], 'Hello')
+
+    def test_simple_equal_html(self):
+        self.assertHTMLEqual('', '')
+        self.assertHTMLEqual('<p></p>', '<p></p>')
+        self.assertHTMLEqual('<p></p>', ' <p> </p> ')
+        self.assertHTMLEqual(
+            '<div><p>Hello</p></div>',
+            '<div><p>Hello</p></div>')
+        self.assertHTMLEqual(
+            '<div><p>Hello</p></div>',
+            '<div> <p>Hello</p> </div>')
+        self.assertHTMLEqual(
+            '<div>\n<p>Hello</p></div>',
+            '<div><p>Hello</p></div>\n')
+        self.assertHTMLEqual(
+            '<div><p>Hello\nWorld !</p></div>',
+            '<div><p>Hello World\n!</p></div>')
+        self.assertHTMLEqual(
+            '<div><p>Hello\nWorld !</p></div>',
+            '<div><p>Hello World\n!</p></div>')
+        self.assertHTMLEqual(
+            '<p>Hello  World   !</p>',
+            '<p>Hello World\n\n!</p>')
+        self.assertHTMLEqual('<p> </p>', '<p></p>')
+        self.assertHTMLEqual('<p/>', '<p></p>')
+        self.assertHTMLEqual('<p />', '<p></p>')
+
+    def test_ignore_comments(self):
+        self.assertHTMLEqual(
+            '<div>Hello<!-- this is a comment --> World!</div>',
+            '<div>Hello World!</div>')
+
+    def test_unequal_html(self):
+        self.assertHTMLNotEqual('<p>Hello</p>', '<p>Hello!</p>')
+        self.assertHTMLNotEqual('<p>foo&#20;bar</p>', '<p>foo&nbsp;bar</p>')
+        self.assertHTMLNotEqual('<p>foo bar</p>', '<p>foo &nbsp;bar</p>')
+        self.assertHTMLNotEqual('<p>foo nbsp</p>', '<p>foo &nbsp;</p>')
+        self.assertHTMLNotEqual('<p>foo #20</p>', '<p>foo &#20;</p>')
+
+    def test_attributes(self):
+        self.assertHTMLEqual(
+            '<input type="text" id="id_name" />',
+            '<input id="id_name" type="text" />')
+        self.assertHTMLEqual(
+            '''<input type='text' id="id_name" />''',
+            '<input id="id_name" type="text" />')
+        self.assertHTMLEqual(
+            '<input type="text" id="id_name" />',
+            '<input type="password" id="id_name" />')
+
+    def test_complex_examples(self):
+        self.assertHTMLEqual(
+        """<tr><th><label for="id_first_name">First name:</label></th>
+<td><input type="text" name="first_name" value="John" id="id_first_name" /></td></tr>
+<tr><th><label for="id_last_name">Last name:</label></th>
+<td><input type="text" id="id_last_name" name="last_name" value="Lennon" /></td></tr>
+<tr><th><label for="id_birthday">Birthday:</label></th>
+<td><input type="text" value="1940-10-9" name="birthday" id="id_birthday" /></td></tr>""",
+        """
+        <tr><th>
+            <label for="id_first_name">First name:</label></th><td><input type="text" name="first_name" value="John" id="id_first_name" />
+        </td></tr>
+        <tr><th>
+            <label for="id_last_name">Last name:</label></th><td><input type="text" name="last_name" value="Lennon" id="id_last_name" />
+        </td></tr>
+        <tr><th>
+            <label for="id_birthday">Birthday:</label></th><td><input type="text" name="birthday" value="1940-10-9" id="id_birthday" />
+        </td></tr>
+        """)
+
+    def test_parsing_errors(self):
+        from django.test.html import HTMLParseError, parse_html
+        with self.assertRaises(AssertionError):
+            self.assertHTMLEqual('<p>', '')
+        with self.assertRaises(AssertionError):
+            self.assertHTMLEqual('', '<p>')
+        with self.assertRaises(HTMLParseError):
+            parse_html('<p>')
+        with self.assertRaises(HTMLParseError):
+            parse_html('</p>')
+        with self.assertRaises(HTMLParseError):
+            parse_html('<!--')
+
 
 __test__ = {"API_TEST": r"""
 # Some checks of the doctest output normalizer.

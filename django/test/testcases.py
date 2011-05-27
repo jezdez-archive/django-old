@@ -1,5 +1,6 @@
 from __future__ import with_statement
 
+import difflib
 import re
 import sys
 from functools import wraps
@@ -16,9 +17,11 @@ from django.db import (transaction, connection, connections, DEFAULT_DB_ALIAS,
 from django.http import QueryDict
 from django.test import _doctest as doctest
 from django.test.client import Client
+from django.test.html import HTMLParseError, parse_html
 from django.test.utils import get_warnings_state, restore_warnings_state, override_settings
 from django.utils import simplejson, unittest as ut2
 from django.utils.encoding import smart_str
+from django.utils.unittest.util import safe_repr
 
 __all__ = ('DocTestRunner', 'OutputChecker', 'TestCase', 'TransactionTestCase',
            'skipIfDBFeature', 'skipUnlessDBFeature')
@@ -542,6 +545,35 @@ class TransactionTestCase(ut2.TestCase):
         # Basically emulate the `with` statement here.
         with context:
             func(*args, **kwargs)
+
+    def assertHTMLEqual(self, html1, html2, msg=None):
+        try:
+            dom1 = parse_html(html1)
+        except HTMLParseError, e:
+            standardMsg = u'First argument is no valid html:\n%s' % e.msg
+            self.fail(self._formatMessage(msg, standardMsg))
+        try:
+            dom2 = parse_html(html2)
+        except HTMLParseError, e:
+            standardMsg = u'Second argument is no valid html:\n%s' % e.msg
+            self.fail(self._formatMessage(msg, standardMsg))
+
+        if dom1 != dom2:
+            standardMsg = '%s != %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
+            diff = ('\n' + '\n'.join(difflib.ndiff(
+                           unicode(dom1).splitlines(),
+                           unicode(dom2).splitlines())))
+            standardMsg = self._truncateMessage(standardMsg, diff)
+            self.fail(self._formatMessage(msg, standardMsg))
+
+    def assertHTMLNotEqual(self, html1, html2, msg=None):
+        dom1 = parse_html(html1)
+        dom2 = parse_html(html2)
+
+        if not dom1 != dom2:
+            standardMsg = '%s == %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
+            self.fail(self._formatMessage(msg, standardMsg))
+
 
 def connections_support_transactions():
     """
