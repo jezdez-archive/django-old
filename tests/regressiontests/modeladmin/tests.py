@@ -153,12 +153,12 @@ class ModelAdminTests(TestCase):
         ma = ConcertAdmin(Concert, self.site)
         form = ma.get_form(request)()
 
-        self.assertEqual(str(form["main_band"]),
+        self.assertHTMLEqual(str(form["main_band"]),
             '<select name="main_band" id="id_main_band">\n'
             '<option value="" selected="selected">---------</option>\n'
             '<option value="%d">The Beatles</option>\n'
             '<option value="%d">The Doors</option>\n'
-            '</select>\n\n' % (band2.id, self.band.id))
+            '</select>' % (band2.id, self.band.id))
 
         class AdminConcertForm(forms.ModelForm):
             class Meta:
@@ -174,11 +174,11 @@ class ModelAdminTests(TestCase):
         ma = ConcertAdmin(Concert, self.site)
         form = ma.get_form(request)()
 
-        self.assertEqual(str(form["main_band"]),
+        self.assertHTMLEqual(str(form["main_band"]),
             '<select name="main_band" id="id_main_band">\n'
             '<option value="" selected="selected">---------</option>\n'
             '<option value="%d">The Doors</option>\n'
-            '</select>\n\n' % self.band.id)
+            '</select>' % self.band.id)
 
     # radio_fields behavior ###########################################
 

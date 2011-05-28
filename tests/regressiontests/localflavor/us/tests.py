@@ -81,8 +81,8 @@ class USLocalflavorTests(TestCase):
 <option value="WV">West Virginia</option>
 <option value="WI">Wisconsin</option>
 <option value="WY">Wyoming</option>
-</select>\n"""
-        self.assertEqual(str(self.form['state']), state_select_html)
+</select>"""
+        self.assertHTMLEqual(str(self.form['state']), state_select_html)
 
     def test_full_postal_code_list(self):
         """Test that the full USPS code field is really the full list."""
@@ -151,5 +151,5 @@ class USLocalflavorTests(TestCase):
 <option value="WV">West Virginia</option>
 <option value="WI">Wisconsin</option>
 <option value="WY">Wyoming</option>
-</select>\n"""
-        self.assertEqual(str(self.form['postal_code']), usps_select_html)
+</select>"""
+        self.assertHTMLEqual(str(self.form['postal_code']), usps_select_html)
