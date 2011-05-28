@@ -547,6 +547,8 @@ class TransactionTestCase(ut2.TestCase):
             func(*args, **kwargs)
 
     def assertHTMLEqual(self, html1, html2, msg=None):
+        html1 = unicode(html1)
+        html2 = unicode(html2)
         try:
             dom1 = parse_html(html1)
         except HTMLParseError, e:
