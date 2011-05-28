@@ -125,6 +125,30 @@ class HTMLEqualTests(TestCase):
         self.assertEqual(element.children[0].name, 'p')
         self.assertEqual(element.children[0].children[0], 'Hello')
 
+        parse_html('<p>')
+        dom = parse_html('<p>foo')
+        self.assertEqual(len(dom.children), 1)
+        self.assertEqual(dom.name, 'p')
+        self.assertEqual(dom[0], 'foo')
+
+    def test_self_closing_tags(self):
+        from django.test.html import parse_html
+
+        self_closing_tags = ('br' , 'hr', 'input', 'img', 'meta', 'spacer',
+            'link', 'frame', 'base', 'col')
+        for tag in self_closing_tags:
+            dom = parse_html('<p>Hello <%s> world</p>' % tag)
+            self.assertEqual(len(dom.children), 3)
+            self.assertEqual(dom[0], 'Hello ')
+            self.assertEqual(dom[1].name, tag)
+            self.assertEqual(dom[2], ' world')
+
+            dom = parse_html('<p>Hello <%s /> world</p>' % tag)
+            self.assertEqual(len(dom.children), 3)
+            self.assertEqual(dom[0], 'Hello ')
+            self.assertEqual(dom[1].name, tag)
+            self.assertEqual(dom[2], ' world')
+
     def test_simple_equal_html(self):
         self.assertHTMLEqual('', '')
         self.assertHTMLEqual('<p></p>', '<p></p>')
@@ -170,7 +194,7 @@ class HTMLEqualTests(TestCase):
         self.assertHTMLEqual(
             '''<input type='text' id="id_name" />''',
             '<input id="id_name" type="text" />')
-        self.assertHTMLEqual(
+        self.assertHTMLNotEqual(
             '<input type="text" id="id_name" />',
             '<input type="password" id="id_name" />')
 
@@ -194,14 +218,41 @@ class HTMLEqualTests(TestCase):
         </td></tr>
         """)
 
+        self.assertHTMLEqual(
+        """<!DOCTYPE html>
+        <html>
+        <head>
+            <link rel="stylesheet">
+            <title>Document</title>
+            <meta attribute="value">
+        </head>
+        <body>
+            <p>
+            This is a valid paragraph
+            <div> this is a div AFTER the p</div>
+        </body>
+        </html>""", """
+        <html>
+        <head>
+            <link rel="stylesheet">
+            <title>Document</title>
+            <meta attribute="value">
+        </head>
+        <body>
+            <p> This is a valid paragraph
+            <!-- browsers would close the p tag here -->
+            <div> this is a div AFTER the p</div>
+            </p> <!-- this is invalid html parsing however it should make no
+            difference in most cases -->
+        </body>
+        </html>""")
+
     def test_parsing_errors(self):
         from django.test.html import HTMLParseError, parse_html
         with self.assertRaises(AssertionError):
             self.assertHTMLEqual('<p>', '')
         with self.assertRaises(AssertionError):
             self.assertHTMLEqual('', '<p>')
-        with self.assertRaises(HTMLParseError):
-            parse_html('<p>')
         with self.assertRaises(HTMLParseError):
             parse_html('</p>')
         with self.assertRaises(HTMLParseError):

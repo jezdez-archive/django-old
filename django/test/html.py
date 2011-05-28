@@ -26,6 +26,7 @@ class Element(object):
                 element = element.lstrip()
             elif isinstance(self.children[-1], basestring):
                 self.children[-1] += element
+                self.children[-1] = normalize_whitespace(self.children[-1])
                 return
         elif self.children:
             # removing last children if it is only whitespace
@@ -64,14 +65,17 @@ class Element(object):
     def __ne__(self, element):
         return not self.__eq__(element)
 
+    def __getitem__(self, key):
+        return self.children[key]
+
     def __unicode__(self):
         output = u'<%s' % self.name
         for key, value in self.attributes:
             output += u' %s="%s"' % (key, value)
         if self.children:
-            output += u'>'
+            output += u'>\n'
             output += u''.join(unicode(c) for c in self.children)
-            output += u'</%s>' % self.name
+            output += u'\n</%s>' % self.name
         else:
             output += u' />'
         return output
@@ -92,6 +96,9 @@ class RootElement(Element):
 
 
 class Parser(HTMLParser):
+    SELF_CLOSING_TAGS = ('br' , 'hr', 'input', 'img', 'meta', 'spacer',
+        'link', 'frame', 'base', 'col')
+
     def __init__(self):
         HTMLParser.__init__(self)
         self.root = RootElement()
@@ -117,10 +124,16 @@ class Parser(HTMLParser):
         else:
             return self.root
 
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in self.SELF_CLOSING_TAGS:
+            self.handle_endtag(tag)
+
     def handle_starttag(self, tag, attrs):
         element = Element(tag, attrs)
         self.current.append(element)
-        self.open_tags.append(element)
+        if tag not in self.SELF_CLOSING_TAGS:
+            self.open_tags.append(element)
         self.element_positions[element] = self.getpos()
 
     def handle_endtag(self, tag):
@@ -128,13 +141,11 @@ class Parser(HTMLParser):
             self.error("Unexpected end tag `%s` (%s)" % (
                 tag, self.format_position()))
         element = self.open_tags.pop()
-        if element.name != tag:
-            self.error(
-                "End tag `%s` (%s) doesn't match start tag `%s` (%s)." % (
-                    tag,
-                    self.format_position(),
-                    element.tag,
-                    self.format_position(element=element)))
+        while element.name != tag:
+            if not self.open_tags:
+                self.error("Unexpected end tag `%s` (%s)" % (
+                    tag, self.format_position()))
+            element = self.open_tags.pop()
 
     def handle_data(self, data):
         self.current.append(data)
@@ -145,14 +156,6 @@ class Parser(HTMLParser):
     def handle_entityref(self, name):
         self.current.append('&%s;' % name)
 
-    def close(self):
-        if self.open_tags:
-            self.error("Several tags (%s) were not closed" % (
-                ', '.join(
-                    '%s: %s' % (e.name, self.format_position(element=e))
-                    for e in self.open_tags)))
-        HTMLParser.close(self)
-
 
 def parse_html(html):
     parser = Parser()
@@ -160,6 +163,7 @@ def parse_html(html):
     parser.close()
     document = parser.root
     document.finalize()
+    # Removing ROOT element if it's not necessary
     if len(document.children) == 1:
         document = document.children[0]
     return document
