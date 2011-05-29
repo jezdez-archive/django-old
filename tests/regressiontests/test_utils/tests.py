@@ -271,6 +271,41 @@ class HTMLEqualTests(TestCase):
         dom1 = parse_html('<p>bar</p>')
         self.assertTrue(dom1 in dom2)
 
+    def test_count(self):
+        from django.test.html import parse_html
+        # equal html contains each other one time
+        dom1 = parse_html('<p>foo')
+        dom2 = parse_html('<p>foo</p>')
+        self.assertEqual(dom1.count(dom2), 1)
+        self.assertEqual(dom2.count(dom1), 1)
+
+        dom2 = parse_html('<p>foo</p><p>bar</p>')
+        self.assertEqual(dom2.count(dom1), 1)
+
+        dom2 = parse_html('<p>foo foo</p><p>foo</p>')
+        self.assertEqual(dom2.count('foo'), 3)
+
+        dom2 = parse_html('<p class="bar">foo</p>')
+        self.assertEqual(dom2.count('bar'), 0)
+        self.assertEqual(dom2.count('class'), 0)
+        self.assertEqual(dom2.count('p'), 0)
+        self.assertEqual(dom2.count('o'), 2)
+
+        dom2 = parse_html('<p>foo</p><p>foo</p>')
+        self.assertEqual(dom2.count(dom1), 2)
+
+        dom2 = parse_html('<div><p>foo<input type=""></p><p>foo</p></div>')
+        self.assertEqual(dom2.count(dom1), 1)
+
+        dom2 = parse_html('<div><div><p>foo</p></div></div>')
+        self.assertEqual(dom2.count(dom1), 1)
+
+        dom2 = parse_html('<p>foo<p>foo</p></p>')
+        self.assertEqual(dom2.count(dom1), 1)
+
+        dom2 = parse_html('<p>foo<p>bar</p></p>')
+        self.assertEqual(dom2.count(dom1), 0)
+
     def test_parsing_errors(self):
         from django.test.html import HTMLParseError, parse_html
         with self.assertRaises(AssertionError):

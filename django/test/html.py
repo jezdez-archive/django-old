@@ -65,20 +65,31 @@ class Element(object):
     def __ne__(self, element):
         return not self.__eq__(element)
 
-    def __contains__(self, element):
+    def _count(self, element, count=True):
         if not isinstance(element, basestring):
             if self == element:
-                return True
+                return 1
+        i = 0
         for child in self.children:
             # child is text content and element is also text content, then
             # make a simple "text" in "text"
             if isinstance(child, basestring):
                 if isinstance(element, basestring):
-                    if element in child:
-                        return True
-            elif child.__contains__(element):
-                return True
-        return False
+                    if count:
+                        i += child.count(element)
+                    elif element in child:
+                        return 1
+            else:
+                i += child._count(element, count=count)
+                if not count and i:
+                    return i
+        return i
+
+    def __contains__(self, element):
+        return self._count(element, count=False) > 0
+
+    def count(self, element):
+        return self._count(element, count=True)
 
     def __getitem__(self, key):
         return self.children[key]
