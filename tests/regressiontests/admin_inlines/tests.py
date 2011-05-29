@@ -27,7 +27,7 @@ class TestInline(TestCase):
         can_delete should be passed to inlineformset factory.
         """
         response = self.client.get(self.change_url)
-        inner_formset = response.context[-1]['inline_admin_formsets'][0].formset
+        inner_formset = response.context['inline_admin_formsets'][0].formset
         expected = InnerInline.can_delete
         actual = inner_formset.can_delete
         self.assertEqual(expected, actual, 'can_delete must be equal')
