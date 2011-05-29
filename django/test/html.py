@@ -56,8 +56,21 @@ class Element(object):
     def __eq__(self, element):
         if self.name != element.name:
             return False
-        if self.attributes != element.attributes:
+        if len(self.attributes) != len(element.attributes):
             return False
+        if self.attributes != element.attributes:
+            # attributes without a value is same as attribute with value that
+            # equals the attributes name:
+            # <input checked> == <input checked="checked">
+            for i in range(len(self.attributes)):
+                attr, value = self.attributes[i]
+                other_attr, other_value = element.attributes[i]
+                if value is None:
+                    value = attr
+                if other_value is None:
+                    other_value = other_attr
+                if attr != other_attr or value != other_value:
+                    return False
         if self.children != element.children:
             return False
         return True
@@ -97,7 +110,10 @@ class Element(object):
     def __unicode__(self):
         output = u'<%s' % self.name
         for key, value in self.attributes:
-            output += u' %s="%s"' % (key, value)
+            if value:
+                output += u' %s="%s"' % (key, value)
+            else:
+                output += u' %s' % key
         if self.children:
             output += u'>\n'
             output += u''.join(unicode(c) for c in self.children)

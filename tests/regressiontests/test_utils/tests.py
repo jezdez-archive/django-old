@@ -126,6 +126,7 @@ class HTMLEqualTests(TestCase):
         self.assertEqual(element.children[0].children[0], 'Hello')
 
         parse_html('<p>')
+        parse_html('<p attr>')
         dom = parse_html('<p>foo')
         self.assertEqual(len(dom.children), 1)
         self.assertEqual(dom.name, 'p')
@@ -174,6 +175,7 @@ class HTMLEqualTests(TestCase):
         self.assertHTMLEqual('<p> </p>', '<p></p>')
         self.assertHTMLEqual('<p/>', '<p></p>')
         self.assertHTMLEqual('<p />', '<p></p>')
+        self.assertHTMLEqual('<input checked>', '<input checked="checked">')
 
     def test_ignore_comments(self):
         self.assertHTMLEqual(
