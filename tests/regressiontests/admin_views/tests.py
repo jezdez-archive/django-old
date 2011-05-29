@@ -1690,7 +1690,11 @@ class AdminViewListEditable(TestCase):
         response = self.client.get('/test_admin/admin/admin_views/story/')
         self.assertContains(response, 'id="id_form-0-id"', 1) # Only one hidden field, in a separate place than the table.
         self.assertContains(response, 'id="id_form-1-id"', 1)
-        self.assertContains(response, '<div class="hiddenfields">\n<input type="hidden" name="form-0-id" value="%d" id="id_form-0-id" />\n<input type="hidden" name="form-1-id" value="%d" id="id_form-1-id" />\n\n</div>' % (story2.id, story1.id))
+        self.assertContains(response, '''
+        <div class="hiddenfields">
+            <input type="hidden" name="form-0-id" value="%d" id="id_form-0-id" />
+            <input type="hidden" name="form-1-id" value="%d" id="id_form-1-id" />
+        </div>''' % (story2.id, story1.id), html=True)
         self.assertContains(response, '<td>%d</td>' % story1.id, 1)
         self.assertContains(response, '<td>%d</td>' % story2.id, 1)
 
@@ -1704,7 +1708,11 @@ class AdminViewListEditable(TestCase):
         response = self.client.get('/test_admin/admin/admin_views/otherstory/')
         self.assertContains(response, 'id="id_form-0-id"', 1) # Only one hidden field, in a separate place than the table.
         self.assertContains(response, 'id="id_form-1-id"', 1)
-        self.assertContains(response, '<div class="hiddenfields">\n<input type="hidden" name="form-0-id" value="%d" id="id_form-0-id" />\n<input type="hidden" name="form-1-id" value="%d" id="id_form-1-id" />\n\n</div>' % (story2.id, story1.id))
+        self.assertContains(response, '''
+        <div class="hiddenfields">
+        <input type="hidden" name="form-0-id" value="%d" id="id_form-0-id" />
+        <input type="hidden" name="form-1-id" value="%d" id="id_form-1-id" />
+        </div>''' % (story2.id, story1.id), html=True)
         self.assertContains(response, '<th><a href="%d/">%d</a></th>' % (story1.id, story1.id), 1)
         self.assertContains(response, '<th><a href="%d/">%d</a></th>' % (story2.id, story2.id), 1)
 
