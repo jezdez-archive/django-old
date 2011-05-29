@@ -139,7 +139,7 @@ class ForeignKeyRawIdWidget(forms.TextInput):
         params = self.url_parameters()
         url = u''
         if params:
-            url = u'?' + u'&amp;'.join([u'%s=%s' % (k, v) for k, v in params.items()])
+            url = u'?' + u'&'.join([u'%s=%s' % (k, v) for k, v in params.items()])
         context.update({
             'url': url,
             'alt': _('Lookup'),
