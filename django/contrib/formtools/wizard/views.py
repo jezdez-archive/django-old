@@ -595,12 +595,10 @@ class NamedUrlWizardView(WizardView):
             'done_step_name': 'done'
         }
         assert 'url_name' in kwargs, 'URL name is needed to resolve correct wizard URLs'
-        extra_kwargs['url_name'] = kwargs['url_name']
-        del kwargs['url_name']
+        extra_kwargs['url_name'] = kwargs.pop('url_name')
 
         if 'done_step_name' in kwargs:
-            extra_kwargs['done_step_name'] = kwargs['done_step_name']
-            del kwargs['done_step_name']
+            extra_kwargs['done_step_name'] = kwargs.pop('done_step_name')
 
         initkwargs = super(NamedUrlWizardView, cls).get_initkwargs(*args, **kwargs)
         initkwargs.update(extra_kwargs)
@@ -625,7 +623,7 @@ class NamedUrlWizardView(WizardView):
             else:
                 query_string = ""
             next_step_url = reverse(self.url_name, kwargs={
-                'step': self.steps.current
+                'step': self.steps.current,
             }) + query_string
             return redirect(next_step_url)
 
