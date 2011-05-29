@@ -104,7 +104,7 @@ class can live anywhere in your codebase, but convention is to put it in
 The only requirement on this subclass is that it implement a
 :meth:`~WizardView.done()` method.
 
-.. method:: WizardView.done
+.. method:: WizardView.done(form_list)
 
     This method specifies what should happen when the data for *every* form is
     submitted and validated. This method is passed one argument:
@@ -243,13 +243,13 @@ Advanced ``WizardView`` methods
     counter as string representing the current step of the wizard. (E.g., the
     first form is ``'0'`` and the second form is ``'1'``)
 
-.. method:: WizardView.get_form_prefix
+.. method:: WizardView.get_form_prefix(step)
 
     Given the step, returns a form prefix to use. By default, this simply uses
     the step itself. For more, see the :ref:`form prefix documentation
     <form-prefix>`.
 
-.. method:: WizardView.process_step
+.. method:: WizardView.process_step(form)
 
     Hook for modifying the wizard's internal state, given a fully validated
     :class:`~django.forms.Form` object. The Form is guaranteed to have clean,
@@ -263,7 +263,7 @@ Advanced ``WizardView`` methods
         def process_step(self, form):
             return self.get_form_step_data(form)
 
-.. method:: WizardView.get_form_initial
+.. method:: WizardView.get_form_initial(step)
 
     Returns a dictionary which will be passed to the form for ``step`` as
     ``initial``. If no initial data was provied while initializing the
@@ -274,7 +274,7 @@ Advanced ``WizardView`` methods
         def get_form_initial(self, step):
             return self.initial_dict.get(step, {})
 
-.. method:: WizardView.get_form_instance
+.. method:: WizardView.get_form_instance(step)
 
     Returns a object which will be passed to the form for ``step`` as
     ``instance``. If no instance object was provied while initializing
@@ -285,7 +285,7 @@ Advanced ``WizardView`` methods
         def get_form_instance(self, step):
             return self.instance_dict.get(step, None)
 
-.. method:: WizardView.get_context_data
+.. method:: WizardView.get_context_data(form, **kwargs)
 
     Returns the template context for a step. You can overwrite this method
     to add more data for all or some steps. This method returns a dictionary
@@ -329,7 +329,7 @@ Advanced ``WizardView`` methods
         def prefix(self):
             return self.wizard_name
 
-.. method:: WizardView.get_form
+.. method:: WizardView.get_form(step=None, data=None, files=None)
 
     This method constructs the form for a given ``step``. If no ``step`` is
     defined, the current step will be determined automatically.
@@ -349,7 +349,7 @@ Advanced ``WizardView`` methods
                 form.user = self.request.user
             return form
 
-.. method:: WizardView.process_step
+.. method:: WizardView.process_step(form)
 
     This method gives you a way to post-process the form data before the data
     gets stored within the storage backend. By default it just passed the
@@ -361,7 +361,7 @@ Advanced ``WizardView`` methods
         def process_step(self, form):
             return self.get_form_step_data(form)
 
-.. method:: WizardView.process_step_files
+.. method:: WizardView.process_step_files(form)
 
     This method gives you a way to post-process the form files before the
     files gets stored within the storage backend. By default it just passed
@@ -374,7 +374,7 @@ Advanced ``WizardView`` methods
         def process_step_files(self, form):
             return self.get_form_step_files(form)
 
-.. method:: WizardView.render_revalidation_failure
+.. method:: WizardView.render_revalidation_failure(step, form, **kwargs)
 
     When the wizard thinks, all steps passed it revalidates all forms with the
     data from the backend storage.
@@ -391,7 +391,7 @@ Advanced ``WizardView`` methods
             self.storage.current_step = step
             return self.render(form, **kwargs)
 
-.. method:: WizardView.get_form_step_data
+.. method:: WizardView.get_form_step_data(form)
 
     This method fetches the form data from and returns the dictionary. You
     can use this method to manipulate the values before the data gets stored
@@ -402,7 +402,7 @@ Advanced ``WizardView`` methods
         def get_form_step_data(self, form):
             return form.data
 
-.. method:: WizardView.get_form_step_files
+.. method:: WizardView.get_form_step_files(form)
 
     This method returns the form files. You can use this method to manipulate
     the files before the data gets stored in the storage backend.
@@ -424,7 +424,7 @@ Advanced ``WizardView`` methods
         def get_extra_data(self):
             return self.storage.extra_data
 
-.. method:: WizardView.update_extra_data
+.. method:: WizardView.update_extra_data(data)
 
     This method expects one argument ``data``. The method will fetch the
     current extra data, update the dictionary with the passed data and store
@@ -438,7 +438,7 @@ Advanced ``WizardView`` methods
         def update_extra_data(self, data):
             pass
 
-.. method:: WizardView.render
+.. method:: WizardView.render(form, **kwargs)
 
     This method gets called after the get or post request was handled. You can
     hook in this method to, e.g. change the type of http response.
