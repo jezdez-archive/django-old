@@ -2,6 +2,7 @@ from __future__ import with_statement
 
 import sys
 
+from django.http import HttpResponse
 from django.test import TestCase, skipUnlessDBFeature, skipIfDBFeature
 
 from models import Person
@@ -318,6 +319,26 @@ class HTMLEqualTests(TestCase):
             parse_html('</p>')
         with self.assertRaises(HTMLParseError):
             parse_html('<!--')
+
+    def test_contains_html(self):
+        response = HttpResponse('''<body>
+        This is a form: <form action="" method="get">
+            <input type="text" name="Hello" />
+        </form></body>''')
+
+        self.assertNotContains(response, "<input name='Hello' type='text'>")
+        self.assertContains(response, '<form action="" method="get">')
+
+        self.assertContains(response, "<input name='Hello' type='text'>", html=True)
+        self.assertNotContains(response, '<form action="" method="get">', html=True)
+
+        invalid_response = HttpResponse('''<body <bad>>''')
+
+        with self.assertRaises(AssertionError):
+            self.assertContains(invalid_response, '<p></p>')
+
+        with self.assertRaises(AssertionError):
+            self.assertContains(response, '<p "whats" that>')
 
 
 __test__ = {"API_TEST": r"""

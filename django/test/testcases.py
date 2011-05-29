@@ -63,6 +63,17 @@ def restore_transaction_methods():
     transaction.leave_transaction_management = real_leave_transaction_management
     transaction.managed = real_managed
 
+
+def assert_and_parse_html(self, html, user_msg, msg):
+    html = unicode(html)
+    try:
+        dom = parse_html(html)
+    except HTMLParseError, e:
+        standardMsg = u'%s\n%s' % (msg, e.msg)
+        self.fail(self._formatMessage(user_msg, standardMsg))
+    return dom
+
+
 class OutputChecker(doctest.OutputChecker):
     def check_output(self, want, got, optionflags):
         "The entry method for doctest output checking. Defers to a sequence of child checkers"
@@ -410,7 +421,7 @@ class TransactionTestCase(ut2.TestCase):
                 (url, expected_url))
 
     def assertContains(self, response, text, count=None, status_code=200,
-                       msg_prefix=''):
+                       msg_prefix='', html=False):
         """
         Asserts that a response indicates that some content was retrieved
         successfully, (i.e., the HTTP status code was as expected), and that
@@ -425,7 +436,13 @@ class TransactionTestCase(ut2.TestCase):
             msg_prefix + "Couldn't retrieve content: Response code was %d"
             " (expected %d)" % (response.status_code, status_code))
         text = smart_str(text, response._charset)
-        real_count = response.content.count(text)
+        content = response.content
+        if html:
+            content = assert_and_parse_html(self, content, None,
+                u'Response\'s content is no valid html:')
+            text = assert_and_parse_html(self, text, None,
+                u'Second argument is no valid html:')
+        real_count = content.count(text)
         if count is not None:
             self.assertEqual(real_count, count,
                 msg_prefix + "Found %d instances of '%s' in response"
@@ -435,7 +452,7 @@ class TransactionTestCase(ut2.TestCase):
                 msg_prefix + "Couldn't find '%s' in response" % text)
 
     def assertNotContains(self, response, text, status_code=200,
-                          msg_prefix=''):
+                          msg_prefix='', html=False):
         """
         Asserts that a response indicates that some content was retrieved
         successfully, (i.e., the HTTP status code was as expected), and that
@@ -448,7 +465,13 @@ class TransactionTestCase(ut2.TestCase):
             msg_prefix + "Couldn't retrieve content: Response code was %d"
             " (expected %d)" % (response.status_code, status_code))
         text = smart_str(text, response._charset)
-        self.assertEqual(response.content.count(text), 0,
+        content = response.content
+        if html:
+            content = assert_and_parse_html(self, content, None,
+                u'Response\'s content is no valid html:')
+            text = assert_and_parse_html(self, text, None,
+                u'Second argument is no valid html:')
+        self.assertEqual(content.count(text), 0,
             msg_prefix + "Response should not contain '%s'" % text)
 
     def assertFormError(self, response, form, field, errors, msg_prefix=''):
@@ -547,18 +570,10 @@ class TransactionTestCase(ut2.TestCase):
             func(*args, **kwargs)
 
     def assertHTMLEqual(self, html1, html2, msg=None):
-        html1 = unicode(html1)
-        html2 = unicode(html2)
-        try:
-            dom1 = parse_html(html1)
-        except HTMLParseError, e:
-            standardMsg = u'First argument is no valid html:\n%s' % e.msg
-            self.fail(self._formatMessage(msg, standardMsg))
-        try:
-            dom2 = parse_html(html2)
-        except HTMLParseError, e:
-            standardMsg = u'Second argument is no valid html:\n%s' % e.msg
-            self.fail(self._formatMessage(msg, standardMsg))
+        dom1 = assert_and_parse_html(self, html1, msg,
+            u'First argument is no valid html:')
+        dom2 = assert_and_parse_html(self, html2, msg,
+            u'Second argument is no valid html:')
 
         if dom1 != dom2:
             standardMsg = '%s != %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
@@ -569,8 +584,10 @@ class TransactionTestCase(ut2.TestCase):
             self.fail(self._formatMessage(msg, standardMsg))
 
     def assertHTMLNotEqual(self, html1, html2, msg=None):
-        dom1 = parse_html(html1)
-        dom2 = parse_html(html2)
+        dom1 = assert_and_parse_html(self, html1, msg,
+            u'First argument is no valid html')
+        dom2 = assert_and_parse_html(self, html2, msg,
+            u'Second argument is no valid html')
 
         if not dom1 != dom2:
             standardMsg = '%s == %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
