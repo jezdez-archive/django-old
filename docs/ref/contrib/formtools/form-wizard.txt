@@ -479,6 +479,8 @@ Providing initial data for the forms
         >>> form2.initial
         {'message': 'Hi there!'}
 
+    The ``initial_dict`` can also take a list of dictionaries for a specific
+    step if the step is a ``FormSet``.
 
 Handling files with Form wizard
 ===============================
@@ -503,14 +505,103 @@ Conditionally view/skip specific steps
 
 .. attribute:: WizardView.condition_dict
 
-TBD.
+The :meth:``as_view`` accepts a ``condition_dict`` argument. You can pass a
+dictionary of boolean values or callables. The key should match the steps name.
+(e.g. '0', '1').
+
+If the value of for a specific step is callable it will be called with the
+WizardView instance as the only argument. If the return value is true, the
+step's form will be used.
+
+This example provides a contact form including a condition. The condition is
+used to show a message from only if a checkbox in the first step was checked.
+
+The steps are defined in a ``forms.py``::
+
+    from django import forms
+
+    class ContactForm1(forms.Form):
+        subject = forms.CharField(max_length=100)
+        sender = forms.EmailField()
+        leave_message = forms.BooleanField(required=False)
+
+    class ContactForm2(forms.Form):
+        message = forms.CharField(widget=forms.Textarea)
+
+We define our wizard in a ``views.py``::
+
+    from django.shortcuts import render_to_response
+    from django.contrib.formtools.wizard.views import SessionWizardView
+
+    class ContactWizard(SessionWizardView):
+        def done(self, form_list, **kwargs):
+            return render_to_response('done.html', {
+                'form_data': [form.cleaned_data for form in form_list],
+            })
+
+        def show_message_form_condition(self):
+            # try to get the cleaned data of step 1
+            cleaned_data = self.get_cleaned_data_for_step('0') or {}
+            # check if the field ``leave_message`` was checked.
+            return cleaned_data.get('leave_message', True)
+
+We need to add the ContactWizard to our ``urls.py`` file::
+
+    from django.conf.urls.defaults import pattern
+    from forms import ContactForm1, ContactForm2
+    from views import ContactWizard
+
+    urlpatterns = patterns('',
+        (r'^contact/$', ContactWizard.as_view(
+            [ContactForm1, ContactForm2])),
+            condition_dict={
+                '1': ContactWizard.show_message_form_condition
+            }
+    )
+
+As you can see, we defined a :meth:``show_message_form_condition`` to our
+:class:``WizardView`` subclass and added a ``condition_dict`` argument to the
+``as_view`` method. The key refers to form step 2 (because of the zero based
+index).
 
 How to work with ModelForm and ModelFormSet
 ===========================================
 
-TBD.
+The WizardView supports ``ModelForm`` and ``ModelFormSet``. Additionally to
+the ``initial_dict``, the ``as_view`` method can take a ``instance_dict``
+argument with object instances/list of instances for the ``ModelForm`` and
+``ModelFormSet``. Besides the extra ``instance_dict`` you don't have to do any
+special things do work with ``ModelForm``.
 
 Usage of NamedUrlWizardView
 ===========================
 
-TBD.
+There is a WizardView subclass which adds named-urls support to the wizard.
+By doing this, you can have single urls for every step.
+
+To use the named urls, you have to change the ``urls.py``.
+
+Below you will see an example of a contact wizard with two steps, step 1 with
+"contactdata" as its name and step 2 with "leavemessage" as its name.
+
+Additionally you have to pass two more arguments to the ``as_view`` method:
+
+   * ``url_name`` -- the name of the url (as provided in the urls.py)
+   * ``done_step_name`` -- the name in the url for the done step
+
+Example code for the changed ``urls.py`` file::
+
+    from django.conf.urls.defaults import pattern
+    from forms import ContactForm1, ContactForm2
+    from views import ContactWizard
+
+    contact_wizard = ContactWizard.as_view(
+        [('contactdata', ContactForm1), ('leavemessage', ContactForm2)],
+        url_name='contact_step',
+        done_step_name='finished'
+    )
+
+    urlpatterns = patterns('',
+        url(r'^contact/(?P<step>.+)/$', contact_wizard, name='contact_step'),
+        url(r'^contact/$', contact_wizard, name='contact'),
+    )
