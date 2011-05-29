@@ -8,6 +8,7 @@ from django.forms import formsets, ValidationError
 from django.views.generic import TemplateView
 from django.utils.datastructures import SortedDict
 from django.utils.decorators import classonlymethod
+from django.utils.functional import lazy_property
 
 from django.contrib.formtools.wizard.storage import get_storage
 from django.contrib.formtools.wizard.storage.exceptions import NoFileStorageConfigured
@@ -170,11 +171,11 @@ class WizardView(TemplateView):
         kwargs['form_list'] = init_form_list
         return kwargs
 
-    @property
+    @lazy_property
     def wizard_name(self):
         return normalize_name(self.__class__.__name__)
 
-    @property
+    @lazy_property
     def prefix(self):
         # TODO: Add some kind of unique id to prefix
         return self.wizard_name
