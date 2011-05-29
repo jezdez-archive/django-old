@@ -298,15 +298,160 @@ Advanced ``WizardView`` methods
         * `form` -- form instance of the current step
         * `wizard` -- the wizard instance itself
 
-    Example to add extra variables for a specific step:
+    Example to add extra variables for a specific step::
 
-    .. code-block:: python
-
-        def get_context_data(self, form, **kwargs):
-            context = super(MyWizard, self).get_context_data(form, **kwargs)
+        def get_context_data(self, form, \*\*kwargs):
+            context = super(MyWizard, self).get_context_data(form, \*\*kwargs)
             if self.steps.current == 'my_step_name':
                 context.update({'another_var': True})
             return context
+
+.. method:: WizardView.wizard_name
+
+    This method is decorated by @property to act like an attribute. You can
+    change this method to change the wizard's internal name.
+
+    Default implementation::
+
+        def wizard_name(self):
+            return normalize_name(self.__class__.__name__)
+
+.. method:: WizardView.prefix
+
+    This method returns a prefix for the storage backends. These backends use
+    the prefix to fetch the correct data for the wizard. (Multiple wizards
+    could save their data in one session)
+
+    You can change this method to make the wizard data prefix more unique to,
+    e.g. have multiple instances of one wizard in one session.
+
+    Default implementation:
+
+        def prefix(self):
+            return self.wizard_name
+
+.. method:: WizardView.get_form
+
+    This method constructs the form for a given `step`. If no `step` is defined,
+    the current step will be determined automatically. The method gets three
+    arguments::
+
+    * ``step`` -- The step for which the form instance should be generated.
+    * ``data`` -- Gets passed to the form's data argument
+    * ``files`` -- Gets passed to the form's files argument
+
+    You can override this method to add extra arguments to the form instance.
+
+    Example code to add a user attribute to the form on step 2::
+
+        def get_form(self, step=None, data=None, files=None):
+            form = super(MyWizard, self).get_form(step, data, files)
+
+            if step == '1':
+                form.user = self.request.user
+
+            return form
+
+.. method:: WizardView.process_step
+
+    This method gives you a way to post-process the form data before the data
+    gets stored within the storage backend. By default it just passed the
+    form.data dictionary. You should not manipulate the data here but you can
+    use the data to do some extra work if needed (e.g. set extra_data).
+
+    Default implementation::
+
+        def process_step(self, form):
+            return self.get_form_step_data(form)
+
+.. method:: WizardView.process_step_files
+
+    This method gives you a way to post-process the form files before the files
+    gets stored within the storage backend. By default it just passed the
+    form.files dictionary. You should not manipulate the data here but you can
+    use the data to do some extra work if needed (e.g. set extra_data).
+
+    Default implementation::
+
+        def process_step_files(self, form):
+            return self.get_form_step_files(form)
+
+.. method:: WizardView.render_revalidation_failure
+
+    When the wizard thinks, all steps passed it revalidates all forms with the
+    data from the backend storage.
+
+    If any of the forms doesn't validate correctly, this method gets called.
+    This method expects two arguments, ``step`` and ``form``.
+
+    The default implementation reset the current step to the first failing form
+    and redirects the user to the invalid form.
+
+    Default implementation::
+
+        def render_revalidation_failure(self, step, form, **kwargs):
+            self.storage.current_step = step
+            return self.render(form, **kwargs)
+
+.. method:: WizardView.get_form_step_data
+
+    This method fetches the form data from and returns the dictionary. You can
+    use this method to manipulate the values before the data gets stored in
+    the storage backend.
+
+    Default implementation::
+
+        def get_form_step_data(self, form):
+            return form.data
+
+.. method:: WizardView.get_form_step_files
+
+    This method fetches the form files from and returns the dictionary. You can
+    use this method to manipulate the files before the data gets stored in
+    the storage backend.
+
+    Default implementation::
+
+        def get_form_step_files(self, form):
+            return form.files
+
+.. method:: WizardView.get_extra_data
+
+    This method returns the content of the stored extra data. You can override
+    this method to change the extra_data which gets passed to the template and
+    can be used by other methods. The default implementation passes the
+    extra_data dictionary from the storage backend.
+
+    Default implementation::
+
+        def get_extra_data(self):
+            return self.storage.extra_data
+
+.. method:: WizardView.update_extra_data
+
+    This method expects one argument ``data``. The method will fetch the current
+    extra_data content and update the dictionary with the passed data and store
+    the content back to storage backend.
+
+    E.g. you could change this method to protect the extra_data dictionary from
+    external changes by just doing nothing.
+
+    Example code::
+
+        def update_extra_data(self, data):
+            pass
+
+.. method:: WizardView.render
+
+    This method gets called after the get or post request was handled. You can
+    hook in this method to, e.g. change the type of http response.
+
+    Default implementation::
+
+        def render(self, form=None, **kwargs):
+            form = form or self.get_form()
+            context = self.get_context_data(form, **kwargs)
+            return self.render_to_response(context)
 
 
 Providing initial data for the forms
@@ -355,6 +500,8 @@ This storage will temporary store the uploaded files for the wizard. The
 
 Conditionally view/skip specific steps
 ======================================
+
+.. attribute:: WizardView.condition_dict
 
 TBD.
 
