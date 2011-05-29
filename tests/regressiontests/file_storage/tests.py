@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import errno
 import shutil
 import sys
 import tempfile
@@ -186,6 +187,23 @@ class FileStorageTests(unittest.TestCase):
 
         self.storage.delete(storage_f_name)
 
+    def test_file_save_with_path(self):
+        """
+        Saving a pathname should create intermediate directories as necessary.
+        """
+        self.assertFalse(self.storage.exists('path/to'))
+        self.storage.save('path/to/test.file',
+            ContentFile('file saved with path'))
+
+        self.assertTrue(self.storage.exists('path/to'))
+        self.assertEqual(self.storage.open('path/to/test.file').read(),
+            'file saved with path')
+
+        self.assertTrue(os.path.exists(
+            os.path.join(self.temp_dir, 'path', 'to', 'test.file')))
+
+        self.storage.delete('path/to/test.file')
+
     def test_file_path(self):
         """
         File storage returns the full path of a file
@@ -281,6 +299,81 @@ class FileStorageTests(unittest.TestCase):
         self.assertEqual(os.path.join(self.temp_dir2, mixed_case),
                          temp_storage.path(mixed_case))
         temp_storage.delete(mixed_case)
+
+    def test_makedirs_race_handling(self):
+        """
+        File storage should be robust against directory creation race conditions.
+        """
+        real_makedirs = os.makedirs
+
+        # Monkey-patch os.makedirs, to simulate a normal call, a raced call,
+        # and an error.
+        def fake_makedirs(path):
+            if path == os.path.join(self.temp_dir, 'normal'):
+                real_makedirs(path)
+            elif path == os.path.join(self.temp_dir, 'raced'):
+                real_makedirs(path)
+                raise OSError(errno.EEXIST, 'simulated EEXIST')
+            elif path == os.path.join(self.temp_dir, 'error'):
+                raise OSError(errno.EACCES, 'simulated EACCES')
+            else:
+                self.fail('unexpected argument %r' % path)
+
+        try:
+            os.makedirs = fake_makedirs
+
+            self.storage.save('normal/test.file',
+                ContentFile('saved normally'))
+            self.assertEqual(self.storage.open('normal/test.file').read(),
+                'saved normally')
+
+            self.storage.save('raced/test.file',
+                ContentFile('saved with race'))
+            self.assertEqual(self.storage.open('raced/test.file').read(),
+                'saved with race')
+
+            # Check that OSErrors aside from EEXIST are still raised.
+            self.assertRaises(OSError,
+                self.storage.save, 'error/test.file', ContentFile('not saved'))
+        finally:
+            os.makedirs = real_makedirs
+
+    def test_remove_race_handling(self):
+        """
+        File storage should be robust against file removal race conditions.
+        """
+        real_remove = os.remove
+
+        # Monkey-patch os.remove, to simulate a normal call, a raced call,
+        # and an error.
+        def fake_remove(path):
+            if path == os.path.join(self.temp_dir, 'normal.file'):
+                real_remove(path)
+            elif path == os.path.join(self.temp_dir, 'raced.file'):
+                real_remove(path)
+                raise OSError(errno.ENOENT, 'simulated ENOENT')
+            elif path == os.path.join(self.temp_dir, 'error.file'):
+                raise OSError(errno.EACCES, 'simulated EACCES')
+            else:
+                self.fail('unexpected argument %r' % path)
+
+        try:
+            os.remove = fake_remove
+
+            self.storage.save('normal.file', ContentFile('delete normally'))
+            self.storage.delete('normal.file')
+            self.assertFalse(self.storage.exists('normal.file'))
+
+            self.storage.save('raced.file', ContentFile('delete with race'))
+            self.storage.delete('raced.file')
+            self.assertFalse(self.storage.exists('normal.file'))
+
+            # Check that OSErrors aside from ENOENT are still raised.
+            self.storage.save('error.file', ContentFile('delete with error'))
+            self.assertRaises(OSError, self.storage.delete, 'error.file')
+        finally:
+            os.remove = real_remove
+
 
 class CustomStorage(FileSystemStorage):
     def get_available_name(self, name):
