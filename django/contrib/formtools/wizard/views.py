@@ -8,7 +8,6 @@ from django.forms import formsets, ValidationError
 from django.views.generic import TemplateView
 from django.utils.datastructures import SortedDict
 from django.utils.decorators import classonlymethod
-from django.utils.functional import lazy_property
 
 from django.contrib.formtools.wizard.storage import get_storage
 from django.contrib.formtools.wizard.storage.exceptions import NoFileStorageConfigured
@@ -171,12 +170,10 @@ class WizardView(TemplateView):
         kwargs['form_list'] = init_form_list
         return kwargs
 
-    @lazy_property
-    def wizard_name(self):
+    def get_wizard_name(self):
         return normalize_name(self.__class__.__name__)
 
-    @lazy_property
-    def prefix(self):
+    def get_prefix(self):
         # TODO: Add some kind of unique id to prefix
         return self.wizard_name
 
@@ -214,6 +211,8 @@ class WizardView(TemplateView):
         response gets updated by the storage engine (for example add cookies).
         """
         # add the storage engine to the current formwizard instance
+        self.wizard_name = self.get_wizard_name()
+        self.prefix = self.get_prefix()
         self.storage = get_storage(self.storage_name, self.prefix, request,
             getattr(self, 'file_storage', None))
         self.steps = StepsHelper(self)

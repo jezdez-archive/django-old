@@ -170,7 +170,7 @@ You can supply extra context to this template in two ways:
       :class:`FormWizard` subclass to a dictionary.
 
     * Pass a dictionary as a parameter named ``extra_context`` to your
-      wizard's URL pattern in your URLconf. 
+      wizard's URL pattern in your URLconf.
 
       See :ref:`Hooking the wizard into a URLconf <wizard-urlconf>`.
 
@@ -301,17 +301,16 @@ Advanced ``WizardView`` methods
                 context.update({'another_var': True})
             return context
 
-.. method:: WizardView.wizard_name
+.. method:: WizardView.get_wizard_name()
 
-    This method is a ``lazy_property``. You can change it to change
-    the wizard's internal name.
+    This method can be used to change the wizard's internal name.
 
     Default implementation::
 
-        def wizard_name(self):
+        def get_wizard_name(self):
             return normalize_name(self.__class__.__name__)
 
-.. method:: WizardView.prefix
+.. method:: WizardView.get_prefix()
 
     This method returns a prefix for the storage backends. These backends use
     the prefix to fetch the correct data for the wizard. (Multiple wizards
@@ -322,7 +321,7 @@ Advanced ``WizardView`` methods
 
     Default implementation::
 
-        def prefix(self):
+        def get_prefix(self):
             return self.wizard_name
 
 .. method:: WizardView.get_form(step=None, data=None, files=None)
