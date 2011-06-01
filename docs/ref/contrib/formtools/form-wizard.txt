@@ -92,7 +92,13 @@ Creating a ``WizardView`` class
 The next step is to create a
 :class:`django.contrib.formtools.wizard.view.WizardView` subclass. You can
 also use the :class:`SessionWizardView` or :class:`CookieWizardView` class
-which preselects the wizard storage backend (session-based or cookie-based).
+which preselects the wizard storage backend.
+
+.. note::
+
+    To use the :class:`SessionWizardView` follow the instructions
+    in the :doc:`sessions documentation </topics/http/sessions>` on
+    how to enable sessions.
 
 We will use the :class:`SessionWizardView` in all examples but is is completly
 fine to use the :class:`CookieWizardView` instead. As with your
