@@ -71,6 +71,15 @@ Django 1.4 to store the wizard state in the user's cookies.
 See the :doc:`form wizard </ref/contrib/formtools/form-wizard>` docs for
 more information.
 
+Simple clickjacking protection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We've added a middleware to provide easy protection against `clickjacking
+<http://en.wikipedia.org/wiki/Clickjacking>`_ using the X-Frame-Options
+header. It's not enabled by default for backwards compatibility reasons, but
+you'll almost certainly want to :doc:`enable it </ref/clickjacking/>` to help
+plug that security hole for browsers that support the header.
+
 ``reverse_lazy``
 ~~~~~~~~~~~~~~~~
 
@@ -84,6 +93,16 @@ A new helper function,
 :ref:`assignment_tag<howto-custom-template-tags-assignment-tags>`, was added to
 ``template.Library`` to ease the creation of template tags that store some
 data in a specified context variable.
+
+CSRF improvements
+~~~~~~~~~~~~~~~~~
+
+We've made various improvements to our CSRF features, including the
+:func:`~django.views.decorators.csrf.ensure_csrf_cookie` decorator which can
+help with AJAX heavy sites, protection for PUT and DELETE, and settings
+:setting:`CSRF_COOKIE_SECURE` and :setting:`CSRF_COOKIE_PATH` which can improve
+the security and usefulness of the CSRF protection. See the :doc:`CSRF docs
+</ref/contrib/csrf>` for more information.
 
 .. _backwards-incompatible-changes-1.4:
 
