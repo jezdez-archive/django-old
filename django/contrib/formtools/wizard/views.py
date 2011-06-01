@@ -232,10 +232,6 @@ class WizardView(TemplateView):
         """
         self.storage.reset()
 
-        # if there is an extra_context item in the kwargs,
-        # pass the data to the storage engine.
-        self.update_extra_data(kwargs.get('extra_context', {}))
-
         # reset the current step to the first step.
         self.storage.current_step = self.steps.first
         return self.render(self.get_form())
@@ -248,10 +244,6 @@ class WizardView(TemplateView):
         wasn't successful), the next step (if the current step was stored
         successful) or the done view (if no more steps are available)
         """
-        # if there is an extra_context item in the kwargs,
-        # pass the data to the storage engine.
-        self.update_extra_data(kwargs.get('extra_context', {}))
-
         # Look for a wizard_prev_step element in the posted data which
         # contains a valid step name. If one was found, render the requested
         # form. (This makes stepping back a lot easier).
@@ -505,7 +497,7 @@ class WizardView(TemplateView):
         dictionary containing the rendered form step. Available template
         context variables are:
 
-         * `extra_data` - current extra data
+         * all extra data stored in the storage backend
          * `form` - form instance of the current step
          * `wizard` - the wizard instance itself
 
@@ -521,7 +513,7 @@ class WizardView(TemplateView):
                     return context
         """
         context = super(WizardView, self).get_context_data(*args, **kwargs)
-        context.update(self.get_extra_data())
+        context.update(self.storage.extra_data)
         context['wizard'] = {
             'form': form,
             'steps': self.steps,
@@ -530,21 +522,6 @@ class WizardView(TemplateView):
             }),
         }
         return context
-
-    def get_extra_data(self):
-        """
-        Returns the extra data currently stored in the storage backend.
-        """
-        return self.storage.extra_data
-
-    def update_extra_data(self, data):
-        """
-        Updates the currently stored extra data. Already stored extra
-        context will be kept!
-        """
-        new_extra_data = copy.copy(self.get_extra_data())
-        new_extra_data.update(data)
-        self.storage.extra_data = new_extra_data
 
     def render(self, form=None, **kwargs):
         """
@@ -611,7 +588,6 @@ class NamedUrlWizardView(WizardView):
         """
         This renders the form or, if needed, does the http redirects.
         """
-        self.update_extra_data(kwargs.get('extra_context', {}))
         step_url = kwargs.get('step', None)
         if step_url is None:
             if 'reset' in self.request.GET:

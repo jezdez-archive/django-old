@@ -102,19 +102,6 @@ class FormTests(TestCase):
         response, instance = testform(request)
         self.assertEquals(instance.get_next_step(), 'step3')
 
-    def test_add_extra_context(self):
-        request = get_request({'test_wizard-current_step': 'start'})
-
-        testform = TestWizard.as_view([('start', Step1), ('step2', Step2)])
-        response, instance = testform(
-            request, extra_context={'key1': 'value1'})
-        self.assertEqual(instance.get_extra_data(), {'key1': 'value1'})
-
-        request.method = 'POST'
-        response, instance = testform(
-            request, extra_context={'key1': 'value1'})
-        self.assertEqual(instance.get_extra_data(), {'key1': 'value1'})
-
     def test_form_prefix(self):
         request = get_request()
 

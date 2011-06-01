@@ -321,24 +321,6 @@ class NamedCookieWizardTests(NamedWizardTests, TestCase):
 class NamedFormTests(object):
     urls = 'django.contrib.formtools.wizard.tests.namedwizardtests.urls'
 
-    def test_add_extra_context(self):
-        request = get_request()
-
-        testform = self.formwizard_class.as_view(
-            [('start', Step1), ('step2', Step2)],
-            url_name=self.wizard_urlname)
-
-        response, instance = testform(request,
-                                      step='form1',
-                                      extra_context={'key1': 'value1'})
-        self.assertEqual(instance.get_extra_data(), {'key1': 'value1'})
-
-        instance.storage.reset()
-
-        response, instance = testform(request,
-                                      extra_context={'key2': 'value2'})
-        self.assertEqual(instance.get_extra_data(), {'key2': 'value2'})
-
     def test_revalidation(self):
         request = get_request()
 

@@ -83,8 +83,8 @@ the message itself. Here's what the :file:`forms.py` might look like::
 .. note::
 
     In order to use :class:`~django.forms.FileField` in any form, see the
-    section :ref:`Handling files <wizard-files>` below to learn more about what
-    to do.
+    section :ref:`Handling files <wizard-files>` below to learn more about
+    what to do.
 
 Creating a ``WizardView`` class
 -------------------------------
@@ -164,15 +164,9 @@ it:
         * ``index`` -- The index of the current step.
         * ``all`` -- A list of all steps of the wizard.
 
-You can supply extra context to this template in two ways:
-
-    * Set the :attr:`~FormWizard.extra_context` attribute on your
-      :class:`FormWizard` subclass to a dictionary.
-
-    * Pass a dictionary as a parameter named ``extra_context`` to your
-      wizard's URL pattern in your URLconf.
-
-      See :ref:`Hooking the wizard into a URLconf <wizard-urlconf>`.
+You can supply additional context variables by using the
+:meth:`~FormWizard.get_context_data` method of your :class:`FormWizard`
+subclass.
 
 Here's a full example template:
 
@@ -204,7 +198,8 @@ Here's a full example template:
 
 .. note::
 
-    Note that ``management_form`` **must be used** for the wizard to work properly.
+    Note that ``{{ wizard.management_form }}`` **must be used** for
+    the wizard to work properly.
 
 .. _wizard-urlconf:
 
@@ -289,7 +284,7 @@ Advanced ``WizardView`` methods
 
     The default template context variables are:
 
-    * Any data that :attr:`WizardView.get_extra_data` returns.
+    * Any extra data the storage backend has stored
     * ``form`` -- form instance of the current step
     * ``wizard`` -- the wizard instance itself
 
@@ -349,7 +344,7 @@ Advanced ``WizardView`` methods
     This method gives you a way to post-process the form data before the data
     gets stored within the storage backend. By default it just passed the
     form.data dictionary. You should not manipulate the data here but you can
-    use the data to do some extra work if needed (e.g. set extra_data).
+    use the data to do some extra work if needed (e.g. set storage extra data).
 
     Default implementation::
 
@@ -361,8 +356,8 @@ Advanced ``WizardView`` methods
     This method gives you a way to post-process the form files before the
     files gets stored within the storage backend. By default it just passed
     the ``form.files`` dictionary. You should not manipulate the data here
-    but you can use the data to do some extra work if needed (e.g. set extra
-    data).
+    but you can use the data to do some extra work if needed (e.g. set storage
+    extra data).
 
     Default implementation::
 
@@ -406,32 +401,6 @@ Advanced ``WizardView`` methods
 
         def get_form_step_files(self, form):
             return form.files
-
-.. method:: WizardView.get_extra_data
-
-    This method returns the content of the stored extra data. You can override
-    this method to change the extra data which gets passed to the template.
-    The default implementation passes the extra data dictionary from the
-    storage backend.
-
-    Default implementation::
-
-        def get_extra_data(self):
-            return self.storage.extra_data
-
-.. method:: WizardView.update_extra_data(data)
-
-    This method expects one argument ``data``. The method will fetch the
-    current extra data, update the dictionary with the passed data and store
-    the content back to storage backend.
-
-    You could change this method to protect the extra_data dictionary from
-    external changes by just doing nothing.
-
-    Example code::
-
-        def update_extra_data(self, data):
-            pass
 
 .. method:: WizardView.render(form, **kwargs)
 
