@@ -17,17 +17,15 @@ class Element(object):
         self.name = name
         self.attributes = sorted(attributes)
         self.children = []
-        self._pending_whitespace = ''
 
     def append(self, element):
         if isinstance(element, basestring):
             element = normalize_whitespace(element)
-            if not self.children:
-                element = element.lstrip()
-            elif isinstance(self.children[-1], basestring):
-                self.children[-1] += element
-                self.children[-1] = normalize_whitespace(self.children[-1])
-                return
+            if self.children:
+                if isinstance(self.children[-1], basestring):
+                    self.children[-1] += element
+                    self.children[-1] = normalize_whitespace(self.children[-1])
+                    return
         elif self.children:
             # removing last children if it is only whitespace
             # this can result in incorrect dom representations since
@@ -49,8 +47,10 @@ class Element(object):
             return children
 
         rstrip_last_element(self.children)
-        for child in self.children:
-            if hasattr(child, 'finalize'):
+        for i, child in enumerate(self.children):
+            if isinstance(child, basestring):
+                self.children[i] = child.strip()
+            elif hasattr(child, 'finalize'):
                 child.finalize()
 
     def __eq__(self, element):
