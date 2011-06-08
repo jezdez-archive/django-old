@@ -20,7 +20,7 @@ from django.test.client import Client
 from django.test.html import HTMLParseError, parse_html
 from django.test.utils import get_warnings_state, restore_warnings_state, override_settings
 from django.utils import simplejson, unittest as ut2
-from django.utils.encoding import smart_str
+from django.utils.encoding import force_unicode, smart_str
 from django.utils.unittest.util import safe_repr
 
 __all__ = ('DocTestRunner', 'OutputChecker', 'TestCase', 'TransactionTestCase',
@@ -65,7 +65,7 @@ def restore_transaction_methods():
 
 
 def assert_and_parse_html(self, html, user_msg, msg):
-    html = unicode(html)
+    html = force_unicode(html)
     try:
         dom = parse_html(html)
     except HTMLParseError, e:

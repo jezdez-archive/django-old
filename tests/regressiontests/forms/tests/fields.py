@@ -33,8 +33,7 @@ from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
-from django.forms.widgets import RadioFieldRenderer
-from django.utils.unittest import TestCase
+from django.test import TestCase
 
 
 def fix_os_paths(x):
@@ -937,6 +936,7 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
+                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]
@@ -957,6 +957,7 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
+                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]
@@ -977,6 +978,7 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
+                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]
