@@ -1,0 +1,7 @@
+{% if errorlist %}
+<ul class="errorlist">
+    {% for error in errorlist %}
+    <li>{{ error }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
