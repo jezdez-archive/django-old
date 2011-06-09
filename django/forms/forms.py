@@ -4,6 +4,7 @@ Form classes
 
 import copy
 from django.core.exceptions import ValidationError
+from django.template.loader import render_to_string
 from django.utils.datastructures import SortedDict
 from django.utils.html import conditional_escape
 from django.utils.encoding import StrAndUnicode, smart_unicode, force_unicode
@@ -11,7 +12,7 @@ from django.utils.safestring import mark_safe
 
 from fields import Field, FileField
 from widgets import Media, media_property, TextInput, Textarea
-from util import flatatt, ErrorDict, ErrorList
+from util import ErrorDict, ErrorList
 
 __all__ = ('BaseForm', 'Form')
 
@@ -486,11 +487,16 @@ class BoundField(StrAndUnicode):
         """
         contents = contents or conditional_escape(self.label)
         widget = self.field.widget
-        id_ = widget.attrs.get('id') or self.auto_id
-        if id_:
-            attrs = attrs and flatatt(attrs) or ''
-            contents = u'<label for="%s"%s>%s</label>' % (widget.id_for_label(id_), attrs, unicode(contents))
-        return mark_safe(contents)
+        for_id = widget.attrs.get('id') or self.auto_id
+        if for_id:
+            for_id = widget.id_for_label(for_id)
+        label = render_to_string('forms/layouts/default/label.html', {
+            'for_id': for_id,
+            'label': mark_safe(contents),
+            'attrs': attrs,
+        })
+        label = label.rstrip()
+        return mark_safe(label)
 
     def css_classes(self, extra_classes=None):
         """

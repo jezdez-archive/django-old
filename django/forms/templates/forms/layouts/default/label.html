@@ -1,0 +1,3 @@
+{% if for_id %}<label{% if for_id %} for="{{ for_id }}"{% endif %}{% for key, val in attrs.items %} {{ key|safe }}{% if val %}="{{ val }}"{% endif %}{% endfor %}>{% endif %}
+{{ label }}{# {% if bound_field.label|last in ":?.!" %}{{ form.label_suffix }}{% endif %} #}
+{% if for_id %}</label>{% endif %}
