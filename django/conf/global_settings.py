@@ -406,6 +406,9 @@ URL_VALIDATOR_USER_AGENT = "Django/%s (http://www.djangoproject.com)" % get_vers
 DEFAULT_TABLESPACE = ''
 DEFAULT_INDEX_TABLESPACE = ''
 
+# Default X-Frame-Options header value
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 ##############
 # MIDDLEWARE #
 ##############
@@ -533,6 +536,10 @@ LOGGING = {
         },
     }
 }
+
+# Default exception reporter filter class used in case none has been
+# specifically assigned to the HttpRequest instance.
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'django.views.debug.SafeExceptionReporterFilter'
 
 ###########
 # TESTING #

@@ -7,6 +7,7 @@ from django.contrib.admin.views.main import (ALL_VAR, EMPTY_CHANGELIST_VALUE,
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils import formats
+from django.utils.datastructures import SortedDict
 from django.utils.html import escape, conditional_escape
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
@@ -81,43 +82,77 @@ def result_headers(cl):
     """
     Generates the list column headers.
     """
-    lookup_opts = cl.lookup_opts
-
+    # We need to know the 'ordering field' that corresponds to each
+    # item in list_display, and we need other info, so do a pre-pass
+    # on list_display
+    ordering_field_columns = cl.get_ordering_field_columns()
     for i, field_name in enumerate(cl.list_display):
-        header, attr = label_for_field(field_name, cl.model,
+        admin_order_field = None
+        text, attr = label_for_field(field_name, cl.model,
             model_admin = cl.model_admin,
             return_attr = True
         )
         if attr:
+            # Potentially not sortable
+
             # if the field is the action checkbox: no sorting and special class
             if field_name == 'action_checkbox':
                 yield {
-                    "text": header,
+                    "text": text,
                     "class_attrib": mark_safe(' class="action-checkbox-column"')
                 }
                 continue
 
-            # It is a non-field, but perhaps one that is sortable
             admin_order_field = getattr(attr, "admin_order_field", None)
             if not admin_order_field:
-                yield {"text": header}
+                # Not sortable
+                yield {"text": text}
                 continue
 
-            # So this _is_ a sortable non-field.  Go to the yield
-            # after the else clause.
-        else:
-            admin_order_field = None
-
+        # OK, it is sortable if we got this far
         th_classes = []
+        order_type = ''
         new_order_type = 'asc'
-        if field_name == cl.order_field or admin_order_field == cl.order_field:
-            th_classes.append('sorted %sending' % cl.order_type.lower())
-            new_order_type = {'asc': 'desc', 'desc': 'asc'}[cl.order_type.lower()]
+        sort_pos = 0
+        # Is it currently being sorted on?
+        if i in ordering_field_columns:
+            order_type = ordering_field_columns.get(i).lower()
+            sort_pos = ordering_field_columns.keys().index(i) + 1
+            th_classes.append('sorted %sending' % order_type)
+            new_order_type = {'asc': 'desc', 'desc': 'asc'}[order_type]
+
+        # build new ordering param
+        o_list_primary = [] # URL for making this field the primary sort
+        o_list_remove  = [] # URL for removing this field from sort
+        o_list_toggle  = [] # URL for toggling order type for this field
+        make_qs_param = lambda t, n: ('-' if t == 'desc' else '') + str(n)
+
+        for j, ot in ordering_field_columns.items():
+            if j == i: # Same column
+                param = make_qs_param(new_order_type, j)
+                # We want clicking on this header to bring the ordering to the
+                # front
+                o_list_primary.insert(0, param)
+                o_list_toggle.append(param)
+                # o_list_remove - omit
+            else:
+                param = make_qs_param(ot, j)
+                o_list_primary.append(param)
+                o_list_toggle.append(param)
+                o_list_remove.append(param)
+
+        if i not in ordering_field_columns:
+            o_list_primary.insert(0, make_qs_param(new_order_type, i))
+
 
         yield {
-            "text": header,
+            "text": text,
             "sortable": True,
-            "url": cl.get_query_string({ORDER_VAR: i, ORDER_TYPE_VAR: new_order_type}),
+            "ascending": order_type == "asc",
+            "sort_pos": sort_pos,
+            "url_primary": cl.get_query_string({ORDER_VAR: '.'.join(o_list_primary)}),
+            "url_remove": cl.get_query_string({ORDER_VAR: '.'.join(o_list_remove)}),
+            "url_toggle": cl.get_query_string({ORDER_VAR: '.'.join(o_list_toggle)}),
             "class_attrib": mark_safe(th_classes and ' class="%s"' % ' '.join(th_classes) or '')
         }
 
@@ -228,9 +263,14 @@ def result_list(cl):
     """
     Displays the headers and data list together
     """
+    headers = list(result_headers(cl))
+    for h in headers:
+        # Sorting in templates depends on sort_pos attribute
+        h.setdefault('sort_pos', 0)
     return {'cl': cl,
             'result_hidden_fields': list(result_hidden_fields(cl)),
-            'result_headers': list(result_headers(cl)),
+            'result_headers': headers,
+            'reset_sorting_url': cl.get_query_string(remove=[ORDER_VAR]),
             'results': list(results(cl))}
 
 @register.inclusion_tag('admin/date_hierarchy.html')
