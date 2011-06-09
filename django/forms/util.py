@@ -1,6 +1,5 @@
 from django.utils.html import conditional_escape
 from django.utils.encoding import StrAndUnicode, force_unicode
-from django.utils.safestring import mark_safe
 from django.template.loader import render_to_string
 
 # Import ValidationError so that it can be imported from this
