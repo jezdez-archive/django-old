@@ -13,6 +13,7 @@ from django.utils.safestring import mark_safe
 from fields import Field, FileField
 from widgets import Media, media_property, TextInput, Textarea
 from util import ErrorDict, ErrorList
+from render import FormRenderer
 
 __all__ = ('BaseForm', 'Form')
 
@@ -136,10 +137,12 @@ class BaseForm(StrAndUnicode):
         """
         return u'initial-%s' % self.add_prefix(field_name)
 
-    def _html_output(self, normal_row, error_row, row_ender, help_text_html, errors_on_separate_row):
+    def _html_output(self, normal_row, error_row, row_ender, errors_on_separate_row, layout):
         "Helper function for outputting HTML. Used by as_table(), as_ul(), as_p()."
         top_errors = self.non_field_errors() # Errors that should be displayed above all fields.
         output, hidden_fields = [], []
+
+        renderer = FormRenderer(layout=layout)
 
         for name, field in self.fields.items():
             html_class_attr = ''
@@ -171,7 +174,7 @@ class BaseForm(StrAndUnicode):
                     label = ''
 
                 if field.help_text:
-                    help_text = help_text_html % force_unicode(field.help_text)
+                    help_text = renderer.render_help_text(bf)
                 else:
                     help_text = u''
 
@@ -214,8 +217,8 @@ class BaseForm(StrAndUnicode):
             normal_row = u'<tr%(html_class_attr)s><th>%(label)s</th><td>%(errors)s%(field)s%(help_text)s</td></tr>',
             error_row = u'<tr><td colspan="2">%s</td></tr>',
             row_ender = u'</td></tr>',
-            help_text_html = u'<br /><span class="helptext">%s</span>',
-            errors_on_separate_row = False)
+            errors_on_separate_row = False,
+            layout = 'table')
 
     def as_ul(self):
         "Returns this form rendered as HTML <li>s -- excluding the <ul></ul>."
@@ -223,8 +226,8 @@ class BaseForm(StrAndUnicode):
             normal_row = u'<li%(html_class_attr)s>%(errors)s%(label)s %(field)s%(help_text)s</li>',
             error_row = u'<li>%s</li>',
             row_ender = '</li>',
-            help_text_html = u' <span class="helptext">%s</span>',
-            errors_on_separate_row = False)
+            errors_on_separate_row = False,
+            layout = 'ul')
 
     def as_p(self):
         "Returns this form rendered as HTML <p>s."
@@ -232,8 +235,8 @@ class BaseForm(StrAndUnicode):
             normal_row = u'<p%(html_class_attr)s>%(label)s %(field)s%(help_text)s</p>',
             error_row = u'%s',
             row_ender = '</p>',
-            help_text_html = u' <span class="helptext">%s</span>',
-            errors_on_separate_row = True)
+            errors_on_separate_row = True,
+            layout = 'p')
 
     def non_field_errors(self):
         """
