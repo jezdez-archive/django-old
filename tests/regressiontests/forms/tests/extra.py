@@ -383,7 +383,7 @@ class FormsExtraTestCase(TestCase, AssertFormErrorsMixin):
         # SplitDateTimeWidget is one example of a MultiWidget.
 
         class ComplexMultiWidget(MultiWidget):
-            template_name = 'forms/complex_multi_widget.html'
+            template_name = 'forms/widgets/complex_multi_widget.html'
 
             def __init__(self, attrs=None):
                 widgets = (

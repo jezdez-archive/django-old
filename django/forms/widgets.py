@@ -243,7 +243,7 @@ class Input(Widget):
     type='radio', which are special).
     """
     input_type = None  # Subclasses must define this.
-    template_name = 'forms/input.html'
+    template_name = 'forms/widgets/input.html'
 
     def get_context(self, name, value, attrs=None):
         context = super(Input, self).get_context(name, value, attrs)
@@ -341,7 +341,7 @@ FILE_INPUT_CONTRADICTION = object()
 
 
 class ClearableFileInput(BaseFileInput):
-    template_name = 'forms/clearable_input.html'
+    template_name = 'forms/widgets/clearable_input.html'
     initial_text = ugettext_lazy('Currently')
     input_text = ugettext_lazy('Change')
     clear_checkbox_label = ugettext_lazy('Clear')
@@ -390,7 +390,7 @@ class ClearableFileInput(BaseFileInput):
 
 
 class Textarea(Widget):
-    template_name = 'forms/textarea.html'
+    template_name = 'forms/widgets/textarea.html'
 
     def __init__(self, attrs=None):
         # The 'rows' and 'cols' attributes are required for HTML correctness.
@@ -553,7 +553,7 @@ class CheckboxInput(Input):
         return bool(initial) != bool(data)
 
 class Select(Widget):
-    template_name = 'forms/select.html'
+    template_name = 'forms/widgets/select.html'
 
     def __init__(self, attrs=None, choices=()):
         super(Select, self).__init__(attrs)
@@ -716,7 +716,7 @@ class RadioFieldRenderer(StrAndUnicode):
 
 
 class RadioSelect(Select):
-    template_name = 'forms/radio.html'
+    template_name = 'forms/widgets/radio.html'
 
     def __init__(self, *args, **kwargs):
         # Override the default renderer if we were passed one.
@@ -752,7 +752,7 @@ class RadioSelect(Select):
 
 
 class CheckboxSelectMultiple(SelectMultiple):
-    template_name = 'forms/checkbox_select.html'
+    template_name = 'forms/widgets/checkbox_select.html'
 
     def id_for_label(self, id_):
         # See the comment for RadioSelect.id_for_label()
@@ -786,7 +786,7 @@ class MultiWidget(Widget):
 
     You'll probably want to use this class with MultiValueField.
     """
-    template_name = 'forms/multiwidget.html'
+    template_name = 'forms/widgets/multiwidget.html'
 
     def __init__(self, widgets, attrs=None):
         self.widgets = [isinstance(w, type) and w() or w for w in widgets]

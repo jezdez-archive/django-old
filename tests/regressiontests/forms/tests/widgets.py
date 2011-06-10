@@ -703,7 +703,7 @@ beatle J R Ringo False""")
 
         # You can alter RadioSelect rendering using a template
         class LineRadioSelect(RadioSelect):
-            template_name = 'forms/line_radio.html'
+            template_name = 'forms/widgets/line_radio.html'
 
         w = LineRadioSelect()
         self.assertHTMLEqual(w.render('beatle', 'G', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo'))), """<label><input type="radio" name="beatle" value="J" /> John</label><br />
@@ -950,7 +950,7 @@ beatle J R Ringo False""")
 
     def test_multi(self):
         class MyMultiWidget(MultiWidget):
-            template_name = 'forms/my_multi_widget.html'
+            template_name = 'forms/widgets/my_multi_widget.html'
 
             def decompress(self, value):
                 if value:
@@ -1276,7 +1276,7 @@ class WidgetsAPITests(TestCase):
     def test_template_name(self):
         """Altering template_name on the widget class"""
         class SomeWidget(TextInput):
-            template_name = 'forms/decorated_widget.html'
+            template_name = 'forms/widgets/decorated_widget.html'
 
         w = SomeWidget()
         self.assertHTMLEqual(w.render('baz', None), '<input type="text" name="baz" />\nNice widget\n')
@@ -1284,7 +1284,7 @@ class WidgetsAPITests(TestCase):
     def test_context(self):
         """Overriding get_context on the widget class"""
         class OtherWidget(PasswordInput):
-            template_name = 'forms/secret_pw.html'
+            template_name = 'forms/widgets/secret_pw.html'
 
             def get_context(self, name, value, attrs=None):
                 ctx = super(OtherWidget, self).get_context(name, value, attrs)
@@ -1292,12 +1292,15 @@ class WidgetsAPITests(TestCase):
                 return ctx
 
         w = OtherWidget()
-        self.assertHTMLEqual(w.render('nice', None), '<input type="password" name="nice" />\nThis password is secret, don\'t tell anyone!\n')
+        self.assertHTMLEqual(w.render('nice', None), '''
+            <input type="password" name="nice" />
+            This password is secret, don't tell anyone!
+        ''')
 
     def test_context_data(self):
         """Overriding get_context_data on the widget class"""
         class EmailWidget(TextInput):
-            template_name = 'forms/email.html'
+            template_name = 'forms/widgets/email.html'
             input_type = 'email'
 
             def get_context_data(self):
