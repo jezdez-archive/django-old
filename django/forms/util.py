@@ -1,6 +1,6 @@
 from django.utils.html import conditional_escape
 from django.utils.encoding import StrAndUnicode, force_unicode
-from django.template.loader import render_to_string
+from django.utils.safestring import mark_safe
 
 # Import ValidationError so that it can be imported from this
 # module to maintain backwards compatibility.
@@ -26,9 +26,9 @@ class ErrorDict(dict, StrAndUnicode):
 
     def as_ul(self):
         if not self: return u''
-        return render_to_string('forms/layouts/default/errordict.html', {
-            'errordict': self,
-        })
+        return mark_safe(u'<ul class="errorlist">%s</ul>'
+                % ''.join([u'<li>%s%s</li>' % (k, force_unicode(v))
+                    for k, v in self.items()]))
 
     def as_text(self):
         return u'\n'.join([u'* %s\n%s' % (k, u'\n'.join([u'  * %s' % force_unicode(i) for i in v])) for k, v in self.items()])
@@ -42,9 +42,8 @@ class ErrorList(list, StrAndUnicode):
 
     def as_ul(self):
         if not self: return u''
-        return render_to_string('forms/layouts/default/errorlist.html', {
-            'errorlist': self,
-        })
+        return mark_safe(u'<ul class="errorlist">%s</ul>'
+                % ''.join([u'<li>%s</li>' % conditional_escape(force_unicode(e)) for e in self]))
 
     def as_text(self):
         if not self: return u''
