@@ -3,15 +3,7 @@ from django.utils.safestring import mark_safe
 
 
 class FormRenderer(object):
-    def __init__(self, layout):
-        self.layout = layout
-
-    def get_template_paths(self, template_name):
-        template_paths = []
-        if self.layout:
-            template_paths.append('forms/layouts/%s/%s' % (self.layout, template_name))
-        template_paths.append('forms/layouts/default/%s' % template_name)
-        return template_paths
+    default_template = 'forms/layouts/default.html'
 
     def render_template(self, template_name, context):
         return render_to_string((
@@ -27,3 +19,10 @@ class FormRenderer(object):
             'help_text': help_text,
         })
         return content
+
+    def render_form(self, form, template_name=None):
+        if not template_name:
+            template_name = self.template_name
+        return render_to_string(template_name, {
+            'form': form,
+        })

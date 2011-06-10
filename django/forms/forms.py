@@ -137,12 +137,10 @@ class BaseForm(StrAndUnicode):
         """
         return u'initial-%s' % self.add_prefix(field_name)
 
-    def _html_output(self, normal_row, error_row, row_ender, errors_on_separate_row, layout):
+    def _html_output(self, normal_row, error_row, row_ender, help_text_html, errors_on_separate_row):
         "Helper function for outputting HTML. Used by as_table(), as_ul(), as_p()."
         top_errors = self.non_field_errors() # Errors that should be displayed above all fields.
         output, hidden_fields = [], []
-
-        renderer = FormRenderer(layout=layout)
 
         for name, field in self.fields.items():
             html_class_attr = ''
@@ -174,7 +172,7 @@ class BaseForm(StrAndUnicode):
                     label = ''
 
                 if field.help_text:
-                    help_text = renderer.render_help_text(bf)
+                    help_text = help_text_html % force_unicode(field.help_text)
                 else:
                     help_text = u''
 
@@ -217,8 +215,8 @@ class BaseForm(StrAndUnicode):
             normal_row = u'<tr%(html_class_attr)s><th>%(label)s</th><td>%(errors)s%(field)s%(help_text)s</td></tr>',
             error_row = u'<tr><td colspan="2">%s</td></tr>',
             row_ender = u'</td></tr>',
-            errors_on_separate_row = False,
-            layout = 'table')
+            help_text_html = u'<br /><span class="helptext">%s</span>',
+            errors_on_separate_row = False)
 
     def as_ul(self):
         "Returns this form rendered as HTML <li>s -- excluding the <ul></ul>."
@@ -226,8 +224,8 @@ class BaseForm(StrAndUnicode):
             normal_row = u'<li%(html_class_attr)s>%(errors)s%(label)s %(field)s%(help_text)s</li>',
             error_row = u'<li>%s</li>',
             row_ender = '</li>',
-            errors_on_separate_row = False,
-            layout = 'ul')
+            help_text_html = u' <span class="helptext">%s</span>',
+            errors_on_separate_row = False)
 
     def as_p(self):
         "Returns this form rendered as HTML <p>s."
@@ -235,8 +233,8 @@ class BaseForm(StrAndUnicode):
             normal_row = u'<p%(html_class_attr)s>%(label)s %(field)s%(help_text)s</p>',
             error_row = u'%s',
             row_ender = '</p>',
-            errors_on_separate_row = True,
-            layout = 'p')
+            help_text_html = u' <span class="helptext">%s</span>',
+            errors_on_separate_row = True)
 
     def non_field_errors(self):
         """
@@ -245,6 +243,12 @@ class BaseForm(StrAndUnicode):
         are none.
         """
         return self.errors.get(NON_FIELD_ERRORS, self.error_class())
+
+    def hidden_field_errors(self):
+        hidden_field_errors = ErrorList()
+        for field in self.hidden_fields():
+            hidden_field_errors.extend(field.errors)
+        return hidden_field_errors
 
     def _raw_value(self, fieldname):
         """
@@ -480,6 +484,13 @@ class BoundField(StrAndUnicode):
             )
         return self.field.prepare_value(data)
 
+    def for_id(self):
+        widget = self.field.widget
+        for_id = widget.attrs.get('id') or self.auto_id
+        if for_id:
+            for_id = widget.id_for_label(for_id)
+        return for_id
+
     def label_tag(self, contents=None, attrs=None):
         """
         Wraps the given contents in a <label>, if the field has an ID attribute.
@@ -489,12 +500,8 @@ class BoundField(StrAndUnicode):
         If attrs are given, they're used as HTML attributes on the <label> tag.
         """
         contents = contents or conditional_escape(self.label)
-        widget = self.field.widget
-        for_id = widget.attrs.get('id') or self.auto_id
-        if for_id:
-            for_id = widget.id_for_label(for_id)
         label = render_to_string('forms/layouts/default/label.html', {
-            'for_id': for_id,
+            'for_id': self.for_id(),
             'label': mark_safe(contents),
             'attrs': attrs,
         })
