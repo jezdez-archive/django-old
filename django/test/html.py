@@ -207,5 +207,6 @@ def parse_html(html):
     document.finalize()
     # Removing ROOT element if it's not necessary
     if len(document.children) == 1:
-        document = document.children[0]
+        if not isinstance(document.children[0], basestring):
+            document = document.children[0]
     return document
