@@ -17,13 +17,12 @@ except ImportError:
         # Python 2.6 and greater
         from urlparse import parse_qsl
     except ImportError:
-        # Python 2.5, 2.4.  Works on Python 2.6 but raises
-        # PendingDeprecationWarning
+        # Python 2.5.  Works on Python 2.6 but raises PendingDeprecationWarning
         from cgi import parse_qsl
 
 import Cookie
 # httponly support exists in Python 2.6's Cookie library,
-# but not in Python 2.4 or 2.5.
+# but not in Python 2.5.
 _morsel_supports_httponly = Cookie.Morsel._reserved.has_key('httponly')
 # Some versions of Python 2.7 and later won't need this encoding bug fix:
 _cookie_encodes_correctly = Cookie.SimpleCookie().value_encode(';') == (';', '"\\073"')
@@ -135,6 +134,53 @@ class Http404(Exception):
 
 RAISE_ERROR = object()
 
+
+def build_request_repr(request, path_override=None, GET_override=None,
+                       POST_override=None, COOKIES_override=None,
+                       META_override=None):
+    """
+    Builds and returns the request's representation string. The request's
+    attributes may be overridden by pre-processed values.
+    """
+    # Since this is called as part of error handling, we need to be very
+    # robust against potentially malformed input.
+    try:
+        get = (pformat(GET_override)
+               if GET_override is not None
+               else pformat(request.GET))
+    except:
+        get = '<could not parse>'
+    if request._post_parse_error:
+        post = '<could not parse>'
+    else:
+        try:
+            post = (pformat(POST_override)
+                    if POST_override is not None
+                    else pformat(request.POST))
+        except:
+            post = '<could not parse>'
+    try:
+        cookies = (pformat(COOKIES_override)
+                   if COOKIES_override is not None
+                   else pformat(request.COOKIES))
+    except:
+        cookies = '<could not parse>'
+    try:
+        meta = (pformat(META_override)
+                if META_override is not None
+                else pformat(request.META))
+    except:
+        meta = '<could not parse>'
+    path = path_override if path_override is not None else request.path
+    return smart_str(u'<%s\npath:%s,\nGET:%s,\nPOST:%s,\nCOOKIES:%s,\nMETA:%s>' %
+                     (request.__class__.__name__,
+                      path,
+                      unicode(get),
+                      unicode(post),
+                      unicode(cookies),
+                      unicode(meta)))
+
+
 class HttpRequest(object):
     """A basic HTTP request."""
 
@@ -147,11 +193,10 @@ class HttpRequest(object):
         self.path = ''
         self.path_info = ''
         self.method = None
+        self._post_parse_error = False
 
     def __repr__(self):
-        return '<HttpRequest\nGET:%s,\nPOST:%s,\nCOOKIES:%s,\nMETA:%s>' % \
-            (pformat(self.GET), pformat(self.POST), pformat(self.COOKIES),
-            pformat(self.META))
+        return build_request_repr(self)
 
     def get_host(self):
         """Returns the HTTP host using the environment or request headers."""

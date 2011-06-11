@@ -79,7 +79,7 @@ module defines tests in class-based approach.
     adding some extremely useful features. To ensure that every Django
     project can benefit from these new features, Django ships with a
     copy of unittest2_, a copy of the Python 2.7 unittest library,
-    backported for Python 2.4 compatibility.
+    backported for Python 2.5 compatibility.
 
     To access this library, Django provides the
     ``django.utils.unittest`` module alias. If you are using Python
@@ -1743,6 +1743,29 @@ set up, execute and tear down the test suite.
     allows for this expansion. If you subclass ``DjangoTestSuiteRunner`` or
     write your own test runner, ensure accept and handle the ``**kwargs``
     parameter.
+
+    .. versionadded:: 1.4
+
+    Your test runner may also define additional command-line options.
+    If you add an ``option_list`` attribute to a subclassed test runner,
+    those options will be added to the list of command-line options that
+    the :djadmin:`test` command can use.
+
+
+Attributes
+~~~~~~~~~~
+
+
+.. attribute:: DjangoTestSuiteRunner.option_list
+
+    .. versionadded:: 1.4
+
+    This is the tuple of ``optparse`` options which will be fed into the
+    management command's ``OptionParser`` for parsing arguments. See the
+    documentation for Python's ``optparse`` module for more details.
+
+Methods
+~~~~~~~
 
 .. method:: DjangoTestSuiteRunner.run_tests(test_labels, extra_tests=None, **kwargs)
 

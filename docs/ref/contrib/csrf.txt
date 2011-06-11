@@ -21,6 +21,8 @@ can then be protected by following the steps below.
 .. _Cross Site Request Forgeries: http://www.squarefree.com/securitytips/web-developers.html#CSRF
 .. _9.1.1 Safe Methods, HTTP 1.1, RFC 2616: http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
 
+.. _using-csrf:
+
 How to use it
 =============
 
@@ -182,6 +184,8 @@ The error page, however, is not very friendly, so you may want to provide your
 own view for handling this condition.  To do this, simply set the
 :setting:`CSRF_FAILURE_VIEW` setting.
 
+.. _how-csrf-works:
+
 How it works
 ============
 
@@ -234,15 +238,16 @@ middleware will play well with the cache middleware if it is used as instructed
 (``UpdateCacheMiddleware`` goes before all other middleware).
 
 However, if you use cache decorators on individual views, the CSRF middleware
-will not yet have been able to set the Vary header.  In this case, on any views
-that will require a CSRF token to be inserted you should use the
-:func:`django.views.decorators.vary.vary_on_cookie` decorator first::
+will not yet have been able to set the Vary header or the CSRF cookie, and the
+response will be cached without either one. In this case, on any views that
+will require a CSRF token to be inserted you should use the
+:func:`django.views.decorators.csrf.csrf_protect` decorator first::
 
   from django.views.decorators.cache import cache_page
-  from django.views.decorators.vary import vary_on_cookie
+  from django.views.decorators.csrf import csrf_protect
 
   @cache_page(60 * 15)
-  @vary_on_cookie
+  @csrf_protect
   def my_view(request):
       # ...
 
