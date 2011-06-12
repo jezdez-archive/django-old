@@ -1,6 +1,8 @@
+from django.conf import settings
 from django.template.base import Library
-from django.template.base import Node, NodeList, Template, Context, Variable
+from django.template.base import Node, Variable
 from django.template.base import TemplateSyntaxError, VariableDoesNotExist
+from django.template.loader import get_template
 
 
 register = Library()
@@ -16,6 +18,33 @@ class FormNode(Node):
         self.nodelist = nodelist
 
     def render(self, context):
+        if not self.nodelist:
+            try:
+                if self.template_name is not None:
+                    template_name = self.template_name.resolve(context)
+                else:
+                    template_name = self.default_template_name
+                nodelist = get_template(template_name)
+            except:
+                if settings.TEMPLATE_DEBUG:
+                    raise
+                return u''
+        else:
+            nodelist = self.nodelist
+        forms = []
+        for variable in self.forms:
+            try:
+                form = variable.resolve(context)
+                forms.append(form)
+            except VariableDoesNotExist:
+                pass
+        context.push()
+        try:
+            context['form'] = forms[0] if forms else None
+            context['forms'] = forms
+            return nodelist.render(context)
+        finally:
+            context.pop()
         return u''
 
     @classmethod
@@ -26,7 +55,7 @@ class FormNode(Node):
         using = False
         template_name = None
         nodelist = None
-        if len(bits) < 1:
+        if len(bits) < 1 or bits == ['using']:
             raise TemplateSyntaxError(
                 u'%s tag: expected at least one argument' % tagname)
         while bits:
