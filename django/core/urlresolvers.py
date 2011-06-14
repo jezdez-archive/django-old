@@ -119,7 +119,7 @@ def get_mod_func(callback):
 
 class RegexURLPattern(object):
     def __init__(self, regex, callback, default_args=None, name=None):
-        # regex is eighter a string representing a regular expression, or a
+        # regex is either a string representing a regular expression, or a
         # translatable string (using ugettext_lazy) representing a regular
         # expression.
         # callback is either a string like 'foo.views.news.stories.story_detail'
