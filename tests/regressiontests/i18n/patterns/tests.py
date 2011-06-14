@@ -58,6 +58,9 @@ class URLPrefixTests(URLTestCaseBase):
         with translation.override('nl'):
             self.assertEqual(reverse('prefixed'), '/nl/prefixed/')
 
+    @override_settings(ROOT_URLCONF='regressiontests.i18n.patterns.urls.wrong')
+    def test_invalid_prefix_use(self):
+        self.assertRaises(ImproperlyConfigured, lambda: reverse('account:register'))
 
 
 class URLDisabledTests(URLTestCaseBase):
