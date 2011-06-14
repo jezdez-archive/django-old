@@ -572,7 +572,7 @@ class MiscTests(TestCase):
         g = get_language_from_request
         r = self.rf.get('/')
         r.COOKIES = {settings.LANGUAGE_COOKIE_NAME: 'pt-br'}
-        # r.META = {}
+        r.META = {}
         self.assertEqual('pt-br', g(r))
 
         r.COOKIES = {settings.LANGUAGE_COOKIE_NAME: 'pt'}

@@ -782,7 +782,7 @@ Specifying translation strings: In URL patterns
 
 Django provides two mechanisms to internationalize URL patterns:
 
-* Adding the language-prefix to the root of the URL patterns to make it
+* Adding the language prefix to the root of the URL patterns to make it
   possible for the ``LocaleMiddleware`` to detect the language to activate
   from the requested URL.
 
@@ -838,7 +838,7 @@ function. Example::
       URL patterns. When including a pattern which contains one or more
       ``i18n_patterns()`` patterns, an exception will be thrown.
 
-    * Make sure the automatically added language-prefix does not cause
+    * Make sure the automatically added language prefix does not cause
       collision with other non-prefixed URL patterns.
 
 Translating URL patterns

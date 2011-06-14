@@ -80,10 +80,10 @@ following this algorithm:
 
 .. versionchanged:: 1.4
 
-    * First, it looks for the language-prefix in the requested URL.
+    * First, it looks for the language prefix in the requested URL.
       This is only performed when you are using the ``i18n_patterns``
       function. See :ref:`url-internationalization` for more information
-      about the language-prefix and how to internationalize URL patterns.
+      about the language prefix and how to internationalize URL patterns.
 
     * Failing that, it looks for a ``django_language`` key in the current
       user's session.
