@@ -20,7 +20,7 @@ def memoize(func, cache, num_args=None):
     """
     if isinstance(func, dict):
         def memoize_wrapper(f):
-            return memoize(f, func, num_args)
+            return memoize(f, func, cache)
         return memoize_wrapper
     @wraps(func)
     def wrapper(*args):
