@@ -72,6 +72,7 @@ class NoReverseMatch(Exception):
     # Don't make this raise an error when used in a template.
     silent_variable_failure = True
 
+@memoize(_callable_cache, 1)
 def get_callable(lookup_view, can_fail=False):
     """
     Convert a string version of a function name to the callable object.
@@ -97,14 +98,13 @@ def get_callable(lookup_view, can_fail=False):
         except UnicodeEncodeError:
             pass
     return lookup_view
-get_callable = memoize(get_callable, _callable_cache, 1)
 
+@memoize(_resolver_cache, 1)
 def get_resolver(urlconf):
     if urlconf is None:
         from django.conf import settings
         urlconf = settings.ROOT_URLCONF
     return RegexURLResolver(r'^/', urlconf)
-get_resolver = memoize(get_resolver, _resolver_cache, 1)
 
 def get_mod_func(callback):
     # Converts 'django.views.news.stories.story_detail' to

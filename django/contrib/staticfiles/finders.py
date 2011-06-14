@@ -241,7 +241,8 @@ def get_finders():
     for finder_path in settings.STATICFILES_FINDERS:
         yield get_finder(finder_path)
 
-def _get_finder(import_path):
+@memoize(_finders, 1)
+def get_finder(import_path):
     """
     Imports the staticfiles finder class described by import_path, where
     import_path is the full Python path to the class.
@@ -261,4 +262,3 @@ def _get_finder(import_path):
         raise ImproperlyConfigured('Finder "%s" is not a subclass of "%s"' %
                                    (Finder, BaseFinder))
     return Finder()
-get_finder = memoize(_get_finder, _finders, 1)

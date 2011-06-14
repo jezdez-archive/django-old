@@ -10,7 +10,7 @@ def curry(_curried_func, *args, **kwargs):
         return _curried_func(*(args+moreargs), **dict(kwargs, **morekwargs))
     return _curried
 
-def memoize(func, cache, num_args):
+def memoize(func, cache, num_args=None):
     """
     Wrap a function so that results for any argument tuple are stored in
     'cache'. Note that the args to the function must be usable as dictionary
@@ -18,6 +18,10 @@ def memoize(func, cache, num_args):
 
     Only the first num_args are considered when creating the key.
     """
+    if isinstance(func, dict):
+        def memoize_wrapper(f):
+            return memoize(f, func, num_args)
+        return memoize_wrapper
     @wraps(func)
     def wrapper(*args):
         mem_args = args[:num_args]
