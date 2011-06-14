@@ -52,13 +52,13 @@ class ResolverMatch(object):
                 url_name = '.'.join([func.__module__, func.__name__])
         self.url_name = url_name
 
+    @property
     def namespace(self):
         return ':'.join(self.namespaces)
-    namespace = property(namespace)
 
+    @property
     def view_name(self):
         return ':'.join([ x for x in [ self.namespace, self.url_name ]  if x ])
-    view_name = property(view_name)
 
     def __getitem__(self, index):
         return (self.func, self.args, self.kwargs)[index]
@@ -117,7 +117,28 @@ def get_mod_func(callback):
         return callback, ''
     return callback[:dot], callback[dot+1:]
 
-class RegexURLPattern(object):
+class RegexProvider(object):
+    """
+    A mixin to provide a default regex property.
+    """
+    @property
+    def regex(self):
+        """
+        Returns a compiled regular expression, depending upon the activated
+        language-code.
+        """
+        language_code = get_language()
+        if language_code not in self._regex_dict:
+            if isinstance(self._regex, basestring):
+                compiled_regex = re.compile(self._regex, re.UNICODE)
+            else:
+                regex = force_unicode(self._regex)
+                compiled_regex = re.compile(regex, re.UNICODE)
+            self._regex_dict[language_code] = compiled_regex
+        return self._regex_dict[language_code]
+
+
+class RegexURLPattern(RegexProvider):
     def __init__(self, regex, callback, default_args=None, name=None):
         # regex is either a string representing a regular expression, or a
         # translatable string (using ugettext_lazy) representing a regular
@@ -134,24 +155,6 @@ class RegexURLPattern(object):
             self._callback_str = callback
         self.default_args = default_args or {}
         self.name = name
-
-    @property
-    def regex(self):
-        """
-        Returns a compiled regular expression, depending upon the activated
-        language-code.
-        """
-        language_code = get_language()
-
-        if language_code not in self._regex_dict:
-            if isinstance(self._regex, basestring):
-                compiled_regex = re.compile(self._regex, re.UNICODE)
-            else:
-                regex = unicode(self._regex)
-                compiled_regex = re.compile(regex, re.UNICODE)
-            self._regex_dict[language_code] = compiled_regex
-
-        return self._regex_dict[language_code]
 
     def __repr__(self):
         return smart_str(u'<%s %s %s>' % (self.__class__.__name__, self.name, self.regex.pattern))
@@ -180,7 +183,8 @@ class RegexURLPattern(object):
 
             return ResolverMatch(self.callback, args, kwargs, self.name)
 
-    def _get_callback(self):
+    @property
+    def callback(self):
         if self._callback is not None:
             return self._callback
         try:
@@ -192,9 +196,8 @@ class RegexURLPattern(object):
             mod_name, func_name = get_mod_func(self._callback_str)
             raise ViewDoesNotExist("Tried %s in module %s. Error was: %s" % (func_name, mod_name, str(e)))
         return self._callback
-    callback = property(_get_callback)
 
-class RegexURLResolver(object):
+class RegexURLResolver(RegexProvider):
     def __init__(self, regex, urlconf_name, default_kwargs=None, app_name=None, namespace=None):
         # regex is a string representing a regular expression.
         # urlconf_name is a string representing the module containing URLconfs.
@@ -210,22 +213,6 @@ class RegexURLResolver(object):
         self._reverse_dict = {}
         self._namespace_dict = {}
         self._app_dict = {}
-
-    @property
-    def regex(self):
-        """
-        Returns a compiled regular expression, depending upon the activated
-        language-code.
-        """
-        language_code = get_language()
-        if language_code not in self._regex_dict:
-            if isinstance(self._regex, basestring):
-                compiled_regex = re.compile(self._regex, re.UNICODE)
-            else:
-                regex = force_unicode(self._regex)
-                compiled_regex = re.compile(regex, re.UNICODE)
-            self._regex_dict[language_code] = compiled_regex
-        return self._regex_dict[language_code]
 
     def __repr__(self):
         return smart_str(u'<%s %s (%s:%s) %s>' % (self.__class__.__name__, self.urlconf_name, self.app_name, self.namespace, self.regex.pattern))
@@ -311,22 +298,22 @@ class RegexURLResolver(object):
             raise Resolver404({'tried': tried, 'path': new_path})
         raise Resolver404({'path' : path})
 
-    def _get_urlconf_module(self):
+    @property
+    def urlconf_module(self):
         try:
             return self._urlconf_module
         except AttributeError:
             self._urlconf_module = import_module(self.urlconf_name)
             return self._urlconf_module
-    urlconf_module = property(_get_urlconf_module)
 
-    def _get_url_patterns(self):
+    @property
+    def url_patterns(self):
         patterns = getattr(self.urlconf_module, "urlpatterns", self.urlconf_module)
         try:
             iter(patterns)
         except TypeError:
             raise ImproperlyConfigured("The included urlconf %s doesn't have any patterns in it" % self.urlconf_name)
         return patterns
-    url_patterns = property(_get_url_patterns)
 
     def _resolve_special(self, view_type):
         callback = getattr(self.urlconf_module, 'handler%s' % view_type, None)
