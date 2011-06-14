@@ -22,6 +22,7 @@ class URLTestCaseBase(TestCase):
         clear_url_caches()
 
 URLTestCaseBase = override_settings(
+    USE_I18N=True,
     LOCALE_PATHS=(
         os.path.join(os.path.dirname(__file__), 'locale'),
     ),
@@ -57,9 +58,17 @@ class URLPrefixTests(URLTestCaseBase):
         with translation.override('nl'):
             self.assertEqual(reverse('prefixed'), '/nl/prefixed/')
 
-    @override_settings(ROOT_URLCONF='regressiontests.i18n.patterns.urls.wrong')
-    def test_invalid_prefix_use(self):
-        self.assertRaises(ImproperlyConfigured, lambda: reverse('account:register'))
+
+
+class URLDisabledTests(URLTestCaseBase):
+    urls = 'regressiontests.i18n.patterns.urls.disabled'
+
+    @override_settings(USE_I18N=False)
+    def test_prefixed_i18n_disabled(self):
+        with translation.override('en'):
+            self.assertEqual(reverse('prefixed'), '/prefixed/')
+        with translation.override('nl'):
+            self.assertEqual(reverse('prefixed'), '/prefixed/')
 
 
 class URLTranslationTests(URLTestCaseBase):
