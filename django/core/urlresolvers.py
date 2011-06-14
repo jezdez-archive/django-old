@@ -18,6 +18,8 @@ from django.utils.encoding import iri_to_uri, force_unicode, smart_str
 from django.utils.functional import memoize, lazy
 from django.utils.importlib import import_module
 from django.utils.regex_helper import normalize
+from django.utils.translation import get_language
+
 
 _resolver_cache = {} # Maps URLconf modules to RegexURLResolver instances.
 _callable_cache = {} # Maps view and url pattern names to their view functions.
@@ -117,11 +119,14 @@ def get_mod_func(callback):
 
 class RegexURLPattern(object):
     def __init__(self, regex, callback, default_args=None, name=None):
-        # regex is a string representing a regular expression.
+        # regex is eighter a string representing a regular expression, or a
+        # translatable string (using ugettext_lazy) representing a regular
+        # expression.
         # callback is either a string like 'foo.views.news.stories.story_detail'
         # which represents the path to a module and a view function name, or a
         # callable object (view).
-        self.regex = re.compile(regex, re.UNICODE)
+        self._regex = regex
+        self._regex_dict = {}
         if callable(callback):
             self._callback = callback
         else:
@@ -129,6 +134,24 @@ class RegexURLPattern(object):
             self._callback_str = callback
         self.default_args = default_args or {}
         self.name = name
+
+    @property
+    def regex(self):
+        """
+        Returns a compiled regular expression, depending upon the activated
+        language-code.
+        """
+        language_code = get_language()
+
+        if language_code not in self._regex_dict:
+            if isinstance(self._regex, basestring):
+                compiled_regex = re.compile(self._regex, re.UNICODE)
+            else:
+                regex = unicode(self._regex)
+                compiled_regex = re.compile(regex, re.UNICODE)
+            self._regex_dict[language_code] = compiled_regex
+
+        return self._regex_dict[language_code]
 
     def __repr__(self):
         return smart_str(u'<%s %s %s>' % (self.__class__.__name__, self.name, self.regex.pattern))
@@ -175,7 +198,8 @@ class RegexURLResolver(object):
     def __init__(self, regex, urlconf_name, default_kwargs=None, app_name=None, namespace=None):
         # regex is a string representing a regular expression.
         # urlconf_name is a string representing the module containing URLconfs.
-        self.regex = re.compile(regex, re.UNICODE)
+        self._regex = regex
+        self._regex_dict = {}
         self.urlconf_name = urlconf_name
         if not isinstance(urlconf_name, basestring):
             self._urlconf_module = self.urlconf_name
@@ -183,9 +207,25 @@ class RegexURLResolver(object):
         self.default_kwargs = default_kwargs or {}
         self.namespace = namespace
         self.app_name = app_name
-        self._reverse_dict = None
-        self._namespace_dict = None
-        self._app_dict = None
+        self._reverse_dict = {}
+        self._namespace_dict = {}
+        self._app_dict = {}
+
+    @property
+    def regex(self):
+        """
+        Returns a compiled regular expression, depending upon the activated
+        language-code.
+        """
+        language_code = get_language()
+        if language_code not in self._regex_dict:
+            if isinstance(self._regex, basestring):
+                compiled_regex = re.compile(self._regex, re.UNICODE)
+            else:
+                regex = force_unicode(self._regex)
+                compiled_regex = re.compile(regex, re.UNICODE)
+            self._regex_dict[language_code] = compiled_regex
+        return self._regex_dict[language_code]
 
     def __repr__(self):
         return smart_str(u'<%s %s (%s:%s) %s>' % (self.__class__.__name__, self.urlconf_name, self.app_name, self.namespace, self.regex.pattern))
@@ -194,6 +234,7 @@ class RegexURLResolver(object):
         lookups = MultiValueDict()
         namespaces = {}
         apps = {}
+        language_code = get_language()
         for pattern in reversed(self.url_patterns):
             p_pattern = pattern.regex.pattern
             if p_pattern.startswith('^'):
@@ -220,27 +261,30 @@ class RegexURLResolver(object):
                 lookups.appendlist(pattern.callback, (bits, p_pattern, pattern.default_args))
                 if pattern.name is not None:
                     lookups.appendlist(pattern.name, (bits, p_pattern, pattern.default_args))
-        self._reverse_dict = lookups
-        self._namespace_dict = namespaces
-        self._app_dict = apps
+        self._reverse_dict[language_code] = lookups
+        self._namespace_dict[language_code] = namespaces
+        self._app_dict[language_code] = apps
 
-    def _get_reverse_dict(self):
-        if self._reverse_dict is None:
+    @property
+    def reverse_dict(self):
+        language_code = get_language()
+        if language_code not in self._reverse_dict:
             self._populate()
-        return self._reverse_dict
-    reverse_dict = property(_get_reverse_dict)
+        return self._reverse_dict[language_code]
 
-    def _get_namespace_dict(self):
-        if self._namespace_dict is None:
+    @property
+    def namespace_dict(self):
+        language_code = get_language()
+        if language_code not in self._namespace_dict:
             self._populate()
-        return self._namespace_dict
-    namespace_dict = property(_get_namespace_dict)
+        return self._namespace_dict[language_code]
 
-    def _get_app_dict(self):
-        if self._app_dict is None:
+    @property
+    def app_dict(self):
+        language_code = get_language()
+        if language_code not in self._app_dict:
             self._populate()
-        return self._app_dict
-    app_dict = property(_get_app_dict)
+        return self._app_dict[language_code]
 
     def resolve(self, path):
         tried = []
@@ -342,6 +386,24 @@ class RegexURLResolver(object):
             lookup_view_s = lookup_view
         raise NoReverseMatch("Reverse for '%s' with arguments '%s' and keyword "
                 "arguments '%s' not found." % (lookup_view_s, args, kwargs))
+
+class LocaleRegexURLResolver(RegexURLResolver):
+    """
+    The ``__init__`` function does not take an regex argument. Instead, we are
+    overriding the ``regex`` function to always return the active language-code
+    as regex.
+    """
+    def __init__(self, urlconf_name, default_kwargs=None, app_name=None, namespace=None):
+        super(LocaleRegexURLResolver, self).__init__(
+            None, urlconf_name, default_kwargs, app_name, namespace)
+
+    @property
+    def regex(self):
+        language_code = get_language()
+        if language_code not in self._regex_dict:
+            regex_compiled = re.compile('^%s/' % language_code, re.UNICODE)
+            self._regex_dict[language_code] = regex_compiled
+        return self._regex_dict[language_code]
 
 def resolve(path, urlconf=None):
     if urlconf is None:
