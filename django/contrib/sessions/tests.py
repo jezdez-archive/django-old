@@ -7,6 +7,7 @@ from django.contrib.sessions.backends.db import SessionStore as DatabaseSession
 from django.contrib.sessions.backends.cache import SessionStore as CacheSession
 from django.contrib.sessions.backends.cached_db import SessionStore as CacheDBSession
 from django.contrib.sessions.backends.file import SessionStore as FileSession
+from django.contrib.sessions.backends.cookies import SessionStore as CookieSession
 from django.contrib.sessions.models import Session
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
@@ -361,3 +362,15 @@ class SessionMiddlewareTests(unittest.TestCase):
         # Handle the response through the middleware
         response = middleware.process_response(request, response)
         self.assertTrue(response.cookies[settings.SESSION_COOKIE_NAME]['httponly'])
+
+
+class CacheDBSessionTests(SessionTestsMixin, TestCase):
+
+    backend = CookieSession
+
+    def test_save(self):
+        """
+        This test tested exists() in the other session backends, but that
+        doesn't make sense for us.
+        """
+        pass
