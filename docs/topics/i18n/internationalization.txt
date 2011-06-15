@@ -792,9 +792,10 @@ Django provides two mechanisms to internationalize URL patterns:
 Language prefix in URL patterns
 -------------------------------
 
-By using the ``i18n_patterns()`` function instead of the ``patterns()``
-function, Django will add the current active language automatically to all
-the URL patterns defined within this function. Example URL patterns::
+By using the ``i18n_patterns()`` function instead of the
+:func:`~django.conf.urls.defaults.patterns` function, Django will add the
+current active language automatically to all the URL patterns defined within
+this function. Example URL patterns::
 
     from django.conf.urls.defaults import patterns, include, url
     from django.conf.urls.i18n import i18n_patterns
@@ -876,7 +877,7 @@ language. Example::
 
     >>> activate('en')
     >>> reverse('news:category', kwargs={'slug': 'recent'})
-    '/en/news/news-slug/'
+    '/en/news/category/recent/'
 
     >>> activate('nl')
     >>> reverse('news:category', kwargs={'slug': 'recent'})

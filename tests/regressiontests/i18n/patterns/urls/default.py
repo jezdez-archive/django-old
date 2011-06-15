@@ -9,6 +9,7 @@ view = TemplateView.as_view(template_name='dummy.html')
 urlpatterns = patterns('',
     url(r'^not-prefixed/$', view, name='not-prefixed'),
     url(_(r'^translated/$'), view, name='no-prefix-translated'),
+    url(_(r'^translated/(?P<slug>[\w-]+)/$'), view, name='no-prefix-translated-slug'),
 )
 
 urlpatterns += i18n_patterns('',
