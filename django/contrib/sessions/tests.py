@@ -364,7 +364,7 @@ class SessionMiddlewareTests(unittest.TestCase):
         self.assertTrue(response.cookies[settings.SESSION_COOKIE_NAME]['httponly'])
 
 
-class CacheDBSessionTests(SessionTestsMixin, TestCase):
+class CookieSessionTests(SessionTestsMixin, TestCase):
 
     backend = CookieSession
 
