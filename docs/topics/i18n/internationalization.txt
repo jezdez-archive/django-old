@@ -770,8 +770,8 @@ Django provides two mechanisms to internationalize URL patterns:
   possible for the ``LocaleMiddleware`` to detect the language to activate
   from the requested URL.
 
-* Making URL patterns translatable by using the ``ugettext_lazy()`` function.
-
+* Making URL patterns translatable by using the
+  :func:`django.utils.translation.ugettext_lazy()` function.
 
 Language prefix in URL patterns
 -------------------------------
@@ -834,7 +834,7 @@ function. Example::
 
     from django.conf.urls.defaults import patterns, include, url
     from django.conf.urls.i18n import i18n_patterns
-    from django.utils.translation import ugettext_lazy
+    from django.utils.translation import ugettext_lazy as _
 
     urlpatterns = patterns(''
         url(r'^sitemap\.xml$', 'sitemap.view', name='sitemap_xml'),
@@ -853,8 +853,8 @@ function. Example::
 
 
 After creating the translations (see :doc:`localization` for more
-information), the ``reverse()`` function will return the URL in the active
-language. Example::
+information), the :func:`~django.core.urlresolvers.reverse` function will
+return the URL in the active language. Example::
 
     from django.core.urlresolvers import reverse
     from django.utils.translation import activate
@@ -873,7 +873,6 @@ language. Example::
     activate from the requested URL, always use translatable URL patterns
     together with the ``i18n_patterns()`` function. Django is not able to
     resolve a URL when the correct language is not activated.
-
 
 .. _set_language-redirect-view:
 
