@@ -1,20 +1,31 @@
+import zlib
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 from django.conf import settings
 from django.core import signing
+from django.utils.encoding import smart_str
 
 from django.contrib.sessions.backends.base import SessionBase
 
 
 class SessionStore(SessionBase):
+    salt = 'django.contrib.sessions.backends.cookies'
 
     def load(self):
         """
         We load the data from the key itself instead of fetching from some
-        external data store.
+        external data store. Opposite of _get_session_key(), raises
+        BadSignature if signature fails.
         """
+        signer = signing.TimestampSigner(salt=self.salt)
         try:
-            return signing.loads(self._session_key,
-                max_age=settings.SESSION_COOKIE_AGE,
-                salt='django.contrib.sessions.backends.cookies')
+            base64d = signer.unsign(
+                self._session_key, max_age=settings.SESSION_COOKIE_AGE)
+            pickled = signing.b64_decode(smart_str(base64d))
+            return pickle.loads(zlib.decompress(pickled))
         except (signing.BadSignature, ValueError):
             self.create()
             return {}
@@ -68,5 +79,12 @@ class SessionStore(SessionBase):
         generate a secure url-safe Base64-encoded string of data as our
         session key.
         """
-        return signing.dumps(getattr(self, '_session_cache', {}),
-            salt='django.contrib.sessions.backends.cookies', compress=True)
+        payload = getattr(self, '_session_cache', {})
+        pickled = pickle.dumps(payload, pickle.HIGHEST_PROTOCOL)
+        base64d = signing.b64_encode(zlib.compress(pickled))
+        return signing.TimestampSigner(salt=self.salt).sign(base64d)
+
+    def _set_session_key(self, session_key):
+        self._session_key = session_key
+
+    session_key = property(_get_session_key, _set_session_key)

@@ -161,7 +161,7 @@ class TimestampSigner(Signer):
     def __init__(self, *args, **kwargs):
         self.time_func = kwargs.pop('time', time.time)
         super(TimestampSigner, self).__init__(*args, **kwargs)
-    
+
     def timestamp(self):
         return baseconv.base62.encode(int(self.time_func() * 10000))
 
