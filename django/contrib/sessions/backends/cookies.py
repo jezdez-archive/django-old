@@ -16,9 +16,9 @@ class SessionStore(SessionBase):
 
     def load(self):
         """
-        We load the data from the key itself instead of fetching from some
-        external data store. Opposite of _get_session_key(), raises
-        BadSignature if signature fails.
+        We load the data from the key itself instead of fetching from
+        some external data store. Opposite of _get_session_key(),
+        raises BadSignature if signature fails.
         """
         signer = signing.TimestampSigner(salt=self.salt)
         try:
