@@ -95,8 +95,8 @@ defaults to output from ``tempfile.gettempdir()``, most likely ``/tmp``) to
 control where Django stores session files. Be sure to check that your Web
 server has permissions to read and write to this location.
 
-Using cookies-based sessions
-----------------------------
+Using cookie-based sessions
+---------------------------
 
 .. versionadded:: 1.4
 
@@ -109,10 +109,19 @@ JavaScript.
 
 .. warning::
 
-    Before being added to the client-side cookie the session data is
-    **signed but not encrypted**. In other words, when using the
-    cookies backend the data stored in the session can be read out but
-    will be invalidated when being tampered with.
+    The session data is **signed but not encrypted**!
+
+    When using the cookies backend the session data can be read out
+    and will be invalidated when being tampered with. The same invalidation
+    happens if the client storing the cookie (e.g. your user's browser)
+    can't store all of the session cookie and drops data. Even though
+    Django compresses the data before it's still entirely possible to
+    exceed the `common limit of 4096 bytes`_ per cookie.
+
+    Also, the size of a cookie can have an impact on the `speed of your site`_.
+
+.. _`common limit of 4096 bytes`: http://tools.ietf.org/html/rfc2965#section-5.3
+.. _`speed of your site`: http://yuiblog.com/blog/2007/03/01/performance-research-part-3/
 
 Using sessions in views
 =======================
