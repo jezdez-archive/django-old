@@ -7,6 +7,7 @@ import sys
 import tempfile
 from StringIO import StringIO
 
+from django.template import loader, Context
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import default_storage
@@ -49,6 +50,11 @@ class StaticFilesTestCase(TestCase):
 
     def assertFileNotFound(self, filepath):
         self.assertRaises(IOError, self._get_file, filepath)
+
+    def assertTemplateRenders(self, template, result, **kwargs):
+        if isinstance(template, basestring):
+            template = loader.get_template_from_string(template)
+        self.assertEqual(template.render(Context(kwargs)), result)
 
 StaticFilesTestCase = override_settings(
     DEBUG = True,
@@ -406,3 +412,9 @@ class TestStaticfilesDirsType(TestCase):
 TestStaticfilesDirsType = override_settings(
     STATICFILES_DIRS = 'a string',
 )(TestStaticfilesDirsType)
+
+class TestTemplateTag(StaticFilesTestCase):
+
+    def test_template_tag(self):
+        self.assertTemplateRenders("""{% load staticfiles %}{% staticfiles_url "does/not/exist.png" %}""", "")
+        self.assertTemplateRenders("""{% load staticfiles %}{% staticfiles_url "test/storage.txt" %}""", "/static/test/storage.txt")
