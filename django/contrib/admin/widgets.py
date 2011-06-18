@@ -6,6 +6,7 @@ import copy
 from django import forms
 from django.forms.widgets import RadioFieldRenderer
 from django.forms.util import flatatt
+from django.templatetags.static import static
 from django.utils.html import escape
 from django.utils.text import truncate_words
 from django.utils.translation import ugettext as _
@@ -22,9 +23,8 @@ class FilteredSelectMultiple(forms.SelectMultiple):
     catalog has been loaded in the page
     """
     class Media:
-        js = (settings.ADMIN_MEDIA_PREFIX + "js/core.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/SelectBox.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/SelectFilter2.js")
+        js = ["admin/js/%s" % path
+              for path in ["core.js", "SelectBox.js", "SelectFilter2.js"]]
 
     def __init__(self, verbose_name, is_stacked, attrs=None, choices=()):
         self.verbose_name = verbose_name
@@ -39,22 +39,20 @@ class FilteredSelectMultiple(forms.SelectMultiple):
         output.append(u'<script type="text/javascript">addEvent(window, "load", function(e) {')
         # TODO: "id_" is hard-coded here. This should instead use the correct
         # API to determine the ID dynamically.
-        output.append(u'SelectFilter.init("id_%s", "%s", %s, "%s"); });</script>\n' % \
-            (name, self.verbose_name.replace('"', '\\"'), int(self.is_stacked), settings.ADMIN_MEDIA_PREFIX))
+        output.append(u'SelectFilter.init("id_%s", "%s", %s, "%s/admin/"); });</script>\n' % \
+            (name, self.verbose_name.replace('"', '\\"'), int(self.is_stacked), settings.STATIC_URL))
         return mark_safe(u''.join(output))
 
 class AdminDateWidget(forms.DateInput):
     class Media:
-        js = (settings.ADMIN_MEDIA_PREFIX + "js/calendar.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/admin/DateTimeShortcuts.js")
+        js = ["admin/js/calendar.js", "admin/js/admin/DateTimeShortcuts.js"]
 
     def __init__(self, attrs={}, format=None):
         super(AdminDateWidget, self).__init__(attrs={'class': 'vDateField', 'size': '10'}, format=format)
 
 class AdminTimeWidget(forms.TimeInput):
     class Media:
-        js = (settings.ADMIN_MEDIA_PREFIX + "js/calendar.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/admin/DateTimeShortcuts.js")
+        js = ["admin/js/calendar.js", "admin/js/admin/DateTimeShortcuts.js"]
 
     def __init__(self, attrs={}, format=None):
         super(AdminTimeWidget, self).__init__(attrs={'class': 'vTimeField', 'size': '8'}, format=format)
@@ -136,7 +134,7 @@ class ForeignKeyRawIdWidget(forms.TextInput):
         # API to determine the ID dynamically.
         output.append(u'<a href="%s%s" class="related-lookup" id="lookup_id_%s" onclick="return showRelatedObjectLookupPopup(this);"> ' % \
             (related_url, url, name))
-        output.append(u'<img src="%simg/admin/selector-search.gif" width="16" height="16" alt="%s" /></a>' % (settings.ADMIN_MEDIA_PREFIX, _('Lookup')))
+        output.append(u'<img src="%sadmin/img/admin/selector-search.gif" width="16" height="16" alt="%s" /></a>' % (settings.STATIC_URL, _('Lookup')))
         if value:
             output.append(self.label_for_value(value))
         return mark_safe(u''.join(output))
@@ -242,7 +240,7 @@ class RelatedFieldWidgetWrapper(forms.Widget):
             # API to determine the ID dynamically.
             output.append(u'<a href="%s" class="add-another" id="add_id_%s" onclick="return showAddAnotherPopup(this);"> ' % \
                 (related_url, name))
-            output.append(u'<img src="%simg/admin/icon_addlink.gif" width="10" height="10" alt="%s"/></a>' % (settings.ADMIN_MEDIA_PREFIX, _('Add Another')))
+            output.append(u'<img src="%sadmin/img/admin/icon_addlink.gif" width="10" height="10" alt="%s"/></a>' % (settings.STATIC_URL, _('Add Another')))
         return mark_safe(u''.join(output))
 
     def build_attrs(self, extra_attrs=None, **kwargs):

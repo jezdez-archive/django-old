@@ -1,3 +1,4 @@
+from urlparse import urljoin
 from django import template
 from django.utils.encoding import iri_to_uri
 
@@ -82,3 +83,7 @@ def get_media_prefix(parser, token):
 
     """
     return PrefixNode.handle_token(parser, token, "MEDIA_URL")
+
+@register.simple_tag
+def static(path):
+    return urljoin(PrefixNode.handle_simple("STATIC_URL"), path)

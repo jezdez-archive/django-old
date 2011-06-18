@@ -7,9 +7,7 @@ from django.utils import translation
 
 # Creating a template context that contains Django settings
 # values needed by admin map templates.
-geo_context = Context({'ADMIN_MEDIA_PREFIX' : settings.ADMIN_MEDIA_PREFIX,
-                       'LANGUAGE_BIDI' : translation.get_language_bidi(),
-                       })
+geo_context = Context({'LANGUAGE_BIDI' : translation.get_language_bidi()})
 
 class OpenLayersWidget(Textarea):
     """

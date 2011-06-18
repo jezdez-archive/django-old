@@ -91,7 +91,7 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler, object):
 
     def __init__(self, *args, **kwargs):
         from django.conf import settings
-        self.admin_media_prefix = settings.ADMIN_MEDIA_PREFIX
+        self.admin_media_prefix = "%sadmin/" % settings.STATIC_URL
         # We set self.path to avoid crashes in log_message() on unsupported
         # requests (like "OPTIONS").
         self.path = ''
@@ -170,15 +170,11 @@ class AdminMediaHandler(handlers.StaticFilesHandler):
     This is pending for deprecation since 1.3.
     """
     def get_base_dir(self):
-        return os.path.join(django.__path__[0], 'contrib', 'admin', 'media')
+        return os.path.join(django.__path__[0], 'contrib', 'admin', 'static', 'admin')
 
     def get_base_url(self):
         from django.conf import settings
-        if not settings.ADMIN_MEDIA_PREFIX:
-            raise ImproperlyConfigured(
-                "The ADMIN_MEDIA_PREFIX setting can't be empty "
-                "when using the AdminMediaHandler, e.g. with runserver.")
-        return settings.ADMIN_MEDIA_PREFIX
+        return '%sadmin/' % settings.STATIC_URL
 
     def file_path(self, url):
         """
