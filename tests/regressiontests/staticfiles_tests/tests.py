@@ -17,6 +17,7 @@ from django.test.utils import override_settings
 from django.utils.encoding import smart_unicode
 from django.utils.functional import empty
 from django.utils._os import rmtree_errorhandler
+from django.test.utils import override_settings
 
 from django.contrib.staticfiles import finders, storage
 
@@ -84,6 +85,7 @@ class BuildStaticTestCase(StaticFilesTestCase):
         super(BuildStaticTestCase, self).setUp()
         self.old_root = settings.STATIC_ROOT
         settings.STATIC_ROOT = tempfile.mkdtemp()
+        print settings.STATIC_ROOT
         self.run_collectstatic()
         # Use our own error handler that can handle .svn dirs on Windows
         self.addCleanup(shutil.rmtree, settings.STATIC_ROOT,
@@ -249,6 +251,22 @@ class TestBuildStaticNonLocalStorage(BuildStaticTestCase, TestNoFilesCreated):
 TestBuildStaticNonLocalStorage = override_settings(
     STATICFILES_STORAGE='regressiontests.staticfiles_tests.storage.DummyStorage',
 )(TestBuildStaticNonLocalStorage)
+
+
+class TestBuildStaticCacheBustingStorage(BuildStaticTestCase, TestDefaults):
+    """
+    Tests for the Cache busting storage
+    """
+    def test_staticfiles_dirs(self):
+        """
+        Test the hashing.
+        """
+        print "FOO", settings.STATICFILES_STORAGE
+        self.assertFileContains(u'test/camelCase.txt', u'camelCase')
+
+TestBuildStaticCacheBustingStorage = override_settings(
+    STATICFILES_STORAGE='django.contrib.staticfiles.storage.CacheBustingStorage'
+)(TestBuildStaticCacheBustingStorage)
 
 
 if sys.platform != 'win32':

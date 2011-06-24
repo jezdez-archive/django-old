@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 from optparse import make_option
 
 from django.conf import settings
@@ -196,9 +195,7 @@ Type 'yes' to continue, or 'no' to cancel: """)
                     os.makedirs(os.path.dirname(full_path))
                 except OSError:
                     pass
-                shutil.copy2(source_path, full_path)
-            else:
-                source_file = source_storage.open(path)
-                self.storage.save(prefixed_path, source_file)
+            source_file = source_storage.open(path)
+            self.storage.save(prefixed_path, source_file)
         if not prefixed_path in self.copied_files:
             self.copied_files.append(prefixed_path)
