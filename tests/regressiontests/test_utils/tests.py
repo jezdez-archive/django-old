@@ -123,6 +123,17 @@ class AssertTemplateUsedContextManagerTests(TestCase):
                 render_to_string('template_used/alternative.html')
             render_to_string('template_used/base.html')
 
+        with self.assertTemplateUsed('template_used/base.html'):
+            render_to_string('template_used/extends.html')
+            with self.assertTemplateNotUsed('template_used/base.html'):
+                render_to_string('template_used/alternative.html')
+            render_to_string('template_used/base.html')
+
+    def test_not_used(self):
+        with self.assertTemplateNotUsed('template_used/base.html'):
+            pass
+        with self.assertTemplateNotUsed('template_used/alternative.html'):
+            pass
 
     def test_error_message(self):
         try:

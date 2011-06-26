@@ -266,6 +266,12 @@ class _AssertTemplateUsedContext(object):
         self.rendered_template_names.append(template.name)
         self.context.append(copy(context))
 
+    def test(self):
+        return self.template_name in self.rendered_template_names
+
+    def message(self):
+        return u'%s was not rendered.' % self.template_name
+
     def __enter__(self):
         template_rendered.connect(self.on_template_render)
         return self
@@ -275,14 +281,22 @@ class _AssertTemplateUsedContext(object):
         if exc_type is not None:
             return
 
-        if self.template_name not in self.rendered_template_names:
-            message = u'%s was not rendered.' % self.template_name
+        if not self.test():
+            message = self.message()
             if len(self.rendered_templates) == 0:
-                message += ' No template was rendered.'
+                message += u' No template was rendered.'
             else:
-                message += u'Following templates were rendered: %s' % (
+                message += u' Following templates were rendered: %s' % (
                     ', '.join(self.rendered_template_names))
             self.test_case.fail(message)
+
+
+class _AssertTemplateNotUsedContext(_AssertTemplateUsedContext):
+    def test(self):
+        return self.template_name not in self.rendered_template_names
+
+    def message(self):
+        return u'%s was rendered.' % self.template_name
 
 
 class TransactionTestCase(ut2.TestCase):
@@ -571,7 +585,7 @@ class TransactionTestCase(ut2.TestCase):
         the response.
         """
         if response is None and template_name is None:
-            raise TypeError(u'response and/or template_name arguments must be provided')
+            raise TypeError(u'response and/or template_name argument must be provided')
 
         if msg_prefix:
             msg_prefix += ": "
@@ -592,13 +606,24 @@ class TransactionTestCase(ut2.TestCase):
             " the response. Actual template(s) used: %s" %
                 (template_name, u', '.join(template_names)))
 
-    def assertTemplateNotUsed(self, response, template_name, msg_prefix=''):
+    def assertTemplateNotUsed(self, response=None, template_name=None, msg_prefix=''):
         """
         Asserts that the template with the provided name was NOT used in
         rendering the response.
         """
+        if response is None and template_name is None:
+            raise TypeError(u'response and/or template_name argument must be provided')
+
         if msg_prefix:
             msg_prefix += ": "
+
+        # use assertTemplateUsed as context manager
+        if not hasattr(response, 'templates') or (response is None and template_name):
+            if response:
+                template_name = response
+                response = None
+            context = _AssertTemplateNotUsedContext(self, template_name)
+            return context
 
         template_names = [t.name for t in response.templates]
         self.assertFalse(template_name in template_names,
@@ -621,6 +646,11 @@ class TransactionTestCase(ut2.TestCase):
             func(*args, **kwargs)
 
     def assertHTMLEqual(self, html1, html2, msg=None):
+        """
+        Asserts that two html snippets are semantically the same, e.g. whitespace
+        in most cases is ignored, attribute ordering is not significant. The
+        passed in arguments must be valid HTML.
+        """
         dom1 = assert_and_parse_html(self, html1, msg,
             u'First argument is no valid html:')
         dom2 = assert_and_parse_html(self, html2, msg,
