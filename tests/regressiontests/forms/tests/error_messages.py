@@ -4,6 +4,7 @@ from django.forms import *
 from django.test import TestCase
 from django.utils.safestring import mark_safe
 from django.utils import unittest
+from regressiontests.forms.tests.fields import verify_exists_urls
 
 class AssertFormErrorsMixin(object):
     def assertFormErrors(self, expected, the_callable, *args, **kwargs):
@@ -139,6 +140,7 @@ class FormsErrorMessagesTestCase(unittest.TestCase, AssertFormErrorsMixin):
         self.assertFormErrors([u'EMPTY FILE'], f.clean, SimpleUploadedFile('name', None))
         self.assertFormErrors([u'EMPTY FILE'], f.clean, SimpleUploadedFile('name', ''))
 
+    @verify_exists_urls()
     def test_urlfield(self):
         e = {
             'required': 'REQUIRED',
@@ -193,6 +195,15 @@ class FormsErrorMessagesTestCase(unittest.TestCase, AssertFormErrorsMixin):
             'invalid': 'INVALID IP ADDRESS',
         }
         f = IPAddressField(error_messages=e)
+        self.assertFormErrors([u'REQUIRED'], f.clean, '')
+        self.assertFormErrors([u'INVALID IP ADDRESS'], f.clean, '127.0.0')
+
+    def test_generic_ipaddressfield(self):
+        e = {
+            'required': 'REQUIRED',
+            'invalid': 'INVALID IP ADDRESS',
+        }
+        f = GenericIPAddressField(error_messages=e)
         self.assertFormErrors([u'REQUIRED'], f.clean, '')
         self.assertFormErrors([u'INVALID IP ADDRESS'], f.clean, '127.0.0')
 

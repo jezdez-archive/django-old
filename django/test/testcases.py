@@ -65,7 +65,6 @@ def restore_transaction_methods():
 
 
 def assert_and_parse_html(self, html, user_msg, msg):
-    html = unicode(html)
     try:
         dom = parse_html(html)
     except HTMLParseError, e:
@@ -296,6 +295,11 @@ class TransactionTestCase(ut2.TestCase):
         set up. This means that user-defined Test Cases aren't required to
         include a call to super().setUp().
         """
+        testMethod = getattr(self, self._testMethodName)
+        if (getattr(self.__class__, "__unittest_skip__", False) or
+            getattr(testMethod, "__unittest_skip__", False)):
+            return
+
         self.client = self.client_class()
         try:
             self._pre_setup()

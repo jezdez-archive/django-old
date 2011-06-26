@@ -782,9 +782,10 @@ class Model(object):
         # A unique field
         if len(unique_check) == 1:
             field_name = unique_check[0]
-            field_label = capfirst(opts.get_field(field_name).verbose_name)
+            field = opts.get_field(field_name)
+            field_label = capfirst(field.verbose_name)
             # Insert the error into the error dict, very sneaky
-            return _(u"%(model_name)s with this %(field_label)s already exists.") %  {
+            return field.error_messages['unique'] %  {
                 'model_name': unicode(model_name),
                 'field_label': unicode(field_label)
             }
@@ -914,10 +915,5 @@ def model_unpickle(model, attrs, factory):
     return cls.__new__(cls)
 model_unpickle.__safe_for_unpickle__ = True
 
-if sys.version_info < (2, 5):
-    # Prior to Python 2.5, Exception was an old-style class
-    def subclass_exception(name, parents, unused):
-        return types.ClassType(name, parents, {})
-else:
-    def subclass_exception(name, parents, module):
-        return type(name, parents, {'__module__': module})
+def subclass_exception(name, parents, module):
+    return type(name, parents, {'__module__': module})

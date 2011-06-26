@@ -4,6 +4,7 @@ import sys
 
 from django.http import HttpResponse
 from django.test import TestCase, skipUnlessDBFeature, skipIfDBFeature
+from django.utils.unittest import skip
 
 from models import Person
 
@@ -339,6 +340,20 @@ class HTMLEqualTests(TestCase):
 
         with self.assertRaises(AssertionError):
             self.assertContains(response, '<p "whats" that>')
+
+
+class SkippingExtraTests(TestCase):
+    fixtures = ['should_not_be_loaded.json']
+
+    # HACK: This depends on internals of our TestCase subclasses
+    def __call__(self, result=None):
+        # Detect fixture loading by counting SQL queries, should be zero
+        with self.assertNumQueries(0):
+            super(SkippingExtraTests, self).__call__(result)
+
+    @skip("Fixture loading should not be performed for skipped tests.")
+    def test_fixtures_are_skipped(self):
+        pass
 
 
 __test__ = {"API_TEST": r"""

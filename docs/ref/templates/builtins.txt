@@ -1073,7 +1073,19 @@ projects?
     For example::
 
         {% load url from future %}
+
+
+        {% url 'app_views.client' %}
+
         {% url 'myapp:view-name' %}
+
+        {% with view_path="app_views.client" %}
+        {% url view_path client.id %}
+        {% endwith %}
+
+        {% with url_name="client-detail-view" %}
+        {% url url_name client.id %}
+        {% endwith %}
 
     The new library also drops support for the comma syntax for
     separating arguments to the :ttag:`url` template tag.
@@ -1498,6 +1510,14 @@ For example::
 
 If ``value`` is ``Tom & Jerry``, the output will be ``Tom &amp; Jerry``.
 
+However, ampersands used in named entities and numeric character references
+will not be replaced. For example, if ``value`` is ``Caf&eacute;``, the output
+will *not* be ``Caf&amp;eacute;`` but remain ``Caf&eacute;``. This means that
+in some edge cases, such as acronyms followed by semicolons, this filter will
+not replace ampersands that need replacing. For example, if ``value`` is
+``Contact the R&D;``, the output will remain unchanged because ``&D;``
+resembles a named entity.
+
 .. templatefilter:: floatformat
 
 floatformat
@@ -1781,6 +1801,8 @@ singular and plural suffix, separated by a comma.
 Example::
 
     You have {{ num_cherries }} cherr{{ num_cherries|pluralize:"y,ies" }}.
+
+.. note:: Use :ttag:`blocktrans` to pluralize translated strings.
 
 .. templatefilter:: pprint
 
@@ -2138,6 +2160,8 @@ urlize
 ~~~~~~
 
 Converts URLs in text into clickable links.
+
+Only works for .com, .net, and .org top level domains.
 
 Works on links beginning with ``http://``, ``https://``, or ``www.`` and
 ending with ``.org``, ``.net`` or ``.com``. Links can have trailing punctuation

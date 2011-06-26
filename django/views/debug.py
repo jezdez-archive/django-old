@@ -3,9 +3,11 @@ import os
 import re
 import sys
 import types
+from pprint import pformat
 
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseServerError, HttpResponseNotFound
+from django.http import (HttpResponse, HttpResponseServerError,
+    HttpResponseNotFound, HttpRequest, build_request_repr)
 from django.template import (Template, Context, TemplateDoesNotExist,
     TemplateSyntaxError)
 from django.template.defaultfilters import force_escape, pprint
@@ -14,6 +16,8 @@ from django.utils.importlib import import_module
 from django.utils.encoding import smart_unicode, smart_str
 
 HIDDEN_SETTINGS = re.compile('SECRET|PASSWORD|PROFANITIES_LIST|SIGNATURE')
+
+CLEANSED_SUBSTITUTE = u'********************'
 
 def linebreak_iter(template_source):
     yield 0
@@ -31,7 +35,7 @@ def cleanse_setting(key, value):
     """
     try:
         if HIDDEN_SETTINGS.search(key):
-            cleansed = '********************'
+            cleansed = CLEANSED_SUBSTITUTE
         else:
             if isinstance(value, dict):
                 cleansed = dict((k, cleanse_setting(k, v)) for k,v in value.items())
@@ -59,12 +63,131 @@ def technical_500_response(request, exc_type, exc_value, tb):
     html = reporter.get_traceback_html()
     return HttpResponseServerError(html, mimetype='text/html')
 
+# Cache for the default exception reporter filter instance.
+default_exception_reporter_filter = None
+
+def get_exception_reporter_filter(request):
+    global default_exception_reporter_filter
+    if default_exception_reporter_filter is None:
+        # Load the default filter for the first time and cache it.
+        modpath = settings.DEFAULT_EXCEPTION_REPORTER_FILTER
+        modname, classname = modpath.rsplit('.', 1)
+        try:
+            mod = import_module(modname)
+        except ImportError, e:
+            raise ImproperlyConfigured(
+            'Error importing default exception reporter filter %s: "%s"' % (modpath, e))
+        try:
+            default_exception_reporter_filter = getattr(mod, classname)()
+        except AttributeError:
+            raise exceptions.ImproperlyConfigured('Default exception reporter filter module "%s" does not define a "%s" class' % (modname, classname))
+    if request:
+        return getattr(request, 'exception_reporter_filter', default_exception_reporter_filter)
+    else:
+        return default_exception_reporter_filter
+
+class ExceptionReporterFilter(object):
+    """
+    Base for all exception reporter filter classes. All overridable hooks
+    contain lenient default behaviours.
+    """
+
+    def get_request_repr(self, request):
+        if request is None:
+            return repr(None)
+        else:
+            return build_request_repr(request, POST_override=self.get_post_parameters(request))
+
+    def get_post_parameters(self, request):
+        if request is None:
+            return {}
+        else:
+            return request.POST
+
+    def get_traceback_frame_variables(self, request, tb_frame):
+        return tb_frame.f_locals.items()
+
+class SafeExceptionReporterFilter(ExceptionReporterFilter):
+    """
+    Use annotations made by the sensitive_post_parameters and
+    sensitive_variables decorators to filter out sensitive information.
+    """
+
+    def is_active(self, request):
+        """
+        This filter is to add safety in production environments (i.e. DEBUG
+        is False). If DEBUG is True then your site is not safe anyway.
+        This hook is provided as a convenience to easily activate or
+        deactivate the filter on a per request basis.
+        """
+        return settings.DEBUG is False
+
+    def get_post_parameters(self, request):
+        """
+        Replaces the values of POST parameters marked as sensitive with
+        stars (*********).
+        """
+        if request is None:
+            return {}
+        else:
+            sensitive_post_parameters = getattr(request, 'sensitive_post_parameters', [])
+            if self.is_active(request) and sensitive_post_parameters:
+                cleansed = request.POST.copy()
+                if sensitive_post_parameters == '__ALL__':
+                    # Cleanse all parameters.
+                    for k, v in cleansed.items():
+                        cleansed[k] = CLEANSED_SUBSTITUTE
+                    return cleansed
+                else:
+                    # Cleanse only the specified parameters.
+                    for param in sensitive_post_parameters:
+                        if cleansed.has_key(param):
+                            cleansed[param] = CLEANSED_SUBSTITUTE
+                    return cleansed
+            else:
+                return request.POST
+
+    def get_traceback_frame_variables(self, request, tb_frame):
+        """
+        Replaces the values of variables marked as sensitive with
+        stars (*********).
+        """
+        func_name = tb_frame.f_code.co_name
+        func = tb_frame.f_globals.get(func_name)
+        sensitive_variables = getattr(func, 'sensitive_variables', [])
+        cleansed = []
+        if self.is_active(request) and sensitive_variables:
+            if sensitive_variables == '__ALL__':
+                # Cleanse all variables
+                for name, value in tb_frame.f_locals.items():
+                    cleansed.append((name, CLEANSED_SUBSTITUTE))
+                return cleansed
+            else:
+                # Cleanse specified variables
+                for name, value in tb_frame.f_locals.items():
+                    if name in sensitive_variables:
+                        value = CLEANSED_SUBSTITUTE
+                    elif isinstance(value, HttpRequest):
+                        # Cleanse the request's POST parameters.
+                        value = self.get_request_repr(value)
+                    cleansed.append((name, value))
+                return cleansed
+        else:
+            # Potentially cleanse only the request if it's one of the frame variables.
+            for name, value in tb_frame.f_locals.items():
+                if isinstance(value, HttpRequest):
+                    # Cleanse the request's POST parameters.
+                    value = self.get_request_repr(value)
+                cleansed.append((name, value))
+            return cleansed
+
 class ExceptionReporter(object):
     """
     A class to organize and coordinate reporting on exceptions.
     """
     def __init__(self, request, exc_type, exc_value, tb, is_email=False):
         self.request = request
+        self.filter = get_exception_reporter_filter(self.request)
         self.exc_type = exc_type
         self.exc_value = exc_value
         self.tb = tb
@@ -124,6 +247,7 @@ class ExceptionReporter(object):
             'unicode_hint': unicode_hint,
             'frames': frames,
             'request': self.request,
+            'filtered_POST': self.filter.get_post_parameters(self.request),
             'settings': get_safe_settings(),
             'sys_executable': sys.executable,
             'sys_version_info': '%d.%d.%d' % sys.version_info[0:3],
@@ -222,7 +346,7 @@ class ExceptionReporter(object):
         frames = []
         tb = self.tb
         while tb is not None:
-            # support for __traceback_hide__ which is used by a few libraries
+            # Support for __traceback_hide__ which is used by a few libraries
             # to hide internal frames.
             if tb.tb_frame.f_locals.get('__traceback_hide__'):
                 tb = tb.tb_next
@@ -231,15 +355,16 @@ class ExceptionReporter(object):
             function = tb.tb_frame.f_code.co_name
             lineno = tb.tb_lineno - 1
             loader = tb.tb_frame.f_globals.get('__loader__')
-            module_name = tb.tb_frame.f_globals.get('__name__')
+            module_name = tb.tb_frame.f_globals.get('__name__') or ''
             pre_context_lineno, pre_context, context_line, post_context = self._get_lines_from_file(filename, lineno, 7, loader, module_name)
             if pre_context_lineno is not None:
                 frames.append({
                     'tb': tb,
+                    'type': module_name.startswith('django.') and 'django' or 'user',
                     'filename': filename,
                     'function': function,
                     'lineno': lineno + 1,
-                    'vars': tb.tb_frame.f_locals.items(),
+                    'vars': self.filter.get_traceback_frame_variables(self.request, tb.tb_frame),
                     'id': id(tb),
                     'pre_context': pre_context,
                     'context_line': context_line,
@@ -332,16 +457,20 @@ TECHNICAL_500_TEMPLATE = """
     table td.code pre { overflow:hidden; }
     table.source th { color:#666; }
     table.source td { font-family:monospace; white-space:pre; border-bottom:1px solid #eee; }
-    ul.traceback { list-style-type:none; }
-    ul.traceback li.frame { padding-bottom:1em; }
+    ul.traceback { list-style-type:none; color: #222; }
+    ul.traceback li.frame { padding-bottom:1em; color:#666; }
+    ul.traceback li.user { background-color:#e0e0e0; color:#000 }
     div.context { padding:10px 0; overflow:hidden; }
     div.context ol { padding-left:30px; margin:0 10px; list-style-position: inside; }
-    div.context ol li { font-family:monospace; white-space:pre; color:#666; cursor:pointer; }
+    div.context ol li { font-family:monospace; white-space:pre; color:#777; cursor:pointer; }
     div.context ol li pre { display:inline; }
-    div.context ol.context-line li { color:black; background-color:#ccc; }
+    div.context ol.context-line li { color:#505050; background-color:#dfdfdf; }
     div.context ol.context-line li span { position:absolute; right:32px; }
+    .user div.context ol.context-line li { background-color:#bbb; color:#000; }
+    .user div.context ol li { color:#666; }
     div.commands { margin-left: 40px; }
-    div.commands a { color:black; text-decoration:none; }
+    div.commands a { color:#555; text-decoration:none; }
+    .user div.commands a { color: black; }
     #summary { background: #ffc; }
     #summary h2 { font-weight: normal; color: #666; }
     #explanation { background:#eee; }
@@ -520,7 +649,7 @@ TECHNICAL_500_TEMPLATE = """
   <div id="browserTraceback">
     <ul class="traceback">
       {% for frame in frames %}
-        <li class="frame">
+        <li class="frame {{ frame.type }}">
           <code>{{ frame.filename|escape }}</code> in <code>{{ frame.function|escape }}</code>
 
           {% if frame.context_line %}
@@ -643,7 +772,7 @@ Exception Value: {{ exception_value|force_escape }}
   {% endif %}
 
   <h3 id="post-info">POST</h3>
-  {% if request.POST %}
+  {% if filtered_POST %}
     <table class="req">
       <thead>
         <tr>
@@ -652,7 +781,7 @@ Exception Value: {{ exception_value|force_escape }}
         </tr>
       </thead>
       <tbody>
-        {% for var in request.POST.items %}
+        {% for var in filtered_POST.items %}
           <tr>
             <td>{{ var.0 }}</td>
             <td class="code"><pre>{{ var.1|pprint }}</pre></td>

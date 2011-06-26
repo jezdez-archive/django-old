@@ -189,6 +189,12 @@ class BaseModelAdmin(object):
         return None
     declared_fieldsets = property(_declared_fieldsets)
 
+    def get_ordering(self, request):
+        """
+        Hook for specifying field ordering.
+        """
+        return self.ordering or ()  # otherwise we might try to *None, which is bad ;)
+
     def get_readonly_fields(self, request, obj=None):
         """
         Hook for specifying custom readonly fields.
@@ -208,7 +214,7 @@ class BaseModelAdmin(object):
         """
         qs = self.model._default_manager.get_query_set()
         # TODO: this should be handled by some parameter to the ChangeList.
-        ordering = self.ordering or () # otherwise we might try to *None, which is bad ;)
+        ordering = self.get_ordering(request)
         if ordering:
             qs = qs.order_by(*ordering)
         return qs
@@ -259,6 +265,7 @@ class BaseModelAdmin(object):
                 return True
             clean_lookup = LOOKUP_SEP.join(parts)
             return clean_lookup in self.list_filter or clean_lookup == self.date_hierarchy
+
 
 class ModelAdmin(BaseModelAdmin):
     "Encapsulates all admin options and functionality for a given model."
@@ -426,7 +433,6 @@ class ModelAdmin(BaseModelAdmin):
             exclude = []
         else:
             exclude = list(self.exclude)
-        exclude.extend(kwargs.get("exclude", []))
         exclude.extend(self.get_readonly_fields(request, obj))
         # if exclude is an empty list we pass None to be consistant with the
         # default on modelform_factory
@@ -624,6 +630,13 @@ class ModelAdmin(BaseModelAdmin):
         else:
             description = capfirst(action.replace('_', ' '))
         return func, action, description
+
+    def get_list_display(self, request):
+        """
+        Return a sequence containing the fields to be displayed on the
+        changelist.
+        """
+        return self.list_display
 
     def construct_change_message(self, request, form, formsets):
         """
@@ -1053,7 +1066,7 @@ class ModelAdmin(BaseModelAdmin):
         actions = self.get_actions(request)
 
         # Remove action checkboxes if there aren't any actions available.
-        list_display = list(self.list_display)
+        list_display = list(self.get_list_display(request))
         if not actions:
             try:
                 list_display.remove('action_checkbox')
@@ -1328,7 +1341,6 @@ class InlineModelAdmin(BaseModelAdmin):
             exclude = []
         else:
             exclude = list(self.exclude)
-        exclude.extend(kwargs.get("exclude", []))
         exclude.extend(self.get_readonly_fields(request, obj))
         # if exclude is an empty list we use None, since that's the actual
         # default

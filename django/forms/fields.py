@@ -6,9 +6,7 @@ import copy
 import datetime
 import os
 import re
-import time
 import urlparse
-import warnings
 from decimal import Decimal, DecimalException
 try:
     from cStringIO import StringIO
@@ -20,7 +18,7 @@ from django.core import validators
 from django.utils import formats
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode, smart_str, force_unicode
-from django.utils.functional import lazy
+from django.utils.ipv6 import clean_ipv6_address
 
 # Provide this import for backwards compatibility.
 from django.core.validators import EMPTY_VALUES
@@ -37,8 +35,8 @@ __all__ = (
     'RegexField', 'EmailField', 'FileField', 'ImageField', 'URLField',
     'BooleanField', 'NullBooleanField', 'ChoiceField', 'MultipleChoiceField',
     'ComboField', 'MultiValueField', 'FloatField', 'DecimalField',
-    'SplitDateTimeField', 'IPAddressField', 'FilePathField', 'SlugField',
-    'TypedChoiceField', 'TypedMultipleChoiceField'
+    'SplitDateTimeField', 'IPAddressField', 'GenericIPAddressField', 'FilePathField',
+    'SlugField', 'TypedChoiceField', 'TypedMultipleChoiceField'
 )
 
 
@@ -338,7 +336,16 @@ class BaseTemporalField(Field):
                 try:
                     return self.strptime(value, format)
                 except ValueError:
-                    continue
+                    if format.endswith('.%f'):
+                        if value.count('.') != 1:
+                            continue
+                        try:
+                            datetime_str, usecs_str = value.rsplit('.', 1)
+                            usecs = int(usecs_str)
+                            dt = datetime.datetime.strptime(datetime_str, format[:-3])
+                            return dt.replace(microsecond=usecs)
+                        except ValueError:
+                            continue
         raise ValidationError(self.error_messages['invalid'])
 
     def strptime(self, value, format):
@@ -365,7 +372,7 @@ class DateField(BaseTemporalField):
         return super(DateField, self).to_python(value)
 
     def strptime(self, value, format):
-        return datetime.date(*time.strptime(value, format)[:3])
+        return datetime.datetime.strptime(value, format).date()
 
 class TimeField(BaseTemporalField):
     widget = TimeInput
@@ -386,7 +393,7 @@ class TimeField(BaseTemporalField):
         return super(TimeField, self).to_python(value)
 
     def strptime(self, value, format):
-        return datetime.time(*time.strptime(value, format)[3:6])
+        return datetime.datetime.strptime(value, format).time()
 
 class DateTimeField(BaseTemporalField):
     widget = DateTimeInput
@@ -417,7 +424,7 @@ class DateTimeField(BaseTemporalField):
         return super(DateTimeField, self).to_python(value)
 
     def strptime(self, value, format):
-        return datetime.datetime(*time.strptime(value, format)[:6])
+        return datetime.datetime.strptime(value, format)
 
 class RegexField(CharField):
     def __init__(self, regex, max_length=None, min_length=None, error_message=None, *args, **kwargs):
@@ -649,6 +656,11 @@ class ChoiceField(Field):
         super(ChoiceField, self).__init__(required=required, widget=widget, label=label,
                                         initial=initial, help_text=help_text, *args, **kwargs)
         self.choices = choices
+
+    def __deepcopy__(self, memo):
+        result = super(ChoiceField, self).__deepcopy__(memo)
+        result._choices = copy.deepcopy(self._choices, memo)
+        return result
 
     def _get_choices(self):
         return self._choices
@@ -945,6 +957,25 @@ class IPAddressField(CharField):
         'invalid': _(u'Enter a valid IPv4 address.'),
     }
     default_validators = [validators.validate_ipv4_address]
+
+
+class GenericIPAddressField(CharField):
+    default_error_messages = {}
+
+    def __init__(self, protocol='both', unpack_ipv4=False, *args, **kwargs):
+        self.unpack_ipv4 = unpack_ipv4
+        self.default_validators, invalid_error_message = \
+            validators.ip_address_validators(protocol, unpack_ipv4)
+        self.default_error_messages['invalid'] = invalid_error_message
+        super(GenericIPAddressField, self).__init__(*args, **kwargs)
+
+    def to_python(self, value):
+        if value in validators.EMPTY_VALUES:
+            return u''
+        if value and ':' in value:
+                return clean_ipv6_address(value,
+                    self.unpack_ipv4, self.error_messages['invalid'])
+        return value
 
 
 class SlugField(CharField):

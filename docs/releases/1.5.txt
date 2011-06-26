@@ -1,0 +1,49 @@
+============================================
+Django 1.5 release notes - UNDER DEVELOPMENT
+============================================
+
+This page documents release notes for the as-yet-unreleased Django
+1.5. As such, it's tentative and subject to change. It provides
+up-to-date information for those who are following trunk.
+
+Django 1.5 includes various `new features`_ and some minor `backwards
+incompatible changes`_. There are also some features that have been dropped,
+which are detailed in :doc:`our deprecation plan </internals/deprecation>`, and
+we've `begun the deprecation process for some features`_.
+
+
+.. _new features: `What's new in Django 1.5`_
+.. _backwards incompatible changes: backwards-incompatible-changes-1.5_
+.. _begun the deprecation process for some features: deprecated-features-1.5_
+
+What's new in Django 1.5
+========================
+
+Private widgets API
+~~~~~~~~~~~~~~~~~~~
+
+With the addition of a template-based widgets API, parts of the
+widgets API have been deprecated. They weren't considered as public parts and
+if you use standard widgets, backwards compatibility applies. However, if you
+have custom widgets defined using the mechanisms above, you will need to
+update them to the new API:
+
+* ``MultiWidget``'s ``format_output`` method has been deprecated. Existing
+  implementations of ``format_output`` to add data between widgets won't have
+  any effect.
+
+* ``RadioSelect``'s ``renderer`` API has been deprecated. Direct call to
+  ``RadioSelect``'s ``get_renderer()`` method still works but assiging a
+  custom renderer to ``RadioSelect`` won't have any impact on the rendering.
+
+Widgets API
+~~~~~~~~~~~
+
+The form widgets now have a :doc:`public API<../ref/forms/widgets>` for easier
+custom rendering: the rendering is now done using Django templates and hooks
+have been added to let users define custom widgets. An additional template
+loader (``django.template.loaders.forms.Loader``) that loads widget templates
+is enabled by default and will be until Django 1.6.
+
+.. _backwards-incompatible-changes-1.4:
+.. _deprecated-features-1.4:

@@ -417,7 +417,7 @@ Example usage::
 .. django-admin-option:: --extension
 
 Use the ``--extension`` or ``-e`` option to specify a list of file extensions
-to examine (default: ".html").
+to examine (default: ".html", ".txt").
 
 Example usage::
 
@@ -438,7 +438,7 @@ Example usage::
 Use the ``--domain`` or ``-d`` option to change the domain of the messages files.
 Currently supported:
 
-    * ``django`` for all ``*.py`` and ``*.html`` files (default)
+    * ``django`` for all ``*.py``, ``*.html`` and ``*.txt`` files (default)
     * ``djangojs`` for ``*.js`` files
 
 .. django-admin-option:: --symlinks
@@ -687,6 +687,13 @@ memory.
 Example usage::
 
     django-admin.py runserver --noreload
+
+.. django-admin-option:: --nothreading
+
+.. versionadded:: 1.4
+
+Use the ``--nothreading`` option to disable the use of threading in the
+development server.
 
 .. django-admin-option:: --ipv6, -6
 
@@ -963,6 +970,13 @@ information.
 
 Use the :djadminopt:`--failfast` option to stop running tests and report the failure
 immediately after a test fails.
+
+.. versionadded:: 1.4
+.. django-admin-option:: --testrunner
+
+The :djadminopt:`--testrunner` option can be used to control the test runner
+class that is used to execute tests. If this value is provided, it overrides
+the value provided by the :setting:`TEST_RUNNER` setting.
 
 testserver <fixture fixture ...>
 --------------------------------

@@ -6,6 +6,7 @@ from django.http import HttpResponseRedirect, QueryDict
 from django.template.response import TemplateResponse
 from django.utils.http import base36_to_int
 from django.utils.translation import ugettext as _
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 
@@ -18,6 +19,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.models import get_current_site
 
 
+@sensitive_post_parameters()
 @csrf_protect
 @never_cache
 def login(request, template_name='registration/login.html',
@@ -133,6 +135,7 @@ def redirect_to_login(next, login_url=None,
 def password_reset(request, is_admin_site=False,
                    template_name='registration/password_reset_form.html',
                    email_template_name='registration/password_reset_email.html',
+                   subject_template_name='registration/password_reset_subject.txt',
                    password_reset_form=PasswordResetForm,
                    token_generator=default_token_generator,
                    post_reset_redirect=None,
@@ -149,6 +152,7 @@ def password_reset(request, is_admin_site=False,
                 'token_generator': token_generator,
                 'from_email': from_email,
                 'email_template_name': email_template_name,
+                'subject_template_name': subject_template_name,
                 'request': request,
             }
             if is_admin_site:
@@ -175,6 +179,7 @@ def password_reset_done(request,
                             current_app=current_app)
 
 # Doesn't need csrf_protect since no-one can guess the URL
+@sensitive_post_parameters()
 @never_cache
 def password_reset_confirm(request, uidb36=None, token=None,
                            template_name='registration/password_reset_confirm.html',
@@ -227,6 +232,7 @@ def password_reset_complete(request,
     return TemplateResponse(request, template_name, context,
                             current_app=current_app)
 
+@sensitive_post_parameters()
 @csrf_protect
 @login_required
 def password_change(request,

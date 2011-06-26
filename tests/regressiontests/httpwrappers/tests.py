@@ -243,14 +243,18 @@ class HttpResponseTests(unittest.TestCase):
         self.assertRaises(BadHeaderError, r.__setitem__, 'test\rstr', 'test')
         self.assertRaises(BadHeaderError, r.__setitem__, 'test\nstr', 'test')
 
+    def test_dict_behavior(self):
+        """
+        Test for bug #14020: Make HttpResponse.get work like dict.get
+        """
+        r = HttpResponse()
+        self.assertEqual(r.get('test'), None)
+
 class CookieTests(unittest.TestCase):
     def test_encode(self):
         """
         Test that we don't output tricky characters in encoded value
         """
-        # Python 2.4 compatibility note: Python 2.4's cookie implementation
-        # always returns Set-Cookie headers terminating in semi-colons.
-        # That's not the bug this test is looking for, so ignore it.
         c = SimpleCookie()
         c['test'] = "An,awkward;value"
         self.assertTrue(";" not in c.output().rstrip(';')) # IE compat
@@ -281,3 +285,9 @@ class CookieTests(unittest.TestCase):
         Test that a single non-standard cookie name doesn't affect all cookies. Ticket #13007.
         """
         self.assertTrue('good_cookie' in parse_cookie('good_cookie=yes;bad:cookie=yes').keys())
+
+    def test_repeated_nonstandard_keys(self):
+        """
+        Test that a repeated non-standard name doesn't affect all cookies. Ticket #15852
+        """
+        self.assertTrue('good_cookie' in parse_cookie('a,=b; a,=c; good_cookie=yes').keys())

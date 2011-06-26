@@ -13,6 +13,8 @@ return model instances`__, or you can avoid the model layer entirely and
 __ `performing raw queries`_
 __ `executing custom SQL directly`_
 
+.. _executing-raw-queries:
+
 Performing raw queries
 ======================
 
@@ -190,6 +192,8 @@ parameters from the ``params`` list.
 
 __ http://en.wikipedia.org/wiki/SQL_injection
 
+.. _executing-custom-sql:
+
 Executing custom SQL directly
 =============================
 
@@ -228,7 +232,7 @@ is required. For example::
 If you are using more than one database you can use
 ``django.db.connections`` to obtain the connection (and cursor) for a
 specific database. ``django.db.connections`` is a dictionary-like
-object that allows you to retrieve a specific connection using it's
+object that allows you to retrieve a specific connection using its
 alias::
 
     from django.db import connections
