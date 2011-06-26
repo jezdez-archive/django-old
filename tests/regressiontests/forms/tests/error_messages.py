@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
-from django.test import TestCase
 from django.utils.safestring import mark_safe
-from django.utils import unittest
+from django.test import TestCase
 from regressiontests.forms.tests.fields import verify_exists_urls
 
 class AssertFormErrorsMixin(object):
@@ -15,7 +14,7 @@ class AssertFormErrorsMixin(object):
             self.assertEqual(e.messages, expected)
 
 
-class FormsErrorMessagesTestCase(unittest.TestCase, AssertFormErrorsMixin):
+class FormsErrorMessagesTestCase(TestCase, AssertFormErrorsMixin):
     def test_charfield(self):
         e = {
             'required': 'REQUIRED',
@@ -226,13 +225,13 @@ class FormsErrorMessagesTestCase(unittest.TestCase, AssertFormErrorsMixin):
 
         # This form should print errors the default way.
         form1 = TestForm({'first_name': 'John'})
-        self.assertEqual(str(form1['last_name'].errors), '<ul class="errorlist"><li>This field is required.</li></ul>')
-        self.assertEqual(str(form1.errors['__all__']), '<ul class="errorlist"><li>I like to be awkward.</li></ul>')
+        self.assertHTMLEqual(str(form1['last_name'].errors), '<ul class="errorlist"><li>This field is required.</li></ul>')
+        self.assertHTMLEqual(str(form1.errors['__all__']), '<ul class="errorlist"><li>I like to be awkward.</li></ul>')
 
         # This one should wrap error groups in the customized way.
         form2 = TestForm({'first_name': 'John'}, error_class=CustomErrorList)
-        self.assertEqual(str(form2['last_name'].errors), '<div class="error"><p>This field is required.</p></div>')
-        self.assertEqual(str(form2.errors['__all__']), '<div class="error"><p>I like to be awkward.</p></div>')
+        self.assertHTMLEqual(str(form2['last_name'].errors), '<div class="error"><p>This field is required.</p></div>')
+        self.assertHTMLEqual(str(form2.errors['__all__']), '<div class="error"><p>I like to be awkward.</p></div>')
 
 
 class ModelChoiceFieldErrorMessagesTestCase(TestCase, AssertFormErrorsMixin):

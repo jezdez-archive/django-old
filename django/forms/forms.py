@@ -242,6 +242,12 @@ class BaseForm(StrAndUnicode):
         """
         return self.errors.get(NON_FIELD_ERRORS, self.error_class())
 
+    def hidden_field_errors(self):
+        hidden_field_errors = ErrorList()
+        for field in self.hidden_fields():
+            hidden_field_errors.extend(field.errors)
+        return hidden_field_errors
+
     def _raw_value(self, fieldname):
         """
         Returns the raw_value for a particular field name. This is just a
@@ -475,6 +481,13 @@ class BoundField(StrAndUnicode):
                 self.data, self.form.initial.get(self.name, self.field.initial)
             )
         return self.field.prepare_value(data)
+
+    def for_id(self):
+        widget = self.field.widget
+        for_id = widget.attrs.get('id') or self.auto_id
+        if for_id:
+            for_id = widget.id_for_label(for_id)
+        return for_id
 
     def label_tag(self, contents=None, attrs=None):
         """

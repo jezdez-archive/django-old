@@ -142,15 +142,15 @@ class HTMLEqualTests(TestCase):
         for tag in self_closing_tags:
             dom = parse_html('<p>Hello <%s> world</p>' % tag)
             self.assertEqual(len(dom.children), 3)
-            self.assertEqual(dom[0], 'Hello ')
+            self.assertEqual(dom[0], 'Hello')
             self.assertEqual(dom[1].name, tag)
-            self.assertEqual(dom[2], ' world')
+            self.assertEqual(dom[2], 'world')
 
             dom = parse_html('<p>Hello <%s /> world</p>' % tag)
             self.assertEqual(len(dom.children), 3)
-            self.assertEqual(dom[0], 'Hello ')
+            self.assertEqual(dom[0], 'Hello')
             self.assertEqual(dom[1].name, tag)
-            self.assertEqual(dom[2], ' world')
+            self.assertEqual(dom[2], 'world')
 
     def test_simple_equal_html(self):
         self.assertHTMLEqual('', '')
@@ -178,6 +178,8 @@ class HTMLEqualTests(TestCase):
         self.assertHTMLEqual('<p/>', '<p></p>')
         self.assertHTMLEqual('<p />', '<p></p>')
         self.assertHTMLEqual('<input checked>', '<input checked="checked">')
+        self.assertHTMLEqual('<p>Hello', '<p> Hello')
+        self.assertHTMLEqual('<p>Hello</p>World', '<p>Hello</p> World')
 
     def test_ignore_comments(self):
         self.assertHTMLEqual(

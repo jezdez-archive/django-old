@@ -7,9 +7,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
 from django.http import QueryDict
 from django.template import Template, Context
+from django.test import TestCase
 from django.utils.datastructures import MultiValueDict, MergeDict
 from django.utils.safestring import mark_safe
-from django.test import TestCase
 
 
 class Person(Form):
@@ -36,7 +36,7 @@ class FormsTestCase(TestCase):
         self.assertTrue(p.is_bound)
         self.assertEqual(p.errors, {})
         self.assertTrue(p.is_valid())
-        self.assertEqual(p.errors.as_ul(), u'')
+        self.assertHTMLEqual(p.errors.as_ul(), u'')
         self.assertEqual(p.errors.as_text(), u'')
         self.assertEqual(p.cleaned_data["first_name"], u'John')
         self.assertEqual(p.cleaned_data["last_name"], u'Lennon')

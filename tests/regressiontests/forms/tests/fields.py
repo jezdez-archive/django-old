@@ -33,8 +33,7 @@ from functools import wraps
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
-from django.forms.widgets import RadioFieldRenderer
-from django.utils.unittest import TestCase
+from django.test import TestCase
 
 
 def fix_os_paths(x):
@@ -640,6 +639,7 @@ class FieldsTests(TestCase):
         self.assertEqual(u'', f.clean(''))
         self.assertEqual(u'http://www.google.com/', f.clean('http://www.google.com'))
 
+    @verify_exists_urls(('http://example.com/',))
     def test_urlfield_5(self):
         f = URLField(min_length=15, max_length=20)
         self.assertRaisesErrorWithMessage(ValidationError, "[u'Ensure this value has at least 15 characters (it has 13).']", f.clean, 'http://f.com')
@@ -959,6 +959,7 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
+                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]
@@ -979,6 +980,7 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
+                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]
@@ -999,6 +1001,7 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
+                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]

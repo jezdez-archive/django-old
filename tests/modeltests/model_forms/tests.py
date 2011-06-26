@@ -3,17 +3,6 @@ from __future__ import with_statement
 import datetime
 import os
 from decimal import Decimal
-from django.test import TestCase
-from django import forms
-from django.core.exceptions import ValidationError
-from modeltests.model_forms.models import (Article, Category, Writer,
-    ImprovedArticle, WriterProfile, BetterWriter, Book, DerivedBook, Post,
-    FlexibleDatePost, ImprovedArticleWithParentLink, PhoneNumber, TextFile,
-    BigInt, Inventory, CustomFieldForExclusionModel, ArticleStatus, ImageFile,
-    OptionalImageFile, CommaSeparatedInteger, Price)
-from modeltests.model_forms.mforms import (ProductForm, PriceForm, BookForm,
-    DerivedBookForm, ExplicitPKForm, PostForm, DerivedPostForm,
-    CustomWriterForm, FlexDatePostForm)
 
 from django import forms
 from django.test import TestCase
@@ -569,7 +558,6 @@ class UniqueTest(TestCase):
         form = FlexDatePostForm({'subtitle': "Finally", "title": "Django 1.0 is released",
             "slug": "Django 1.0"}, instance=p)
         self.assertTrue(form.is_valid())
-
 
 class OldFormForXTests(TestCase):
     def test_base_form(self):
