@@ -4,6 +4,7 @@ import sys
 
 from django.http import HttpResponse
 from django.test import TestCase, skipUnlessDBFeature, skipIfDBFeature
+from django.template.loader import render_to_string
 from django.utils.unittest import skip
 
 from models import Person
@@ -88,6 +89,66 @@ class AssertNumQueriesContextManagerTests(TestCase):
         with self.assertNumQueries(2):
             self.client.get("/test_utils/get_person/%s/" % person.pk)
             self.client.get("/test_utils/get_person/%s/" % person.pk)
+
+
+class AssertTemplateUsedContextManagerTests(TestCase):
+    def test_usage(self):
+        with self.assertTemplateUsed('template_used/base.html'):
+            render_to_string('template_used/base.html')
+
+        with self.assertTemplateUsed(template_name='template_used/base.html'):
+            render_to_string('template_used/base.html')
+
+        with self.assertTemplateUsed('template_used/base.html'):
+            render_to_string('template_used/include.html')
+
+        with self.assertTemplateUsed('template_used/base.html'):
+            render_to_string('template_used/extends.html')
+
+        with self.assertTemplateUsed('template_used/base.html'):
+            render_to_string('template_used/base.html')
+            render_to_string('template_used/base.html')
+
+    def test_error_message(self):
+        try:
+            with self.assertTemplateUsed('template_used/base.html'):
+                pass
+        except AssertionError, e:
+            self.assertTrue('template_used/base.html' in e.message)
+
+        try:
+            with self.assertTemplateUsed(template_name='template_used/base.html'):
+                pass
+        except AssertionError, e:
+            self.assertTrue('template_used/base.html' in e.message)
+
+        try:
+            with self.assertTemplateUsed('template_used/base.html'):
+                render_to_string('template_used/alternative.html')
+        except AssertionError, e:
+            self.assertTrue('template_used/base.html' in e.message, e.message)
+            self.assertTrue('template_used/alternative.html' in e.message, e.message)
+
+    def test_failure(self):
+        with self.assertRaises(TypeError):
+            with self.assertTemplateUsed():
+                pass
+
+        with self.assertRaises(AssertionError):
+            with self.assertTemplateUsed(''):
+                pass
+
+        with self.assertRaises(AssertionError):
+            with self.assertTemplateUsed(''):
+                render_to_string('template_used/base.html')
+
+        with self.assertRaises(AssertionError):
+            with self.assertTemplateUsed(template_name=''):
+                pass
+
+        with self.assertRaises(AssertionError):
+            with self.assertTemplateUsed('template_used/base.html'):
+                render_to_string('template_used/alternative.html')
 
 
 class SaveRestoreWarningState(TestCase):

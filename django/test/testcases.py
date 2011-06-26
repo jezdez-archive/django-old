@@ -3,6 +3,7 @@ from __future__ import with_statement
 import difflib
 import re
 import sys
+from copy import copy
 from functools import wraps
 from urlparse import urlsplit, urlunsplit
 from xml.dom.minidom import parseString, Node
@@ -18,9 +19,11 @@ from django.http import QueryDict
 from django.test import _doctest as doctest
 from django.test.client import Client
 from django.test.html import HTMLParseError, parse_html
+from django.test.signals import template_rendered
 from django.test.utils import get_warnings_state, restore_warnings_state, override_settings
+from django.test.utils import ContextList
 from django.utils import simplejson, unittest as ut2
-from django.utils.encoding import force_unicode, smart_str
+from django.utils.encoding import smart_str
 from django.utils.unittest.util import safe_repr
 
 __all__ = ('DocTestRunner', 'OutputChecker', 'TestCase', 'TransactionTestCase',
@@ -220,6 +223,7 @@ class DocTestRunner(doctest.DocTestRunner):
         for conn in connections:
             transaction.rollback_unless_managed(using=conn)
 
+
 class _AssertNumQueriesContext(object):
     def __init__(self, test_case, num, connection):
         self.test_case = test_case
@@ -247,6 +251,38 @@ class _AssertNumQueriesContext(object):
                 executed, self.num
             )
         )
+
+
+class _AssertTemplateUsedContext(object):
+    def __init__(self, test_case, template_name):
+        self.test_case = test_case
+        self.template_name = template_name
+        self.rendered_templates = []
+        self.rendered_template_names = []
+        self.context = ContextList()
+
+    def on_template_render(self, sender, signal, template, context, **kwargs):
+        self.rendered_templates.append(template)
+        self.rendered_template_names.append(template.name)
+        self.context.append(copy(context))
+
+    def __enter__(self):
+        template_rendered.connect(self.on_template_render)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        template_rendered.disconnect(self.on_template_render)
+        if exc_type is not None:
+            return
+
+        if self.template_name not in self.rendered_template_names:
+            message = u'%s was not rendered.' % self.template_name
+            if len(self.rendered_templates) == 0:
+                message += ' No template was rendered.'
+            else:
+                message += u'Following templates were rendered: %s' % (
+                    ', '.join(self.rendered_template_names))
+            self.test_case.fail(message)
 
 
 class TransactionTestCase(ut2.TestCase):
@@ -529,13 +565,24 @@ class TransactionTestCase(ut2.TestCase):
             self.fail(msg_prefix + "The form '%s' was not used to render the"
                       " response" % form)
 
-    def assertTemplateUsed(self, response, template_name, msg_prefix=''):
+    def assertTemplateUsed(self, response=None, template_name=None, msg_prefix=''):
         """
         Asserts that the template with the provided name was used in rendering
         the response.
         """
+        if response is None and template_name is None:
+            raise TypeError(u'response and/or template_name arguments must be provided')
+
         if msg_prefix:
             msg_prefix += ": "
+
+        # use assertTemplateUsed as context manager
+        if not hasattr(response, 'templates') or (response is None and template_name):
+            if response:
+                template_name = response
+                response = None
+            context = _AssertTemplateUsedContext(self, template_name)
+            return context
 
         template_names = [t.name for t in response.templates]
         if not template_names:
