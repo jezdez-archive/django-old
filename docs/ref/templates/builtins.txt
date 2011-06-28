@@ -2319,3 +2319,68 @@ above because you don't need to add any application to the :setting:`INSTALLED_A
 you only need to load the library using ``{% load l10n %}``.
 
 See :ref:`topic-l10n-templates`.
+
+static
+~~~~~~
+
+.. templatetag:: static
+
+static
+``````
+
+.. highlight:: html+django
+
+To link to static files Django ships with a :ttag:`static` template tag. You
+can use this regardless if you're using :class:`~django.template.RequestContext`
+or not.
+
+.. code-block:: html+django
+
+    {% load static %}
+    <img src="{% static "images/hi.jpg" %}" />
+
+It is also able to consume standard context variables, e.g. assuming a
+``user_stylesheet`` variable is passed to the template:
+
+.. code-block:: html+django
+
+    {% load static %}
+    <link rel="stylesheet" href="{% static user_stylesheet %}" type="text/css" media="screen" />
+
+.. templatetag:: get_static_prefix
+
+get_static_prefix
+`````````````````
+
+.. highlight:: html+django
+
+If you're not using :class:`~django.template.RequestContext`, or if you need
+more control over exactly where and how :setting:`STATIC_URL` is injected
+into the template, you can use the :ttag:`get_static_prefix` template tag
+instead::
+
+    {% load static %}
+    <img src="{% get_static_prefix %}images/hi.jpg" />
+
+There's also a second form you can use to avoid extra processing if you need
+the value multiple times::
+
+    {% load static %}
+    {% get_static_prefix as STATIC_PREFIX %}
+
+    <img src="{{ STATIC_PREFIX }}images/hi.jpg" />
+    <img src="{{ STATIC_PREFIX }}images/hi2.jpg" />
+
+.. templatetag:: get_media_prefix
+
+get_media_prefix
+````````````````
+
+.. highlight:: html+django
+
+Similar to the :ttag:`get_static_prefix`, ``get_media_prefix`` populates a
+template variable with the media prefix :setting:`MEDIA_URL`, e.g.::
+
+    <script type="text/javascript" charset="utf-8">
+    var media_path = '{% get_media_prefix %}';
+    </script>
