@@ -349,6 +349,8 @@ than -- the following::
 form
 ~~~~
 
+.. versionadded:: 1.5
+
 The ``form`` tag is used to render one or more form instances using a generic
 template. ::
 
@@ -397,6 +399,8 @@ somewhere else. This is done by not specifying a template name after the
 formrow
 ~~~~~~~
 
+.. versionadded:: 1.5
+
 The ``formrow`` tag is a bit similiar to the :ttag:`form` tag but acts on a
 set of form fields instead of complete forms. It takes one or more fields as
 arguments and a template which should be used to render those fields::
@@ -415,6 +419,8 @@ The ``formrow`` tag is usually only used in form layouts.
 
 formfield
 ~~~~~~~~~
+
+.. versionadded:: 1.5
 
 Renders a form field using the associated widget. It does not take any extra
 arguments::
