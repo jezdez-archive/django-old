@@ -416,6 +416,16 @@ The ``formrow`` tag is usually only used in form layouts.
 formfield
 ~~~~~~~~~
 
+Renders a form field using the associated widget. It does not take any extra
+arguments::
+
+    {% formfield userform.username %}
+
+The ``formfield`` tag should only be used in a form layout, usually in a row
+template.
+
+.. GSOC-TODO: include on how widgets can be modified wit the {% widget %} tag.
+
 .. templatetag:: if
 
 if
