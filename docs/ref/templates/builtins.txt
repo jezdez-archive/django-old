@@ -375,7 +375,7 @@ Sometimes it's necessary to pass additional template variables into the
 context of a form layout. This can be done in the same way and with the same
 syntax as the :ttag:`include` template tag::
 
-    {% form myform using "my_layout_with_title.html" with title="Please fill in the form" only %}
+    {% form myform using "layout_with_title.html" with title="Please fill in the form" only %}
 
 The ``only`` keyword, as shown in the example above, acts also the same way as
 it does in the :ttag:`include` tag. It prevents other but not explicitly
@@ -396,6 +396,20 @@ somewhere else. This is done by not specifying a template name after the
 
 formrow
 ~~~~~~~
+
+The ``formrow`` tag is a bit similiar to the :ttag:`form` tag but acts on a
+set of form fields instead of complete forms. It takes one or more fields as
+arguments and a template which should be used to render those fields::
+
+    {% formrow userform.firstname userform.lastname using "forms/rows/p.html" %}
+
+It also accepts :ttag:`include`-like parameters::
+
+    {% formrow myform.field using "my_row_layout.html" with hide_errors=1 %}
+
+The ``formrow`` tag is usually only used in form layouts.
+
+.. GSOC-TODO: link to "how to make custom layouts / row templates"
 
 .. templatetag:: formfield
 
