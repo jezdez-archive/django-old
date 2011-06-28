@@ -134,7 +134,7 @@ class ForeignKeyRawIdWidget(forms.TextInput):
         # API to determine the ID dynamically.
         output.append(u'<a href="%s%s" class="related-lookup" id="lookup_id_%s" onclick="return showRelatedObjectLookupPopup(this);"> ' % \
             (related_url, url, name))
-        output.append(u'<img src="%sadmin/img/admin/selector-search.gif" width="16" height="16" alt="%s" /></a>' % (settings.STATIC_URL, _('Lookup')))
+        output.append(u'<img src="%sadmin/img/selector-search.gif" width="16" height="16" alt="%s" /></a>' % (settings.STATIC_URL, _('Lookup')))
         if value:
             output.append(self.label_for_value(value))
         return mark_safe(u''.join(output))
@@ -240,7 +240,7 @@ class RelatedFieldWidgetWrapper(forms.Widget):
             # API to determine the ID dynamically.
             output.append(u'<a href="%s" class="add-another" id="add_id_%s" onclick="return showAddAnotherPopup(this);"> ' % \
                 (related_url, name))
-            output.append(u'<img src="%sadmin/img/admin/icon_addlink.gif" width="10" height="10" alt="%s"/></a>' % (settings.STATIC_URL, _('Add Another')))
+            output.append(u'<img src="%sadmin/img/icon_addlink.gif" width="10" height="10" alt="%s"/></a>' % (settings.STATIC_URL, _('Add Another')))
         return mark_safe(u''.join(output))
 
     def build_attrs(self, extra_attrs=None, **kwargs):

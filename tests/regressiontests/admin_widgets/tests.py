@@ -257,7 +257,7 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         w = ForeignKeyRawIdWidget(rel)
         self.assertEqual(
             conditional_escape(w.render('test', band.pk, attrs={})),
-            '<input type="text" name="test" value="%(bandpk)s" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/band/?t=id" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Linkin Park</strong>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix, "bandpk": band.pk},
+            '<input type="text" name="test" value="%(bandpk)s" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/band/?t=id" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Linkin Park</strong>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix, "bandpk": band.pk},
         )
 
     def test_relations_to_non_primary_key(self):
@@ -272,7 +272,7 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         w = ForeignKeyRawIdWidget(rel)
         self.assertEqual(
             w.render('test', core.parent_id, attrs={}),
-            '<input type="text" name="test" value="86" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Apple</strong>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix},
+            '<input type="text" name="test" value="86" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Apple</strong>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix},
         )
 
 
@@ -289,7 +289,7 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         )
         self.assertEqual(
             w.render('test', child_of_hidden.parent_id, attrs={}),
-            '<input type="text" name="test" value="93" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Hidden</strong>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix},
+            '<input type="text" name="test" value="93" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Hidden</strong>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix},
         )
 
 
@@ -308,12 +308,12 @@ class ManyToManyRawIdWidgetTest(DjangoTestCase):
         w = ManyToManyRawIdWidget(rel)
         self.assertEqual(
             conditional_escape(w.render('test', [m1.pk, m2.pk], attrs={})),
-            '<input type="text" name="test" value="%(m1pk)s,%(m2pk)s" class="vManyToManyRawIdAdminField" /><a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix, "m1pk": m1.pk, "m2pk": m2.pk},
+            '<input type="text" name="test" value="%(m1pk)s,%(m2pk)s" class="vManyToManyRawIdAdminField" /><a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix, "m1pk": m1.pk, "m2pk": m2.pk},
         )
 
         self.assertEqual(
             conditional_escape(w.render('test', [m1.pk])),
-            '<input type="text" name="test" value="%(m1pk)s" class="vManyToManyRawIdAdminField" /><a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix, "m1pk": m1.pk},
+            '<input type="text" name="test" value="%(m1pk)s" class="vManyToManyRawIdAdminField" /><a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>' % {"ADMIN_MEDIA_PREFIX": admin_media_prefix, "m1pk": m1.pk},
         )
 
         self.assertEqual(w._has_changed(None, None), False)

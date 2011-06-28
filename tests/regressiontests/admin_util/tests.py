@@ -133,7 +133,7 @@ class UtilTests(unittest.TestCase):
         # Regression test for #13071: NullBooleanField has special
         # handling.
         display_value = display_for_field(None, models.NullBooleanField())
-        expected = u'<img src="%sadmin/img/admin/icon-unknown.gif" alt="None" />' % settings.STATIC_URL
+        expected = u'<img src="%sadmin/img/icon-unknown.gif" alt="None" />' % settings.STATIC_URL
         self.assertEqual(display_value, expected)
 
         display_value = display_for_field(None, models.DecimalField())
