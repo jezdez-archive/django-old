@@ -39,7 +39,7 @@ class FilteredSelectMultiple(forms.SelectMultiple):
         output.append(u'<script type="text/javascript">addEvent(window, "load", function(e) {')
         # TODO: "id_" is hard-coded here. This should instead use the correct
         # API to determine the ID dynamically.
-        output.append(u'SelectFilter.init("id_%s", "%s", %s, "%s/admin/"); });</script>\n' % \
+        output.append(u'SelectFilter.init("id_%s", "%s", %s, "%sadmin/"); });</script>\n' % \
             (name, self.verbose_name.replace('"', '\\"'), int(self.is_stacked), settings.STATIC_URL))
         return mark_safe(u''.join(output))
 
