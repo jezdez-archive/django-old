@@ -163,7 +163,7 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler, object):
 class AdminMediaHandler(handlers.StaticFilesHandler):
     """
     WSGI middleware that intercepts calls to the admin media directory, as
-    defined by the ADMIN_MEDIA_PREFIX setting, and serves those images.
+    defined by the STATIC_URL setting, and serves those images.
     Use this ONLY LOCALLY, for development! This hasn't been tested for
     security and is not super efficient.
 
