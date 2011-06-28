@@ -1,0 +1,171 @@
+Display forms as HTML
+=====================
+
+.. versionchanged:: 1.5
+
+.. highlightlang:: html+django
+
+Django provides helpers in the template language to make outputting a form as
+HTML easy and reusable. In the example from :doc:`/topics/forms/index`, we
+passed our ``ContactForm`` instance to the template using the context variable
+``form``. Here's a simple example template::
+
+    <form action="/contact/" method="post">{% csrf_token %}
+    {% form myform using "forms/layouts/p.html" %}
+    <input type="submit" value="Submit" />
+    </form>
+
+The form only outputs its own fields; it is up to you to provide the surrounding
+``<form>`` tags and the submit button.
+
+.. admonition:: Forms and Cross Site Request Forgery protection
+
+   Django ships with an easy-to-use :doc:`protection against Cross Site Request
+   Forgeries </ref/contrib/csrf>`. When submitting a form via POST with
+   CSRF protection enabled you must use the :ttag:`csrf_token` template tag
+   as in the preceding example. However, since CSRF protection is not
+   directly tied to forms in templates, this tag is omitted from the
+   following examples in this document.
+
+``{% form myform using "forms/layouts/p.html" %}`` will output the form with
+each field and accompanying label wrapped in a paragraph. Here's the output
+for our example template::
+
+   <form action="/contact/" method="post">
+   <p><label for="id_subject">Subject:</label>
+       <input id="id_subject" type="text" name="subject" maxlength="100" /></p>
+   <p><label for="id_message">Message:</label>
+       <input type="text" name="message" id="id_message" /></p>
+   <p><label for="id_sender">Sender:</label>
+       <input type="text" name="sender" id="id_sender" /></p>
+   <p><label for="id_cc_myself">Cc myself:</label>
+       <input type="checkbox" name="cc_myself" id="id_cc_myself" /></p>
+   <input type="submit" value="Submit" />
+   </form>
+
+The :ttag:`form` template tag is simply an instruction to the template language on
+which reusable template will be used to output ``myform`` as HTML. The
+``forms/layouts/p.html`` template will then take care of including a label for
+each field, displaying an input box and wrapping every field into it's own
+``<p>`` element.
+
+You can also use ``forms/layouts/table.html`` to output table rows (you'll
+need to provide your own ``<table>`` tags) and ``forms/layouts/ul.html`` to
+output list items.
+
+Customizing the form template
+-----------------------------
+
+If the default generated HTML is not to your taste, you can completely customize
+the way a form is presented using the Django template language. Extending the
+above example::
+
+    <form action="/contact/" method="post">
+        {% form myform using "forms/layouts/my_layout.html" %}
+        <p><input type="submit" value="Send message" /></p>
+    </form>
+
+``forms/layouts/my_layout.html`` is able to extend one of the builtin layouts,
+modifying the parts you want to change::
+
+    {% extends "forms/layouts/table.html" %}
+
+    {% block errors %}
+        <p>Following errors occurred that cannot be matched to a field:</p>
+        {{ block.super }}
+    {% endblock %}
+
+See :doc:`` for a detailed reference on how to customize form layouts.
+
+Looping over the form's fields
+------------------------------
+
+If you're using the same HTML for each of your form fields, you can reduce
+duplicate code by looping through each field in turn using a ``{% for %}``
+loop::
+
+    <form action="/contact/" method="post">
+        {% for field in form %}
+            <div class="fieldWrapper">
+                {{ field.errors }}
+                {{ field.label_tag }}: {{ field }}
+            </div>
+        {% endfor %}
+        <p><input type="submit" value="Send message" /></p>
+    </form>
+
+Within this loop, ``{{ field }}`` is an instance of :class:`BoundField`.
+``BoundField`` also has the following attributes, which can be useful in your
+templates:
+
+    ``{{ field.label }}``
+        The label of the field, e.g. ``Email address``.
+
+    ``{{ field.label_tag }}``
+        The field's label wrapped in the appropriate HTML ``<label>`` tag,
+        e.g. ``<label for="id_email">Email address</label>``
+
+    ``{{ field.html_name }}``
+        The name of the field that will be used in the input element's name
+        field. This takes the form prefix into account, if it has been set.
+
+    ``{{ field.help_text }}``
+        Any help text that has been associated with the field.
+
+    ``{{ field.errors }}``
+        A list of any validation errors corresponding to this field. You use
+        customize the presentation of the errors with a ``{% for error in
+        field.errors %}`` loop::
+
+            <ol>
+            {% for error in field.errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+            </ol>
+
+    ``field.is_hidden``
+        This attribute is ``True`` if the form field is a hidden field and
+        ``False`` otherwise. It's not particularly useful as a template
+        variable, but could be useful in conditional tests such as::
+
+            {% if field.is_hidden %}
+               {# Do something special #}
+            {% endif %}
+
+Looping over hidden and visible fields
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you're manually laying out a form in a template, as opposed to relying on
+Django's default form layout, you might want to treat ``<input type="hidden">``
+fields differently than non-hidden fields. For example, because hidden fields
+don't display anything, putting error messages "next to" the field could cause
+confusion for your users -- so errors for those fields should be handled
+differently.
+
+Django provides two methods on a form that allow you to loop over the hidden
+and visible fields independently: ``hidden_fields()`` and
+``visible_fields()``. Here's a modification of an earlier example that uses
+these two methods::
+
+    <form action="/contact/" method="post">
+        {% for field in form.visible_fields %}
+            <div class="fieldWrapper">
+
+                {# Include the hidden fields in the form #}
+                {% if forloop.first %}
+                    {% for hidden in form.hidden_fields %}
+                    {{ hidden }}
+                    {% endfor %}
+                {% endif %}
+
+                {{ field.errors }}
+                {{ field.label_tag }}: {{ field }}
+            </div>
+        {% endfor %}
+        <p><input type="submit" value="Send message" /></p>
+    </form>
+
+This example does not handle any errors in the hidden fields. Usually, an
+error in a hidden field is a sign of form tampering, since normal form
+interaction won't alter them. However, you could easily insert some error
+displays for those form errors, as well.
