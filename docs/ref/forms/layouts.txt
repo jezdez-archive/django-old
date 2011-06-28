@@ -1,0 +1,69 @@
+Form layouts
+============
+
+.. highlightlang:: html+django
+
+Form layouts are reusable templates.
+
+Built-in layouts
+----------------
+
+Django provides with three sample implementations of how a form layout could
+look like.
+
+``forms/layouts/p.html``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Default row template:** ``forms/rows/p.html``
+
+``forms/layouts/ul.html``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Default row template:** ``forms/rows/li.html``
+
+``forms/layouts/table.html``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Default row template:** ``forms/rows/tr.html``
+
+``forms/layouts/default.html``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Default row template:** ``forms/rows/default.html``
+
+The code of the default layout actually looks like::
+
+    {% extends "forms/layouts/p.html" %}
+
+It is basically just a placeholder where you can drop in your own default
+implementation of a form layout that is used project wide unless an
+alternative layout is specified in the :ttag:`{% form ... %} <form>` tag.
+
+Customize layouts
+-----------------
+
+Sometimes the sample layouts mentioned above just don't cut your needs. In
+that case there are some possibilities to customize them. The simplest way is
+to use django's template inheritance, extending from a built-in layout, and
+only overwriting the bits you want to modify. In this case, use the layout
+that matches your needs best and customize it by overriding one of the
+following blocks:
+
+* ``config``
+* ``errors``
+* ``rows``
+* ``hidden_fields``
+
+Alternatively it is ofcourse possible to write your own form layout from
+scratch. Have a look at the existing ones to get an idea what is possible and
+how the template code could look like.
+
+Form rows
+~~~~~~~~~
+
+Following blocks are used in the built-in row templates:
+
+* ``errors``
+* ``label``
+* ``field``
+* ``help_text``

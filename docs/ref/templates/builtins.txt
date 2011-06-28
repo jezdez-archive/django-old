@@ -364,7 +364,8 @@ Django provides three kinds of built-in layouts:
 * Wrapping a form row with a ``<tr>``, the label with a ``<th>`` and the
   actual widget with a ``<td>`` tag: ``forms/layouts/table.html``
 
-.. GSOC-TODO: link to "how to make custom layouts"
+See the documentation on :doc:`layouts and how to customize them
+</ref/forms/layouts>` for more details.
 
 You can use a default layout by leaving the ``using ...`` out::
 
@@ -413,7 +414,8 @@ It also accepts :ttag:`include`-like parameters::
 
 The ``formrow`` tag is usually only used in form layouts.
 
-.. GSOC-TODO: link to "how to make custom layouts / row templates"
+See the documentation on :doc:`row templates and how they are customized
+</ref/forms/layouts>` for more details.
 
 .. templatetag:: formfield
 
