@@ -70,6 +70,9 @@ class BaseSettings(object):
         if name in ("MEDIA_URL", "STATIC_URL") and value and not value.endswith('/'):
             warnings.warn('If set, %s must end with a slash' % name,
                           DeprecationWarning)
+        elif name == "ADMIN_MEDIA_PREFIX":
+            warnings.warn("The ADMIN_MEDIA_PREFIX setting has been removed; "
+                          "use STATIC_URL instead.", DeprecationWarning)
         object.__setattr__(self, name, value)
 
 
