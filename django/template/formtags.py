@@ -2,6 +2,7 @@ from django.conf import settings
 from django.template.base import Library
 from django.template.base import Node, Variable
 from django.template.base import TemplateSyntaxError, VariableDoesNotExist
+from django.template.defaulttags import token_kwargs
 from django.template.loader import get_template
 
 
@@ -9,19 +10,18 @@ register = Library()
 
 
 class FormNode(Node):
-    default_template_name = ''
+    default_template_name = 'forms/layouts/default.html'
 
-    def __init__(self, tagname, forms, template_name=None, nodelist=None):
+    def __init__(self, tagname, variables, options):
         self.tagname = tagname
-        self.forms = forms
-        self.template_name = template_name
-        self.nodelist = nodelist
+        self.variables = variables
+        self.options = options
 
     def render(self, context):
-        if not self.nodelist:
+        if 'nodelist' not in self.options:
             try:
-                if self.template_name is not None:
-                    template_name = self.template_name.resolve(context)
+                if 'template_name' in self.options:
+                    template_name = self.options['template_name'].resolve(context)
                 else:
                     template_name = self.default_template_name
                 nodelist = get_template(template_name)
@@ -30,51 +30,93 @@ class FormNode(Node):
                     raise
                 return u''
         else:
-            nodelist = self.nodelist
-        forms = []
-        for variable in self.forms:
+            nodelist = self.options['nodelist']
+        variables = []
+        for variable in self.variables:
             try:
-                form = variable.resolve(context)
-                forms.append(form)
+                variable = variable.resolve(context)
+                variables.append(variable)
             except VariableDoesNotExist:
                 pass
-        context.push()
-        try:
-            context['form'] = forms[0] if forms else None
-            context['forms'] = forms
+
+        extra_context = {
+            'form': variables[0] if variables else None,
+            'forms': variables,
+        }
+
+        if self.options['with']:
+            extra_context.update(dict([
+                (name, var.resolve(context))
+                for name, var in self.options['with'].iteritems()]))
+
+        if self.options['only']:
+            context = context.new(extra_context)
             return nodelist.render(context)
-        finally:
-            context.pop()
-        return u''
+
+        context.update(extra_context)
+        output = nodelist.render(context)
+        context.pop()
+        return output
 
     @classmethod
     def parse(cls, parser, tokens):
         bits = tokens.split_contents()
         tagname = bits.pop(0)
-        forms = []
-        using = False
-        template_name = None
-        nodelist = None
-        if len(bits) < 1 or bits == ['using']:
+        options = {
+            'using': False,
+            'only': False,
+            'with': None,
+        }
+
+        # collect form variables
+        variables = []
+        while bits and bits[0] not in ('using', 'with', 'only'):
+            variables.append(Variable(bits.pop(0)))
+        if not variables:
             raise TemplateSyntaxError(
-                u'%s tag: expected at least one argument' % tagname)
-        while bits:
-            keyword = bits.pop(0)
-            if keyword == 'using':
-                using = True
-                break
-            forms.append(Variable(keyword))
-        if using:
-            if len(bits) > 1:
-                raise TemplateSyntaxError(
-                    u'%s tag: more than one argument after '
-                    u'"using" specified' % tagname)
-            elif len(bits) == 1:
-                template_name = Variable(bits.pop(0))
+                u'%s tag expectes at least one form as argument.' % tagname)
+
+        if bits:
+            if bits[0] == 'using':
+                bits.pop(0)
+                if len(bits):
+                    if bits[0] in ('with', 'only'):
+                        raise TemplateSyntaxError(
+                            u'%s: you must provide one template after "using" '
+                            u'and before "with" or "only".')
+                    options['template_name'] = Variable(bits.pop(0))
+                else:
+                    nodelist = parser.parse(('end%s' % tagname,))
+                    parser.delete_first_token()
+                    options['nodelist'] = nodelist
+                options['using'] = True
             else:
-                nodelist = parser.parse(('end%s' % tagname,))
-                parser.delete_first_token()
-        return cls(tagname, forms, template_name, nodelist)
+                raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
+                    (tagname, bits[0]))
+
+        if bits:
+            if bits[0] == 'with':
+                bits.pop(0)
+                arguments = token_kwargs(bits, parser, support_legacy=False)
+                if not arguments:
+                    raise TemplateSyntaxError(
+                        u'"with" in %s tag needs at least one '
+                        u'keyword argument.' % tagname)
+                options['with'] = arguments
+            elif bits[0] not in ('only',):
+                raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
+                    (tagname, bits[0]))
+
+        if bits:
+            if bits[0] == 'only':
+                bits.pop(0)
+                options['only'] = True
+
+        if bits:
+            raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
+                (tagname, ' '.join(bits)))
+
+        return cls(tagname, variables, options)
 
 
 register.tag('form', FormNode.parse)

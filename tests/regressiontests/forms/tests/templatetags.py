@@ -29,12 +29,21 @@ class FormTagTests(TestCase):
         render('{% form myform using %}{% endform %}')
         render('{% form myform secondform using %}{% endform %}')
         render('{% form myform secondform thirdform %}')
+        render('{% form myform secondform thirdform using "myform_layout.html" with arg=value %}')
+        render('{% form myform secondform thirdform using "myform_layout.html" only %}')
+        render('{% form myform secondform thirdform using "myform_layout.html" with arg=value only %}')
 
     def test_invalid_syntax(self):
         with self.assertRaises(TemplateSyntaxError):
             render('{% form %}')
         with self.assertRaises(TemplateSyntaxError):
             render('{% form using %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% form myform using "myform_layout.html" with %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% form myform using "myform_layout.html" with only %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% form myform using "myform_layout.html" only with arg=value %}')
         with self.assertRaises(TemplateSyntaxError):
             render('{% form using %}{% endform %}')
         with self.assertRaises(TemplateSyntaxError):
@@ -43,6 +52,10 @@ class FormTagTests(TestCase):
             render('{% form myform %}{% endform %}')
         with self.assertRaises(TemplateSyntaxError):
             render('{% form myform using "myform_layout.html" %}{% endform %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% form myform using "myform_layout.html" only %}{% endform %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% form myform using "myform_layout.html" with arg=value %}{% endform %}')
 
     def test_inline_content(self):
         self.assertHTMLEqual(
@@ -86,19 +99,86 @@ class FormTagTests(TestCase):
             }), 'Equals! Length: 2')
 
     def test_include_content(self):
-        self.assertHTMLEqual(
-            render('{% form myform using "simple_form_tag.html" %}', {
-                'myform': PersonForm(),
-            }), '''
-            Forms: 1
-            1. Form Fields: firstname lastname age
-            ''')
-        self.assertHTMLEqual(
-            render('{% form f1 non f2 using "simple_form_tag.html" %}', {
-                'f1': SimpleForm(),
-                'f2': PersonForm(),
-            }), '''
-            Forms: 2
-            1. Form Fields: name
-            2. Form Fields: firstname lastname age
-            ''')
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('{% form myform using "simple_form_tag.html" %}', {
+                    'myform': PersonForm(),
+                }), '''
+                Forms: 1
+                1. Form Fields: firstname lastname age
+                ''')
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('{% form f1 non f2 using "simple_form_tag.html" %}', {
+                    'f1': SimpleForm(),
+                    'f2': PersonForm(),
+                }), '''
+                Forms: 2
+                1. Form Fields: name
+                2. Form Fields: firstname lastname age
+                ''')
+
+    def test_include_content_with_extra_arguments(self):
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('''
+                    {% with extra_argument="ham" %}
+                        {% form myform using "simple_form_tag.html" only %}
+                    {% endwith %}
+                    ''', {'myform': PersonForm()}),
+                '''
+                Forms: 1
+                1. Form Fields: firstname lastname age
+                ''')
+
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('{% form myform using "simple_form_tag.html" with extra_argument="spam" %}', {
+                    'myform': PersonForm(),
+                }), '''
+                Forms: 1
+                1. Form Fields: firstname lastname age
+                Extra argument: spam
+                ''')
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('{% form myform using "simple_form_tag.html" with extra_argument=0 %}', {
+                    'myform': PersonForm(),
+                }), '''
+                Forms: 1
+                1. Form Fields: firstname lastname age
+                ''')
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('''
+                    {% with extra_argument="ham" %}
+                        {% form myform using "simple_form_tag.html" %}
+                    {% endwith %}
+                    ''', {'myform': PersonForm()}),
+                '''
+                Forms: 1
+                1. Form Fields: firstname lastname age
+                Extra argument: ham
+                ''')
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('''
+                    {% with extra_argument="ham" %}
+                        {% form myform using "simple_form_tag.html" only %}
+                    {% endwith %}
+                    ''', {'myform': PersonForm()}),
+                '''
+                Forms: 1
+                1. Form Fields: firstname lastname age
+                ''')
+        with self.assertTemplateUsed('simple_form_tag.html'):
+            self.assertHTMLEqual(
+                render('''
+                    {% with extra_argument="spam" %}
+                        {% form myform using "simple_form_tag.html" with extra_argument=0 %}
+                    {% endwith %}
+                    ''', {'myform': PersonForm()}),
+                '''
+                Forms: 1
+                1. Form Fields: firstname lastname age
+                ''')
