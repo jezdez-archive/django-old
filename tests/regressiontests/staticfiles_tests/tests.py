@@ -432,5 +432,5 @@ TestStaticfilesDirsType = override_settings(
 class TestTemplateTag(StaticFilesTestCase):
 
     def test_template_tag(self):
-        self.assertTemplateRenders("""{% load staticfiles %}{% staticfiles_url "does/not/exist.png" %}""", "")
-        self.assertTemplateRenders("""{% load staticfiles %}{% staticfiles_url "test/storage.txt" %}""", "/static/test/storage.txt")
+        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "does/not/exist.png" %}""", "")
+        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "testfile.txt" %}""", "/static/testfile.txt")

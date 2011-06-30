@@ -8,7 +8,7 @@ storage = get_storage_class(settings.STATICFILES_STORAGE)()
 
 
 @register.simple_tag
-def staticfiles_url(path):
+def static(path):
     """
     A template tag that returns the URL to a file
     using staticfiles' storage backend
