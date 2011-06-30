@@ -85,7 +85,6 @@ class BuildStaticTestCase(StaticFilesTestCase):
         super(BuildStaticTestCase, self).setUp()
         self.old_root = settings.STATIC_ROOT
         settings.STATIC_ROOT = tempfile.mkdtemp()
-        print settings.STATIC_ROOT
         self.run_collectstatic()
         # Use our own error handler that can handle .svn dirs on Windows
         self.addCleanup(shutil.rmtree, settings.STATIC_ROOT,
@@ -253,7 +252,7 @@ TestBuildStaticNonLocalStorage = override_settings(
 )(TestBuildStaticNonLocalStorage)
 
 
-class TestBuildStaticCacheBustingStorage(BuildStaticTestCase, TestDefaults):
+class TestBuildStaticCachedStorage(BuildStaticTestCase, TestDefaults):
     """
     Tests for the Cache busting storage
     """
@@ -261,12 +260,11 @@ class TestBuildStaticCacheBustingStorage(BuildStaticTestCase, TestDefaults):
         """
         Test the hashing.
         """
-        print "FOO", settings.STATICFILES_STORAGE
         self.assertFileContains(u'test/camelCase.txt', u'camelCase')
 
-TestBuildStaticCacheBustingStorage = override_settings(
-    STATICFILES_STORAGE='django.contrib.staticfiles.storage.CacheBustingStorage'
-)(TestBuildStaticCacheBustingStorage)
+TestBuildStaticCachedStorage = override_settings(
+    STATICFILES_STORAGE='django.contrib.staticfiles.storage.CachedStaticFilesStorage'
+)(TestBuildStaticCachedStorage)
 
 
 if sys.platform != 'win32':
