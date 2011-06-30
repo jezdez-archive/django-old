@@ -121,18 +121,6 @@ class FormTagTests(TestCase):
     def test_include_content_with_extra_arguments(self):
         with self.assertTemplateUsed('simple_form_tag.html'):
             self.assertHTMLEqual(
-                render('''
-                    {% with extra_argument="ham" %}
-                        {% form myform using "simple_form_tag.html" only %}
-                    {% endwith %}
-                    ''', {'myform': PersonForm()}),
-                '''
-                Forms: 1
-                1. Form Fields: firstname lastname age
-                ''')
-
-        with self.assertTemplateUsed('simple_form_tag.html'):
-            self.assertHTMLEqual(
                 render('{% form myform using "simple_form_tag.html" with extra_argument="spam" %}', {
                     'myform': PersonForm(),
                 }), '''
@@ -182,3 +170,115 @@ class FormTagTests(TestCase):
                 Forms: 1
                 1. Form Fields: firstname lastname age
                 ''')
+
+    def test_default_template(self):
+        with self.assertTemplateUsed('forms/layouts/default.html'):
+            render('{% form myform %}')
+
+
+class FormRowTagTests(TestCase):
+    def test_valid_syntax(self):
+        render('{% formrow myform.field %}')
+        render('{% formrow myform.field using "myrow_layout.html" %}')
+        render('{% formrow myform.field secondfield %}')
+        render('{% formrow myform.field secondfield thirdfield %}')
+        render('{% formrow myform.field secondfield thirdfield using "myform_layout.html" with arg=value %}')
+        render('{% formrow myform.field secondfield thirdfield using "myform_layout.html" only %}')
+        render('{% formrow myform.field secondfield thirdfield using "myform_layout.html" with arg=value only %}')
+
+    def test_invalid_syntax(self):
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow using %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow myform.name using %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow myform.name using "myform_layout.html" with %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow myform.name using "myform_layout.html" with only %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow myform.name using "myform_layout.html" only with arg=value %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow myform.name using "myform_layout.html" too_many_arguments %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow myform.name using %}{% endformrow %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formrow myform.name using %}{% endform %}')
+
+    def test_include_content(self):
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            self.assertHTMLEqual(
+                render('{% formrow myform.lastname using "simple_formrow_tag.html" %}', {
+                    'myform': PersonForm(),
+                }), '''
+                Fields: 1
+                1. Field: lastname
+                ''')
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            self.assertHTMLEqual(
+                render('{% formrow person.age simple.non simple.name using "simple_formrow_tag.html" %}', {
+                    'simple': SimpleForm(),
+                    'person': PersonForm(),
+                }), '''
+                Fields: 2
+                1. Field: age
+                2. Field: name
+                ''')
+
+    def test_include_content_with_extra_arguments(self):
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            self.assertHTMLEqual(
+                render('{% formrow myform.firstname using "simple_formrow_tag.html" with extra_argument="spam" %}', {
+                    'myform': PersonForm(),
+                }), '''
+                Fields: 1
+                1. Field: firstname
+                Extra argument: spam
+                ''')
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            self.assertHTMLEqual(
+                render('{% formrow myform.age using "simple_formrow_tag.html" with extra_argument=0 %}', {
+                    'myform': PersonForm(),
+                }), '''
+                Fields: 1
+                1. Field: age
+                ''')
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            self.assertHTMLEqual(
+                render('''
+                    {% with extra_argument="ham" %}
+                        {% formrow myform.lastname using "simple_formrow_tag.html" %}
+                    {% endwith %}
+                    ''', {'myform': PersonForm()}),
+                '''
+                Fields: 1
+                1. Field: lastname
+                Extra argument: ham
+                ''')
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            self.assertHTMLEqual(
+                render('''
+                    {% with extra_argument="ham" %}
+                        {% formrow myform.firstname using "simple_formrow_tag.html" only %}
+                    {% endwith %}
+                    ''', {'myform': PersonForm()}),
+                '''
+                Fields: 1
+                1. Field: firstname
+                ''')
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            self.assertHTMLEqual(
+                render('''
+                    {% with extra_argument="spam" %}
+                        {% formrow myform.firstname using "simple_formrow_tag.html" with extra_argument=0 %}
+                    {% endwith %}
+                    ''', {'myform': PersonForm()}),
+                '''
+                Fields: 1
+                1. Field: firstname
+                ''')
+
+    def test_default_template(self):
+        with self.assertTemplateUsed('forms/rows/default.html'):
+            render('{% formrow myform.name %}')

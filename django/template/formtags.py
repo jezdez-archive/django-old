@@ -9,8 +9,10 @@ from django.template.loader import get_template
 register = Library()
 
 
-class FormNode(Node):
-    default_template_name = 'forms/layouts/default.html'
+class BaseFormAndRowNode(Node):
+    default_template_name = None
+    single_template_var = None
+    list_template_var = None
 
     def __init__(self, tagname, variables, options):
         self.tagname = tagname
@@ -40,8 +42,8 @@ class FormNode(Node):
                 pass
 
         extra_context = {
-            'form': variables[0] if variables else None,
-            'forms': variables,
+            self.single_template_var: variables[0] if variables else None,
+            self.list_template_var: variables,
         }
 
         if self.options['with']:
@@ -59,41 +61,21 @@ class FormNode(Node):
         return output
 
     @classmethod
-    def parse(cls, parser, tokens):
-        bits = tokens.split_contents()
-        tagname = bits.pop(0)
-        options = {
-            'using': False,
-            'only': False,
-            'with': None,
-        }
-
-        # collect form variables
+    def parse_variables(cls, tagname, parser, bits, options):
         variables = []
         while bits and bits[0] not in ('using', 'with', 'only'):
             variables.append(Variable(bits.pop(0)))
         if not variables:
             raise TemplateSyntaxError(
-                u'%s tag expectes at least one form as argument.' % tagname)
+                u'%s tag expectes at least one template variable as argument.' % tagname)
+        return variables
 
-        if bits:
-            if bits[0] == 'using':
-                bits.pop(0)
-                if len(bits):
-                    if bits[0] in ('with', 'only'):
-                        raise TemplateSyntaxError(
-                            u'%s: you must provide one template after "using" '
-                            u'and before "with" or "only".')
-                    options['template_name'] = Variable(bits.pop(0))
-                else:
-                    nodelist = parser.parse(('end%s' % tagname,))
-                    parser.delete_first_token()
-                    options['nodelist'] = nodelist
-                options['using'] = True
-            else:
-                raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
-                    (tagname, bits[0]))
+    @classmethod
+    def parse_using(cls, tagname, parser, bits, options):
+        raise NotImplementedError(u'Must be implemented in subclass')
 
+    @classmethod
+    def parse_with(cls, tagname, parser, bits, options):
         if bits:
             if bits[0] == 'with':
                 bits.pop(0)
@@ -112,6 +94,19 @@ class FormNode(Node):
                 bits.pop(0)
                 options['only'] = True
 
+    @classmethod
+    def parse(cls, parser, tokens):
+        bits = tokens.split_contents()
+        tagname = bits.pop(0)
+        options = {
+            'only': False,
+            'with': None,
+        }
+
+        variables = cls.parse_variables(tagname, parser, bits, options)
+        cls.parse_using(tagname, parser, bits, options)
+        cls.parse_with(tagname, parser, bits, options)
+
         if bits:
             raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
                 (tagname, ' '.join(bits)))
@@ -119,4 +114,54 @@ class FormNode(Node):
         return cls(tagname, variables, options)
 
 
+class FormNode(BaseFormAndRowNode):
+    default_template_name = 'forms/layouts/default.html'
+    single_template_var = 'form'
+    list_template_var = 'forms'
+
+    @classmethod
+    def parse_using(cls, tagname, parser, bits, options):
+        if bits:
+            if bits[0] == 'using':
+                bits.pop(0)
+                if len(bits):
+                    if bits[0] in ('with', 'only'):
+                        raise TemplateSyntaxError(
+                            u'%s: you must provide one template after "using" '
+                            u'and before "with" or "only".')
+                    options['template_name'] = Variable(bits.pop(0))
+                else:
+                    nodelist = parser.parse(('end%s' % tagname,))
+                    parser.delete_first_token()
+                    options['nodelist'] = nodelist
+            else:
+                raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
+                    (tagname, bits[0]))
+
+
+class FormRowNode(BaseFormAndRowNode):
+    default_template_name = 'forms/rows/default.html'
+    single_template_var = 'field'
+    list_template_var = 'fields'
+
+    @classmethod
+    def parse_using(cls, tagname, parser, bits, options):
+        if bits:
+            if bits[0] == 'using':
+                bits.pop(0)
+                if len(bits):
+                    if bits[0] in ('with', 'only'):
+                        raise TemplateSyntaxError(
+                            u'%s: you must provide one template after "using" '
+                            u'and before "with" or "only".')
+                    options['template_name'] = Variable(bits.pop(0))
+                else:
+                    raise TemplateSyntaxError(
+                        u'%s: expected a template name after "using".' % tagname)
+            else:
+                raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
+                    (tagname, bits[0]))
+
+
 register.tag('form', FormNode.parse)
+register.tag('formrow', FormRowNode.parse)
