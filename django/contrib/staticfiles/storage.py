@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.cache import get_cache, InvalidCacheBackendError
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import FileSystemStorage
+from django.core.files.base import ContentFile
 from django.template import Template, Context
 from django.utils.importlib import import_module
 from django.utils.baseconv import base62
@@ -58,7 +59,7 @@ class CacheBustingMixin(object):
         return os.path.join(path, u"%s.%s%s" % (root, md5sum, ext))
 
     def get_cache_key(self, name):
-        return 'cachebusting:%s' % name
+        return 'staticfiles:cachebusting:%s' % name
 
     def url(self, name):
         hashed_name = cache.get(
@@ -74,7 +75,7 @@ class CacheBustingMixin(object):
         # Save the file
         actual_content = content.read()
         rendered_content = Template(actual_content).render(Context({}))
-        hashed_name = self._save(hashed_name, rendered_content)
+        hashed_name = self._save(hashed_name, ContentFile(rendered_content))
         cache.set(self.get_cache_key(name), hashed_name)
         # Store filenames with forward slashes, even on Windows
         return force_unicode(hashed_name.replace('\\', '/'))
