@@ -1,24 +1,32 @@
 import hashlib
 import os
-import uuid
+import re
 
 from django.conf import settings
-from django.core.cache import get_cache, InvalidCacheBackendError
-from django.core.exceptions import ImproperlyConfigured
-from django.core.files.storage import FileSystemStorage
+from django.core.cache import get_cache, InvalidCacheBackendError, cache as default_cache
+from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
+from django.core.files.storage import FileSystemStorage, get_storage_class
 from django.core.files.base import ContentFile
 from django.template import Template, Context
 from django.utils.importlib import import_module
-from django.utils.baseconv import base62
-from django.utils.encoding import force_unicode, filepath_to_uri
+from django.utils.encoding import force_unicode
+from django.utils.functional import LazyObject
 
-from django.contrib.staticfiles import utils
+from django.contrib.staticfiles.utils import check_settings
 
-try:
-    cache = get_cache('staticfiles')
-except InvalidCacheBackendError:
-    # Use the default backend
-    from django.core.cache import cache
+
+urltag_re = re.compile(r"""
+url\(
+  (\s*)                 # allow whitespace wrapping (and capture)
+  (                     # capture actual url
+    [^\)\\\r\n]*?           # don't allow newlines, closing paran, escape chars (1)
+    (?:\\.                  # process all escapes here instead
+        [^\)\\\r\n]*?           # proceed, with previous restrictions (1)
+    )*                     # repeat until end
+  )
+  (\s*)                 # whitespace again (and capture)
+\)
+""", re.VERBOSE)
 
 
 class StaticFilesStorage(FileSystemStorage):
@@ -40,14 +48,25 @@ class StaticFilesStorage(FileSystemStorage):
         if base_url is None:
             raise ImproperlyConfigured("You're using the staticfiles app "
                 "without having set the STATIC_URL setting.")
-        utils.check_settings()
+        check_settings()
         super(StaticFilesStorage, self).__init__(location, base_url, *args, **kwargs)
 
 
 class CacheBustingMixin(object):
 
-    def get_hash_filename(self, name, content=None):
+    def __init__(self, *args, **kwargs):
+        super(CacheBustingMixin, self).__init__(*args, **kwargs)
+        self.processed_files = []
+        try:
+            self.cache = get_cache('staticfiles')
+        except InvalidCacheBackendError:
+            # Use the default backend
+            self.cache = default_cache
+
+    def hashed_filename(self, name, content=None):
         if content is None:
+            if not self.exists(name):
+                raise SuspiciousOperation("Attempted access to '%s' denied." % self.path(name))
             content = self.open(self.path(name))
         path, filename = os.path.split(name)
         root, ext = os.path.splitext(filename)
@@ -58,28 +77,61 @@ class CacheBustingMixin(object):
         md5sum = md5.hexdigest()[:12]
         return os.path.join(path, u"%s.%s%s" % (root, md5sum, ext))
 
-    def get_cache_key(self, name):
-        return 'staticfiles:cachebusting:%s' % name
+    def cache_key(self, name):
+        return 'staticfiles:cache:%s' % name
 
     def url(self, name):
-        hashed_name = cache.get(
-            self.get_cache_key(name), self.get_hash_filename(name))
+        cache_key = self.cache_key(name)
+        hashed_name = self.cache.get(cache_key, self.hashed_filename(name))
         return super(CacheBustingMixin, self).url(hashed_name)
 
     def save(self, name, content):
         original_name = super(CacheBustingMixin, self).save(name, content)
-        hashed_name = self.get_hash_filename(original_name, content)
+        hashed_name = self.hashed_filename(original_name, content)
         # Return the name if the file is already there
         if os.path.exists(hashed_name):
             return hashed_name
         # Save the file
-        actual_content = content.read()
-        rendered_content = Template(actual_content).render(Context({}))
+        rendered_content = Template(content.read()).render(Context({}))
         hashed_name = self._save(hashed_name, ContentFile(rendered_content))
-        cache.set(self.get_cache_key(name), hashed_name)
-        # Store filenames with forward slashes, even on Windows
-        return force_unicode(hashed_name.replace('\\', '/'))
+        # Use filenames with forward slashes, even on Windows
+        hashed_name = force_unicode(hashed_name.replace('\\', '/'))
+        self.cache.set(self.cache_key(name), hashed_name)
+        self.processed_files.append((name, hashed_name))
+        return hashed_name
 
+    def post_process(self, modified_files):
+        """
+        Post process method called by the collectstatic management command.
+        """
+        cached_files = [self.cache_key(path) for path in modified_files]
+        self.cache.delete_many(cached_files)
+
+        def path_level((name, hashed_name)):
+            return len(name.split(os.sep))
+
+        for name, hashed_name in sorted(
+                self.processed_files, key=path_level, reverse=True):
+
+            def url_converter(matchobj):
+                url = matchobj.groups()[1]
+                # normalize the url we got
+                if url[:1] in '"\'':
+                    url = url[1:]
+                if url[-1:] in '"\'':
+                    url = url[:-1]
+                rel_level = url.count(os.pardir)
+                if rel_level:
+                    url_parts = (name.split('/')[:-rel_level-1] +
+                                 url.split('/')[rel_level:])
+                    url = self.url('/'.join(url_parts))
+                return "url('%s')" % url
+
+            original = self.open(name)
+            converted = urltag_re.sub(url_converter, original.read())
+            hashed = self.path(hashed_name)
+            with open(hashed, 'w') as hashed_file:
+                hashed_file.write(converted)
 
 class CachedStaticFilesStorage(CacheBustingMixin, StaticFilesStorage):
     pass
@@ -102,3 +154,11 @@ class AppStaticStorage(FileSystemStorage):
         mod_path = os.path.dirname(mod.__file__)
         location = os.path.join(mod_path, self.source_dir)
         super(AppStaticStorage, self).__init__(location, *args, **kwargs)
+
+
+
+class ConfiguredStorage(LazyObject):
+    def _setup(self):
+        self._wrapped = get_storage_class(settings.STATICFILES_STORAGE)()
+
+configured_storage = ConfiguredStorage()

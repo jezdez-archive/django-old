@@ -87,7 +87,14 @@ Type 'yes' to continue, or 'no' to cancel: """)
                 else:
                     self.copy_file(path, prefixed_path, storage, **options)
 
-        actual_count = len(self.copied_files) + len(self.symlinked_files)
+        modified_files = self.copied_files + self.symlinked_files
+        actual_count = len(modified_files)
+
+        # Here we check if the storage backend has a post_process method
+        # and pass it the list of modified files, if possible.
+        if hasattr(self.storage, 'post_process'):
+            self.storage.post_process(modified_files)
+
         unmodified_count = len(self.unmodified_files)
         if self.verbosity >= 1:
             self.stdout.write(smart_str(u"\n%s static file%s %s to '%s'%s.\n"

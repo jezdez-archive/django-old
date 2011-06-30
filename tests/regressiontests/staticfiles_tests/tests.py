@@ -9,7 +9,7 @@ from StringIO import StringIO
 
 from django.template import loader, Context
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.files.storage import default_storage
 from django.core.management import call_command
 from django.test import TestCase
@@ -17,7 +17,6 @@ from django.test.utils import override_settings
 from django.utils.encoding import smart_unicode
 from django.utils.functional import empty
 from django.utils._os import rmtree_errorhandler
-from django.test.utils import override_settings
 
 from django.contrib.staticfiles import finders, storage
 
@@ -56,6 +55,10 @@ class StaticFilesTestCase(TestCase):
         if isinstance(template, basestring):
             template = loader.get_template_from_string(template)
         self.assertEqual(template.render(Context(kwargs)), result)
+
+    def assertTemplateRaises(self, exc, template, result, **kwargs):
+        self.assertRaises(exc, self.assertTemplateRenders, template, result, **kwargs)
+
 
 StaticFilesTestCase = override_settings(
     DEBUG = True,
@@ -256,11 +259,17 @@ class TestBuildStaticCachedStorage(BuildStaticTestCase, TestDefaults):
     """
     Tests for the Cache busting storage
     """
-    def test_staticfiles_dirs(self):
+    @classmethod
+    def tearDownClass(cls):
         """
-        Test the hashing.
+        Resetting the global storage for staticfiles
         """
-        self.assertFileContains(u'test/camelCase.txt', u'camelCase')
+        storage.configured_storage = storage.ConfiguredStorage()
+
+    def test_template_tag(self):
+        self.assertTemplateRaises(SuspiciousOperation, """{% load static from staticfiles %}{% static "does/not/exist.png" %}""", "/static/does/not/exist.png")
+        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "test/file.txt" %}""", "/static/test/file.dad0999e4f8f.txt")
+
 
 TestBuildStaticCachedStorage = override_settings(
     STATICFILES_STORAGE='django.contrib.staticfiles.storage.CachedStaticFilesStorage'
@@ -429,8 +438,9 @@ TestStaticfilesDirsType = override_settings(
     STATICFILES_DIRS = 'a string',
 )(TestStaticfilesDirsType)
 
+
 class TestTemplateTag(StaticFilesTestCase):
 
     def test_template_tag(self):
-        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "does/not/exist.png" %}""", "")
+        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "does/not/exist.png" %}""", "/static/does/not/exist.png")
         self.assertTemplateRenders("""{% load static from staticfiles %}{% static "testfile.txt" %}""", "/static/testfile.txt")
