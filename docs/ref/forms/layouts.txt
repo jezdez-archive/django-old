@@ -39,8 +39,8 @@ It is basically just a placeholder where you can drop in your own default
 implementation of a form layout that is used project wide unless an
 alternative layout is specified in the :ttag:`{% form ... %} <form>` tag.
 
-Customize layouts
------------------
+Create custom layouts
+---------------------
 
 Sometimes the sample layouts mentioned above just don't cut your needs. In
 that case there are some possibilities to customize them. The simplest way is
