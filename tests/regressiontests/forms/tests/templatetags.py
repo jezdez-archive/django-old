@@ -282,3 +282,21 @@ class FormRowTagTests(TestCase):
     def test_default_template(self):
         with self.assertTemplateUsed('forms/rows/default.html'):
             render('{% formrow myform.name %}')
+
+
+class FormFieldTagTests(TestCase):
+    def test_valid_syntax(self):
+        render('{% formfield myform.name %}')
+
+    def test_unvalid_syntax(self):
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formfield %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formfield myform.firstname myform.lastname %}')
+
+    def test_render_empty_value(self):
+        self.assertEqual(render('{% formfield myform.name %}'), '')
+
+    def test_widget_template(self):
+        with self.assertTemplateUsed('forms/widgets/input.html'):
+            render('{% formfield myform.name %}', {'myform': SimpleForm()})

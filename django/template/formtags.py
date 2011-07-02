@@ -163,5 +163,30 @@ class FormRowNode(BaseFormAndRowNode):
                     (tagname, bits[0]))
 
 
+class FormFieldNode(Node):
+    def __init__(self, field):
+        self.field = field
+
+    def render(self, context):
+        try:
+            field = self.field.resolve(context)
+        except VariableDoesNotExist:
+            if settings.DEBUG:
+                raise
+            return u''
+        return unicode(field)
+
+    @classmethod
+    def parse(cls, parser, tokens):
+        bits = tokens.split_contents()
+        tagname = bits.pop(0)
+        if len(bits) != 1:
+            raise TemplateSyntaxError('%s expects exactly one argument.' %
+                tagname)
+        field_var = Variable(bits[0])
+        return cls(field_var)
+
+
 register.tag('form', FormNode.parse)
 register.tag('formrow', FormRowNode.parse)
+register.tag('formfield', FormFieldNode.parse)
