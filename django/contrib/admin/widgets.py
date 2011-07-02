@@ -4,15 +4,13 @@ Form Widget classes specific to the Django admin site.
 
 import copy
 from django import forms
-from django.forms.widgets import RadioFieldRenderer
-from django.forms.util import flatatt
+from django.conf import settings
+from django.core.urlresolvers import reverse, NoReverseMatch
 from django.utils.html import escape
 from django.utils.text import truncate_words
 from django.utils.translation import ugettext as _
 from django.utils.safestring import mark_safe
 from django.utils.encoding import force_unicode
-from django.conf import settings
-from django.core.urlresolvers import reverse, NoReverseMatch
 
 
 class FilteredSelectMultiple(forms.SelectMultiple):
@@ -25,9 +23,8 @@ class FilteredSelectMultiple(forms.SelectMultiple):
     template_name = 'admin/forms/filtered_select_multiple.html'
 
     class Media:
-        js = (settings.ADMIN_MEDIA_PREFIX + "js/core.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/SelectBox.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/SelectFilter2.js")
+        js = ["admin/js/%s" % path
+              for path in ["core.js", "SelectBox.js", "SelectFilter2.js"]]
 
     def __init__(self, verbose_name, is_stacked, attrs=None, choices=()):
         self.verbose_name = verbose_name
@@ -51,22 +48,21 @@ class FilteredSelectMultiple(forms.SelectMultiple):
         })
         return context
 
-
 class AdminDateWidget(forms.DateInput):
     class Media:
-        js = (settings.ADMIN_MEDIA_PREFIX + "js/calendar.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/admin/DateTimeShortcuts.js")
+        js = ["admin/js/calendar.js", "admin/js/admin/DateTimeShortcuts.js"]
 
     def __init__(self, attrs={}, format=None):
-        super(AdminDateWidget, self).__init__(attrs={'class': 'vDateField', 'size': '10'}, format=format)
+        super(AdminDateWidget, self).__init__(
+            attrs={'class': 'vDateField', 'size': '10'}, format=format)
 
 class AdminTimeWidget(forms.TimeInput):
     class Media:
-        js = (settings.ADMIN_MEDIA_PREFIX + "js/calendar.js",
-              settings.ADMIN_MEDIA_PREFIX + "js/admin/DateTimeShortcuts.js")
+        js = ["admin/js/calendar.js", "admin/js/admin/DateTimeShortcuts.js"]
 
     def __init__(self, attrs={}, format=None):
-        super(AdminTimeWidget, self).__init__(attrs={'class': 'vTimeField', 'size': '8'}, format=format)
+        super(AdminTimeWidget, self).__init__(
+            attrs={'class': 'vTimeField', 'size': '8'}, format=format)
 
 class AdminSplitDateTime(forms.SplitDateTimeWidget):
     """
@@ -130,8 +126,8 @@ class ForeignKeyRawIdWidget(forms.TextInput):
             # The JavaScript looks for this hook.
             attrs['class'] = 'vForeignKeyRawIdAdminField'
 
-        context = super(ForeignKeyRawIdWidget,
-                        self).get_context(name, value, attrs)
+        context = super(ForeignKeyRawIdWidget, self).get_context(
+            name, value, attrs)
 
         context['related_url'] = '../../../%s/%s/' % (
             self.rel.to._meta.app_label, self.rel.to._meta.object_name.lower())
@@ -248,13 +244,15 @@ class RelatedFieldWidgetWrapper(forms.Widget):
         try:
             related_url = reverse('admin:%s_%s_add' % info, current_app=self.admin_site.name)
         except NoReverseMatch:
-            info = (self.admin_site.root_path, rel_to._meta.app_label, rel_to._meta.object_name.lower())
+            info = (
+                self.admin_site.root_path,
+                rel_to._meta.app_label,
+                rel_to._meta.object_name.lower())
             related_url = '%s%s/%s/add/' % info
         self.widget.choices = self.choices
-        output = [self.widget.render(name, value, *args, **kwargs)]
-        ctx = super(RelatedFieldWidgetWrapper,
-                    self).get_context(name, value, *args, **kwargs)
-        ctx.update({
+        context = super(RelatedFieldWidgetWrapper, self).get_context(
+            name, value, *args, **kwargs)
+        context.update({
             'widget': self.widget.render(name, value, *args, **kwargs),
             'related_url': related_url,
             'can_add_related': self.can_add_related,
@@ -262,7 +260,7 @@ class RelatedFieldWidgetWrapper(forms.Widget):
             'ADMIN_MEDIA_PREFIX': settings.ADMIN_MEDIA_PREFIX,
             'add_another': _('Add Another'),
         })
-        return ctx
+        return context
 
     def build_attrs(self, extra_attrs=None, **kwargs):
         "Helper function for building an attribute dictionary."

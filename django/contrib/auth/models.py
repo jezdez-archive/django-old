@@ -1,46 +1,19 @@
 import datetime
-import hashlib
 import urllib
+
+from django.core.exceptions import ImproperlyConfigured
+from django.core.mail import send_mail
+from django.db import models
+from django.db.models.manager import EmptyManager
+from django.utils.encoding import smart_str
+from django.utils.translation import ugettext_lazy as _
 
 from django.contrib import auth
 from django.contrib.auth.signals import user_logged_in
-from django.core.exceptions import ImproperlyConfigured
-from django.db import models
-from django.db.models.manager import EmptyManager
+from django.contrib.auth.utils import (get_hexdigest, make_password,
+                                       check_password, is_password_usable,
+                                       get_random_string, UNUSABLE_PASSWORD)
 from django.contrib.contenttypes.models import ContentType
-from django.utils.encoding import smart_str
-from django.utils.translation import ugettext_lazy as _
-from django.utils.crypto import constant_time_compare
-
-
-UNUSABLE_PASSWORD = '!' # This will never be a valid hash
-
-def get_hexdigest(algorithm, salt, raw_password):
-    """
-    Returns a string of the hexdigest of the given plaintext password and salt
-    using the given algorithm ('md5', 'sha1' or 'crypt').
-    """
-    raw_password, salt = smart_str(raw_password), smart_str(salt)
-    if algorithm == 'crypt':
-        try:
-            import crypt
-        except ImportError:
-            raise ValueError('"crypt" password algorithm not supported in this environment')
-        return crypt.crypt(raw_password, salt)
-
-    if algorithm == 'md5':
-        return hashlib.md5(salt + raw_password).hexdigest()
-    elif algorithm == 'sha1':
-        return hashlib.sha1(salt + raw_password).hexdigest()
-    raise ValueError("Got unknown password algorithm type in password.")
-
-def check_password(raw_password, enc_password):
-    """
-    Returns a boolean of whether the raw_password was correct. Handles
-    encryption formats behind the scenes.
-    """
-    algo, salt, hsh = enc_password.split('$')
-    return constant_time_compare(hsh, get_hexdigest(algo, salt, raw_password))
 
 def update_last_login(sender, user, **kwargs):
     """
@@ -113,7 +86,7 @@ class Group(models.Model):
         return self.name
 
 class UserManager(models.Manager):
-    def create_user(self, username, email, password=None):
+    def create_user(self, username, email=None, password=None):
         """
         Creates and saves a User with the given username, email and password.
         """
@@ -121,6 +94,7 @@ class UserManager(models.Manager):
 
         # Normalize the address by lowercasing the domain part of the email
         # address.
+        email = email or ''
         try:
             email_name, domain_part = email.strip().split('@', 1)
         except ValueError:
@@ -145,11 +119,13 @@ class UserManager(models.Manager):
         return u
 
     def make_random_password(self, length=10, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'):
-        "Generates a random password with the given length and given allowed_chars"
+        """
+        Generates a random password with the given length
+        and given allowed_chars
+        """
         # Note that default value of allowed_chars does not have "I" or letters
         # that look like it -- just to avoid confusion.
-        from random import choice
-        return ''.join([choice(allowed_chars) for i in range(length)])
+        return get_random_string(length, allowed_chars)
 
 
 # A few helper functions for common logic between User and AnonymousUser.
@@ -244,19 +220,14 @@ class User(models.Model):
         return True
 
     def get_full_name(self):
-        "Returns the first_name plus the last_name, with a space in between."
+        """
+        Returns the first_name plus the last_name, with a space in between.
+        """
         full_name = u'%s %s' % (self.first_name, self.last_name)
         return full_name.strip()
 
     def set_password(self, raw_password):
-        if raw_password is None:
-            self.set_unusable_password()
-        else:
-            import random
-            algo = 'sha1'
-            salt = get_hexdigest(algo, str(random.random()), str(random.random()))[:5]
-            hsh = get_hexdigest(algo, salt, raw_password)
-            self.password = '%s$%s$%s' % (algo, salt, hsh)
+        self.password = make_password('sha1', raw_password)
 
     def check_password(self, raw_password):
         """
@@ -276,14 +247,10 @@ class User(models.Model):
 
     def set_unusable_password(self):
         # Sets a value that will never be a valid hash
-        self.password = UNUSABLE_PASSWORD
+        self.password = make_password('sha1', None)
 
     def has_usable_password(self):
-        if self.password is None \
-            or self.password == UNUSABLE_PASSWORD:
-            return False
-        else:
-            return True
+        return is_password_usable(self.password)
 
     def get_group_permissions(self, obj=None):
         """
@@ -346,8 +313,9 @@ class User(models.Model):
         return _user_has_module_perms(self, app_label)
 
     def email_user(self, subject, message, from_email=None):
-        "Sends an email to this User."
-        from django.core.mail import send_mail
+        """
+        Sends an email to this User.
+        """
         send_mail(subject, message, from_email, [self.email])
 
     def get_profile(self):

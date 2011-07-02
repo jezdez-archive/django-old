@@ -21,6 +21,9 @@ from django.utils.unittest import TestCase
 
 import models
 
+admin_media_prefix = lambda: {
+    'ADMIN_MEDIA_PREFIX': "%sadmin/" % settings.STATIC_URL,
+}
 
 class AdminFormfieldForDBFieldTests(TestCase):
     """
@@ -189,26 +192,26 @@ class AdminForeignKeyRawIdWidget(DjangoTestCase):
         self.assertEqual(lookup1, lookup2)
 
 
-class FilteredSelectMultipleWidgetTest(TestCase):
+class FilteredSelectMultipleWidgetTest(DjangoTestCase):
     def test_render(self):
         w = FilteredSelectMultiple('test', False)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', 'test')),
-            '<select name="test" multiple="multiple" class="selectfilter">\n</select>\n\n<script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 0, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % {"ADMIN_MEDIA_PREFIX": settings.ADMIN_MEDIA_PREFIX}
+            '<select multiple="multiple" name="test" class="selectfilter">\n</select><script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 0, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % admin_media_prefix()
         )
 
     def test_stacked_render(self):
         w = FilteredSelectMultiple('test', True)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', 'test')),
-            '<select name="test" multiple="multiple" class="selectfilterstacked">\n</select>\n\n<script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 1, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % {"ADMIN_MEDIA_PREFIX": settings.ADMIN_MEDIA_PREFIX}
+            '<select multiple="multiple" name="test" class="selectfilterstacked">\n</select><script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 1, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % admin_media_prefix()
         )
 
 
 class AdminSplitDateTimeWidgetTest(DjangoTestCase):
     def test_render(self):
         w = AdminSplitDateTime()
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
             '<p class="datetime">Date: <input type="text" name="test_0" value="2007-12-01" class="vDateField" size="10" />\n<br />Time: <input type="text" name="test_1" value="09:30:00" class="vTimeField" size="8" />\n</p>\n',
         )
@@ -219,7 +222,7 @@ class AdminSplitDateTimeWidgetTest(DjangoTestCase):
         with self.settings(USE_L10N=True):
             with translation.override('de-at'):
                 w.is_localized = True
-                self.assertEqual(
+                self.assertHTMLEqual(
                     conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
                     '<p class="datetime">Datum: <input type="text" name="test_0" value="01.12.2007" class="vDateField" size="10" />\n<br />Zeit: <input type="text" name="test_1" value="09:30:00" class="vTimeField" size="8" />\n</p>\n',
                 )
@@ -233,12 +236,12 @@ class AdminFileWidgetTest(DjangoTestCase):
         )
 
         w = AdminFileWidget()
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', album.cover_art)),
             '<p class="file-upload">Currently: <a href="%(STORAGE_URL)salbums/hybrid_theory.jpg">albums\hybrid_theory.jpg</a>\n<span class="clearable-file-input"><input type="checkbox" name="test-clear" id="test-clear_id" />\n<label for="test-clear_id">Clear</label></span>\n<br />\nChange: <input type="file" name="test" />\n</p>\n' % { 'STORAGE_URL': default_storage.url('') },
         )
 
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', SimpleUploadedFile('test', 'content'))),
             '<input type="file" name="test" />\n\n',
         )
@@ -253,9 +256,9 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         rel = models.Album._meta.get_field('band').rel
 
         w = ForeignKeyRawIdWidget(rel)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', band.pk, attrs={})),
-            '<input type="text" name="test" value="%(bandpk)s" class="vForeignKeyRawIdAdminField" />\n\n<a href="../../../admin_widgets/band/?t=id" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Linkin Park</strong>\n' % {"ADMIN_MEDIA_PREFIX": settings.ADMIN_MEDIA_PREFIX, "bandpk": band.pk},
+            '<input type="text" name="test" value="%(bandpk)s" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/band/?t=id" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Linkin Park</strong>' % dict(admin_media_prefix(), bandpk=band.pk),
         )
 
     def test_relations_to_non_primary_key(self):
@@ -268,9 +271,9 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         )
         rel = models.Inventory._meta.get_field('parent').rel
         w = ForeignKeyRawIdWidget(rel)
-        self.assertEqual(
+        self.assertHTMLEqual(
             w.render('test', core.parent_id, attrs={}),
-            '<input type="text" name="test" value="86" class="vForeignKeyRawIdAdminField" />\n\n<a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Apple</strong>\n' % {"ADMIN_MEDIA_PREFIX": settings.ADMIN_MEDIA_PREFIX},
+            '<input type="text" name="test" value="86" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Apple</strong>' % admin_media_prefix(),
         )
 
 
@@ -285,9 +288,9 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         child_of_hidden = models.Inventory.objects.create(
             barcode=94, name='Child of hidden', parent=hidden
         )
-        self.assertEqual(
+        self.assertHTMLEqual(
             w.render('test', child_of_hidden.parent_id, attrs={}),
-            '<input type="text" name="test" value="93" class="vForeignKeyRawIdAdminField" />\n\n<a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Hidden</strong>\n' % {"ADMIN_MEDIA_PREFIX": settings.ADMIN_MEDIA_PREFIX},
+            '<input type="text" name="test" value="93" class="vForeignKeyRawIdAdminField" /><a href="../../../admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Hidden</strong>' % admin_media_prefix(),
         )
 
 
@@ -304,14 +307,14 @@ class ManyToManyRawIdWidgetTest(DjangoTestCase):
         rel = models.Band._meta.get_field('members').rel
 
         w = ManyToManyRawIdWidget(rel)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', [m1.pk, m2.pk], attrs={})),
-            '<input type="text" name="test" value="%(m1pk)s,%(m2pk)s" class="vManyToManyRawIdAdminField" />\n\n<a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>\n' % {"ADMIN_MEDIA_PREFIX": settings.ADMIN_MEDIA_PREFIX, "m1pk": m1.pk, "m2pk": m2.pk},
+            '<input type="text" name="test" value="%(m1pk)s,%(m2pk)s" class="vManyToManyRawIdAdminField" /><a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>' % dict(admin_media_prefix(), m1pk=m1.pk, m2pk=m2.pk),
         )
 
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', [m1.pk])),
-            '<input type="text" name="test" value="%(m1pk)s" class="vManyToManyRawIdAdminField" />\n\n<a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/admin/selector-search.gif" width="16" height="16" alt="Lookup" /></a>\n' % {"ADMIN_MEDIA_PREFIX": settings.ADMIN_MEDIA_PREFIX, "m1pk": m1.pk},
+            '<input type="text" name="test" value="%(m1pk)s" class="vManyToManyRawIdAdminField" /><a href="../../../admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>' % dict(admin_media_prefix(), m1pk=m1.pk),
         )
 
         self.assertEqual(w._has_changed(None, None), False)

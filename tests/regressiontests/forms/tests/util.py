@@ -63,19 +63,11 @@ class FormsUtilTestCase(TestCase):
 
         # Escapes non-safe input but not input marked safe.
         example = 'Example of link: <a href="http://www.example.com/">example</a>'
-        self.assertHTMLEqual(str(ErrorList([example])), '''
-            <ul class="errorlist">
-                <li>Example of link: &lt;a href=&quot;http://www.example.com/&quot;&gt;example&lt;/a&gt;</li>
-            </ul>''')
-        self.assertHTMLEqual(str(ErrorDict({'name': example})), '''
-            <ul class="errorlist">
-                <li>nameExample of link: &lt;a href=&quot;http://www.example.com/&quot;&gt;example&lt;/a&gt;</li>
-            </ul>''')
-        self.assertHTMLEqual(str(ErrorList([mark_safe(example)])), '''
-            <ul class="errorlist">
-                <li>Example of link: <a href="http://www.example.com/">example</a></li>
-            </ul>''')
-        self.assertHTMLEqual(str(ErrorDict({'name': mark_safe(example)})), '''
-            <ul class="errorlist">
-                <li>nameExample of link: <a href="http://www.example.com/">example</a></li>
-            </ul>''')
+        self.assertEqual(str(ErrorList([example])),
+                         '<ul class="errorlist"><li>Example of link: &lt;a href=&quot;http://www.example.com/&quot;&gt;example&lt;/a&gt;</li></ul>')
+        self.assertEqual(str(ErrorList([mark_safe(example)])),
+                         '<ul class="errorlist"><li>Example of link: <a href="http://www.example.com/">example</a></li></ul>')
+        self.assertEqual(str(ErrorDict({'name': example})),
+                         '<ul class="errorlist"><li>nameExample of link: &lt;a href=&quot;http://www.example.com/&quot;&gt;example&lt;/a&gt;</li></ul>')
+        self.assertEqual(str(ErrorDict({'name': mark_safe(example)})),
+                         '<ul class="errorlist"><li>nameExample of link: <a href="http://www.example.com/">example</a></li></ul>')
