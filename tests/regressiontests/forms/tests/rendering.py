@@ -1,3 +1,4 @@
+from collections import defaultdict
 from django import forms
 from django.forms import widgets
 from django.test import TestCase
@@ -10,7 +11,16 @@ class Fieldname(object):
     def __call__(self, bound_field):
         if bound_field:
             return bound_field.name == self.name
-        return False
+
+
+class Fieldtype(object):
+    def __init__(self, field_class):
+        self.field_class = field_class
+
+    def __call__(self, bound_field):
+        if bound_field:
+            return isinstance(bound_field.field, self.field_class)
+
 
 
 def default_label(bound_field, **kwargs):
@@ -38,10 +48,7 @@ class FormConfig(object):
     }
 
     def __init__(self):
-        self._reset_dicts()
-
-    def _reset_dicts(self, value=None):
-        self.dicts = [value or {}]
+        self.dicts = [defaultdict(lambda: [])]
 
     def configure(self, key, value, filter=None):
         '''
@@ -50,7 +57,7 @@ class FormConfig(object):
         '''
         if filter is None:
             filter = lambda **kwargs: True
-        self.dicts[-1][key] = (value, filter)
+        self.dicts[-1][key].append((value, filter))
 
     def retrieve(self, key, **kwargs):
         '''
@@ -58,15 +65,14 @@ class FormConfig(object):
         **kwargs: A dictionary of kwargs that will be passed into the filters
         of all found values. So the latest added value for key will be
         retrieved. If the value has a ``filter`` attached, then ``filter``
-        will be called with ``kwargs``. Value will re returned if ``filter``
+        will be called with ``kwargs``. Value will be returned if ``filter``
         returned ``True``. Otherwise the next available value will be looked
         up.
 
         If no value is found: return ``self.defaults[key](**kwargs)``
         '''
         for d in reversed(self.dicts):
-            if key in d:
-                value, filter = d[key]
+            for value, filter in reversed(d[key]):
                 if filter(**kwargs):
                     return value
 
@@ -79,7 +85,8 @@ class RegistrationForm(forms.Form):
     name = forms.CharField(label='First- and Lastname', max_length=50)
     email = forms.EmailField(max_length=50,
         help_text='Please enter a valid email.')
-    comment = forms.CharField(max_length=50, widget=widgets.Textarea)
+    short_biography = forms.CharField(max_length=200)
+    comment = forms.CharField(widget=widgets.Textarea)
 
 
 class FormConfigTests(TestCase):
@@ -154,3 +161,22 @@ class FormConfigTests(TestCase):
 
         widget = config.retrieve('widget', bound_field=form['name'])
         self.assertEqual(widget.__class__, widgets.TextInput)
+
+    def test_retrieve_for_multiple_valid_values(self):
+        form = RegistrationForm()
+        config = FormConfig()
+
+        config.configure('widget', widgets.Textarea(),
+            filter=Fieldtype(forms.CharField))
+        config.configure('widget', widgets.HiddenInput(),
+            filter=Fieldname('short_biography'))
+
+        widget = config.retrieve('widget', bound_field=form['name'])
+        self.assertEqual(widget.__class__, widgets.Textarea)
+        widget = config.retrieve('widget', bound_field=form['comment'])
+        self.assertEqual(widget.__class__, widgets.Textarea)
+
+        # we get HiddenInput since this was configured last, even the Textarea
+        # config applies to ``short_biography``
+        widget = config.retrieve('widget', bound_field=form['short_biography'])
+        self.assertEqual(widget.__class__, widgets.HiddenInput)
