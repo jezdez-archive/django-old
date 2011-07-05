@@ -7,6 +7,7 @@ from .input_formats import *
 from .media import *
 from .models import *
 from .regressions import *
+from .rendering import *
 from .templatetags import *
 from .util import *
 from .validators import TestFieldWithValidators
