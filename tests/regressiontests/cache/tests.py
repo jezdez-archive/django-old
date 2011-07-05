@@ -2,6 +2,7 @@
 
 # Unit tests for cache framework
 # Uses whatever cache backend is set in the test settings file.
+from __future__ import with_statement
 
 import hashlib
 import os
@@ -12,7 +13,7 @@ import warnings
 from django.conf import settings
 from django.core import management
 from django.core.cache import get_cache, DEFAULT_CACHE_ALIAS
-from django.core.cache.backends.base import CacheKeyWarning
+from django.core.cache.backends.base import CacheKeyWarning, InvalidCacheBackendError
 from django.http import HttpResponse, HttpRequest, QueryDict
 from django.middleware.cache import FetchFromCacheMiddleware, UpdateCacheMiddleware, CacheMiddleware
 from django.test import RequestFactory
@@ -757,6 +758,7 @@ class DBCacheTests(unittest.TestCase, BaseCacheTests):
         self.cache = get_cache('db://%s?max_entries=30&cull_frequency=0' % self._table_name)
         self.perform_cull_test(50, 18)
 
+
 class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
     backend_name = 'django.core.cache.backends.locmem.LocMemCache'
 
@@ -901,6 +903,23 @@ class CustomCacheKeyValidationTests(unittest.TestCase):
         val = 'a value'
         cache.set(key, val)
         self.assertEqual(cache.get(key), val)
+
+
+class GetCacheTests(unittest.TestCase):
+
+    def test_simple(self):
+        cache = get_cache('locmem://')
+        from django.core.cache.backends.locmem import LocMemCache
+        self.assertTrue(isinstance(cache, LocMemCache))
+
+        from django.core.cache import cache
+        self.assertTrue(isinstance(cache, get_cache('default').__class__))
+
+        cache = get_cache(
+            'django.core.cache.backends.dummy.DummyCache', **{'TIMEOUT': 120})
+        self.assertEqual(cache.default_timeout, 120)
+
+        self.assertRaises(InvalidCacheBackendError, get_cache, 'does_not_exist')
 
 class CacheUtils(unittest.TestCase):
     """TestCase for django.utils.cache functions."""
