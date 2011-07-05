@@ -66,7 +66,7 @@ class INLocalFlavorTests(LocalFlavorTestCase):
 <option value="LD">Lakshadweep</option>
 <option value="PY">Pondicherry</option>
 </select>'''
-        self.assertEqual(f.render('state', 'AP'), out)
+        self.assertHTMLEqual(f.render('state', 'AP'), out)
 
     def test_INZipCodeField(self):
         error_format = [u'Enter a zip code in the format XXXXXX or XXX XXX.']
