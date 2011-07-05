@@ -391,6 +391,14 @@ class ParentAdmin(admin.ModelAdmin):
     model = Parent
     inlines = [ChildInline]
 
+    def save_related(self, request, form, formsets, change):
+        super(ParentAdmin, self).save_related(request, form, formsets, change)
+        first_name, last_name = form.instance.name.split()
+        for child in form.instance.child_set.all():
+            if len(child.name.split()) < 2:
+                child.name = child.name + ' ' + last_name
+                child.save()
+
 class EmptyModel(models.Model):
     def __unicode__(self):
         return "Primary key = %s" % self.id
@@ -783,7 +791,6 @@ class CoverLetterAdmin(admin.ModelAdmin):
     """
 
     def queryset(self, request):
-        #return super(CoverLetterAdmin, self).queryset(request).only('author')
         return super(CoverLetterAdmin, self).queryset(request).defer('date_written')
 
 class Story(models.Model):

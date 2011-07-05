@@ -2,6 +2,7 @@
 
 # Unit tests for cache framework
 # Uses whatever cache backend is set in the test settings file.
+from __future__ import with_statement
 
 import hashlib
 import os
@@ -12,11 +13,12 @@ import warnings
 from django.conf import settings
 from django.core import management
 from django.core.cache import get_cache, DEFAULT_CACHE_ALIAS
-from django.core.cache.backends.base import CacheKeyWarning
+from django.core.cache.backends.base import CacheKeyWarning, InvalidCacheBackendError
+from django.db import connections, router
 from django.http import HttpResponse, HttpRequest, QueryDict
 from django.middleware.cache import FetchFromCacheMiddleware, UpdateCacheMiddleware, CacheMiddleware
 from django.test import RequestFactory
-from django.test.utils import get_warnings_state, restore_warnings_state
+from django.test.utils import get_warnings_state, restore_warnings_state, override_settings
 from django.utils import translation
 from django.utils import unittest
 from django.utils.cache import patch_vary_headers, get_cache_key, learn_cache_key
@@ -757,6 +759,41 @@ class DBCacheTests(unittest.TestCase, BaseCacheTests):
         self.cache = get_cache('db://%s?max_entries=30&cull_frequency=0' % self._table_name)
         self.perform_cull_test(50, 18)
 
+class DBCacheRouter(object):
+    """A router that puts the cache table on the 'other' database."""
+
+    def db_for_read(self, model, **hints):
+        if model._meta.app_label == 'django_cache':
+            return 'other'
+
+    def db_for_write(self, model, **hints):
+        if model._meta.app_label == 'django_cache':
+            return 'other'
+
+    def allow_syncdb(self, db, model):
+        if model._meta.app_label == 'django_cache':
+            return db == 'other'
+
+class CreateCacheTableForDBCacheTests(unittest.TestCase):
+
+    def test_createcachetable_observes_database_router(self):
+        with override_settings(DEBUG=True):
+            old_routers = router.routers
+            try:
+                router.routers = [DBCacheRouter()]
+                # cache table should not be created on 'default'
+                management.call_command('createcachetable', 'cache_table',
+                                        database='default',
+                                        verbosity=0, interactive=False)
+                self.assertEqual(len(connections['default'].queries), 0)
+                # cache table should be created on 'other'
+                management.call_command('createcachetable', 'cache_table',
+                                        database='other',
+                                        verbosity=0, interactive=False)
+                self.assertNotEqual(len(connections['other'].queries), 0)
+            finally:
+                router.routers = old_routers
+
 class LocMemCacheTests(unittest.TestCase, BaseCacheTests):
     backend_name = 'django.core.cache.backends.locmem.LocMemCache'
 
@@ -901,6 +938,23 @@ class CustomCacheKeyValidationTests(unittest.TestCase):
         val = 'a value'
         cache.set(key, val)
         self.assertEqual(cache.get(key), val)
+
+
+class GetCacheTests(unittest.TestCase):
+
+    def test_simple(self):
+        cache = get_cache('locmem://')
+        from django.core.cache.backends.locmem import LocMemCache
+        self.assertTrue(isinstance(cache, LocMemCache))
+
+        from django.core.cache import cache
+        self.assertTrue(isinstance(cache, get_cache('default').__class__))
+
+        cache = get_cache(
+            'django.core.cache.backends.dummy.DummyCache', **{'TIMEOUT': 120})
+        self.assertEqual(cache.default_timeout, 120)
+
+        self.assertRaises(InvalidCacheBackendError, get_cache, 'does_not_exist')
 
 class CacheUtils(unittest.TestCase):
     """TestCase for django.utils.cache functions."""
