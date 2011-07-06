@@ -56,17 +56,17 @@ class CacheBustingMixin(object):
 
     def __init__(self, *args, **kwargs):
         super(CacheBustingMixin, self).__init__(*args, **kwargs)
-        self.processed_files = []
+        self.saved_files = []
         try:
             self.cache = get_cache('staticfiles')
         except InvalidCacheBackendError:
             # Use the default backend
             self.cache = default_cache
 
-    def hashed_filename(self, name, content=None):
+    def hash_name(self, name, content=None):
         if content is None:
             if not self.exists(name):
-                raise SuspiciousOperation("Attempted access to '%s' denied." % self.path(name))
+                raise SuspiciousOperation("Attempted access to '%s' denied." % name)
             content = self.open(self.path(name))
         path, filename = os.path.split(name)
         root, ext = os.path.splitext(filename)
@@ -82,12 +82,12 @@ class CacheBustingMixin(object):
 
     def url(self, name):
         cache_key = self.cache_key(name)
-        hashed_name = self.cache.get(cache_key, self.hashed_filename(name))
+        hashed_name = self.cache.get(cache_key, self.hash_name(name))
         return super(CacheBustingMixin, self).url(hashed_name)
 
     def save(self, name, content):
         original_name = super(CacheBustingMixin, self).save(name, content)
-        hashed_name = self.hashed_filename(original_name, content)
+        hashed_name = self.hash_name(original_name, content)
         # Return the name if the file is already there
         if os.path.exists(hashed_name):
             return hashed_name
@@ -97,41 +97,44 @@ class CacheBustingMixin(object):
         # Use filenames with forward slashes, even on Windows
         hashed_name = force_unicode(hashed_name.replace('\\', '/'))
         self.cache.set(self.cache_key(name), hashed_name)
-        self.processed_files.append((name, hashed_name))
+        self.saved_files.append((name, hashed_name))
         return hashed_name
 
-    def post_process(self, modified_files):
+    def url_converter(self, name):
+        """
+        Normalize the URL
+        """
+        def converter(matchobj):
+            url = matchobj.groups()[1]
+            if url[:1] in '"\'':
+                url = url[1:]
+            if url[-1:] in '"\'':
+                url = url[:-1]
+            level = url.count(os.pardir)
+            if level:
+                url_parts = name.split('/')[:-level-1] + url.split('/')[level:]
+                url = self.url('/'.join(url_parts))
+            return "url('%s')" % url
+        return converter
+
+    def path_level(self, (name, hashed_name)):
+        return len(name.split(os.sep))
+
+    def delete_cache(self, paths):
+        self.cache.delete_many([self.cache_key(path) for path in paths])
+
+    def post_process(self, paths):
         """
         Post process method called by the collectstatic management command.
         """
-        cached_files = [self.cache_key(path) for path in modified_files]
-        self.cache.delete_many(cached_files)
-
-        def path_level((name, hashed_name)):
-            return len(name.split(os.sep))
-
-        for name, hashed_name in sorted(
-                self.processed_files, key=path_level, reverse=True):
-
-            def url_converter(matchobj):
-                url = matchobj.groups()[1]
-                # normalize the url we got
-                if url[:1] in '"\'':
-                    url = url[1:]
-                if url[-1:] in '"\'':
-                    url = url[:-1]
-                rel_level = url.count(os.pardir)
-                if rel_level:
-                    url_parts = (name.split('/')[:-rel_level-1] +
-                                 url.split('/')[rel_level:])
-                    url = self.url('/'.join(url_parts))
-                return "url('%s')" % url
-
-            original = self.open(name)
-            converted = urltag_re.sub(url_converter, original.read())
-            hashed = self.path(hashed_name)
-            with open(hashed, 'w') as hashed_file:
-                hashed_file.write(converted)
+        self.delete_cache(paths)
+        for original_name, hashed_name in sorted(
+                self.saved_files, key=self.path_level, reverse=True):
+            original = self.open(original_name)
+            converted_content = urltag_re.sub(
+                self.url_converter(original_name), original.read())
+            with open(self.path(hashed_name), 'w') as hashed_file:
+                hashed_file.write(converted_content)
 
 class CachedStaticFilesStorage(CacheBustingMixin, StaticFilesStorage):
     pass
