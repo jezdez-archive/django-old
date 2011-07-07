@@ -959,7 +959,6 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
-                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]
@@ -980,7 +979,6 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
-                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]
@@ -1001,7 +999,6 @@ class FieldsTests(TestCase):
                 ('/django/forms/forms.py', 'forms.py'),
                 ('/django/forms/formsets.py', 'formsets.py'),
                 ('/django/forms/models.py', 'models.py'),
-                ('/django/forms/render.py', 'render.py'),
                 ('/django/forms/util.py', 'util.py'),
                 ('/django/forms/widgets.py', 'widgets.py')
             ]

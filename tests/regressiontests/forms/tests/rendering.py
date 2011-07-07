@@ -1,84 +1,7 @@
-from collections import defaultdict
 from django import forms
 from django.forms import widgets
+from django.template.formtags import Fieldname, Fieldtype, FormConfig
 from django.test import TestCase
-
-
-class Fieldname(object):
-    def __init__(self, name):
-        self.name = name
-
-    def __call__(self, bound_field):
-        if bound_field:
-            return bound_field.name == self.name
-
-
-class Fieldtype(object):
-    def __init__(self, field_class):
-        self.field_class = field_class
-
-    def __call__(self, bound_field):
-        if bound_field:
-            return isinstance(bound_field.field, self.field_class)
-
-
-
-def default_label(bound_field, **kwargs):
-    if bound_field:
-        return bound_field.label
-
-
-def default_help_text(bound_field, **kwargs):
-    if bound_field:
-        return bound_field.field.help_text
-
-
-def default_widget(bound_field, **kwargs):
-    if bound_field:
-        return bound_field.field.widget
-
-
-class FormConfig(object):
-    defaults = {
-        'layout': lambda **kwargs: 'forms/layouts/default.html',
-        'rowtemplate': lambda **kwargs: 'forms/rows/default.html',
-        'label': default_label,
-        'help_text': default_help_text,
-        'widget': default_widget,
-    }
-
-    def __init__(self):
-        self.dicts = [defaultdict(lambda: [])]
-
-    def configure(self, key, value, filter=None):
-        '''
-        key: Key under which ``value`` can be retrieved.
-        value: value that is returned if retrieve is called with the same key
-        '''
-        if filter is None:
-            filter = lambda **kwargs: True
-        self.dicts[-1][key].append((value, filter))
-
-    def retrieve(self, key, **kwargs):
-        '''
-        key: Key to lookup in key-value store
-        **kwargs: A dictionary of kwargs that will be passed into the filters
-        of all found values. So the latest added value for key will be
-        retrieved. If the value has a ``filter`` attached, then ``filter``
-        will be called with ``kwargs``. Value will be returned if ``filter``
-        returned ``True``. Otherwise the next available value will be looked
-        up.
-
-        If no value is found: return ``self.defaults[key](**kwargs)``
-        '''
-        for d in reversed(self.dicts):
-            for value, filter in reversed(d[key]):
-                if filter(**kwargs):
-                    return value
-
-        if key not in self.defaults:
-            return None
-        return self.defaults[key](**kwargs)
 
 
 class RegistrationForm(forms.Form):
@@ -90,19 +13,6 @@ class RegistrationForm(forms.Form):
 
 
 class FormConfigTests(TestCase):
-    '''
-    What we want to accomplish:
-
-    * Render multiple forms
-    * Manipulate forms based on a generic config
-    * Config for:
-        + individual fields
-        + field types
-        + field names
-    * Config must be mutable
-    * ... and maybe stackbased scope
-    '''
-
     def test_default_retrieve(self):
         '''
         Test if FormConfig returns the correct default values if no
