@@ -1,5 +1,5 @@
 from django import template
-from django.contrib.staticfiles import storage
+from django.contrib.staticfiles.storage import configured_storage
 
 register = template.Library()
 
@@ -10,4 +10,4 @@ def static(path):
     A template tag that returns the URL to a file
     using staticfiles' storage backend
     """
-    return storage.configured_storage.url(path)
+    return configured_storage.url(path)

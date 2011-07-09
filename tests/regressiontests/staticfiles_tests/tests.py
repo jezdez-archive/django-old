@@ -52,7 +52,7 @@ class StaticFilesTestCase(TestCase):
     def assertTemplateRenders(self, template, result, **kwargs):
         if isinstance(template, basestring):
             template = loader.get_template_from_string(template)
-        self.assertEqual(template.render(Context(kwargs)), result)
+        self.assertEqual(template.render(Context(kwargs)).strip(), result)
 
     def assertTemplateRaises(self, exc, template, result, **kwargs):
         self.assertRaises(exc, self.assertTemplateRenders, template, result, **kwargs)
@@ -271,20 +271,26 @@ class TestBuildStaticCachedStorage(BuildStaticTestCase, TestDefaults):
     """
     Tests for the Cache busting storage
     """
-    @classmethod
-    def tearDownClass(cls):
+    def tearDown(self):
         """
         Resetting the global storage for staticfiles
         """
-        storage.configured_storage = storage.ConfiguredStorage()
+        storage.configured_storage._wrapped = storage.ConfiguredStorage()
 
     def test_template_tag(self):
-        self.assertTemplateRaises(SuspiciousOperation, """{% load static from staticfiles %}{% static "does/not/exist.png" %}""", "/static/does/not/exist.png")
-        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "test/file.txt" %}""", "/static/test/file.dad0999e4f8f.txt")
+        """
+        Test the CachedStaticFilesStorage backend.
+        """
+        self.assertTemplateRaises(SuspiciousOperation, """
+            {% load static from staticfiles %}{% static "does/not/exist.png" %}
+            """, "/static/does/not/exist.png")
+        self.assertTemplateRenders("""
+            {% load static from staticfiles %}{% static "test/file.txt" %}
+            """, "/static/test/file.dad0999e4f8f.txt")
 
 
 TestBuildStaticCachedStorage = override_settings(
-    STATICFILES_STORAGE='django.contrib.staticfiles.storage.CachedStaticFilesStorage'
+    STATICFILES_STORAGE='django.contrib.staticfiles.storage.CachedStaticFilesStorage',
 )(TestBuildStaticCachedStorage)
 
 
@@ -454,5 +460,9 @@ TestStaticfilesDirsType = override_settings(
 class TestTemplateTag(StaticFilesTestCase):
 
     def test_template_tag(self):
-        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "does/not/exist.png" %}""", "/static/does/not/exist.png")
-        self.assertTemplateRenders("""{% load static from staticfiles %}{% static "testfile.txt" %}""", "/static/testfile.txt")
+        self.assertTemplateRenders("""
+            {% load static from staticfiles %}{% static "does/not/exist.png" %}
+            """, "/static/does/not/exist.png")
+        self.assertTemplateRenders("""
+            {% load static from staticfiles %}{% static "testfile.txt" %}
+            """, "/static/testfile.txt")
