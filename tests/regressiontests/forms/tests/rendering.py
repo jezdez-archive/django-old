@@ -90,3 +90,26 @@ class FormConfigTests(TestCase):
         # config applies to ``short_biography``
         widget = config.retrieve('widget', bound_field=form['short_biography'])
         self.assertEqual(widget.__class__, widgets.HiddenInput)
+
+    def test_stacked_config(self):
+        form = RegistrationForm()
+        config = FormConfig()
+
+        config.push()
+        config.configure('widget', widgets.Textarea(),
+            filter=Fieldtype(forms.CharField))
+
+        config.push()
+        config.configure('widget', widgets.HiddenInput(),
+            filter=Fieldname('short_biography'))
+
+        widget = config.retrieve('widget', bound_field=form['short_biography'])
+        self.assertEqual(widget.__class__, widgets.HiddenInput)
+
+        config.pop()
+        widget = config.retrieve('widget', bound_field=form['short_biography'])
+        self.assertEqual(widget.__class__, widgets.Textarea)
+
+        config.pop()
+        widget = config.retrieve('widget', bound_field=form['short_biography'])
+        self.assertEqual(widget.__class__, widgets.TextInput)

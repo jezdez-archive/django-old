@@ -44,6 +44,11 @@ def default_widget(bound_field, **kwargs):
         return bound_field.field.widget
 
 
+class ConfigPopException(Exception):
+    "pop() has been called more times than push()"
+    pass
+
+
 class FormConfig(object):
     defaults = {
         'layout': lambda **kwargs: 'forms/layouts/default.html',
@@ -54,7 +59,20 @@ class FormConfig(object):
     }
 
     def __init__(self):
-        self.dicts = [defaultdict(lambda: [])]
+        self.dicts = [self._dict()]
+
+    def _dict(self):
+        return defaultdict(lambda: [])
+
+    def push(self):
+        d = self._dict()
+        self.dicts.append(d)
+        return d
+
+    def pop(self):
+        if len(self.dicts) == 1:
+            raise ConfigPopException
+        return self.dicts.pop()
 
     def configure(self, key, value, filter=None):
         '''
@@ -88,6 +106,7 @@ class FormConfig(object):
 
 
 class BaseFormAndRowNode(Node):
+    CONFIG_CONTEXT_VAR = '_form_config'
     default_template_name = None
     single_template_var = None
     list_template_var = None
@@ -96,6 +115,14 @@ class BaseFormAndRowNode(Node):
         self.tagname = tagname
         self.variables = variables
         self.options = options
+
+    def get_config(self, context):
+        try:
+            return context[self.CONFIG_CONTEXT_VAR]
+        except KeyError:
+            config = FormConfig()
+            context[self.CONFIG_CONTEXT_VAR]
+            return config
 
     def render(self, context):
         if 'nodelist' not in self.options:
