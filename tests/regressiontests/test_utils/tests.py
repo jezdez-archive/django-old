@@ -1,9 +1,7 @@
 from __future__ import with_statement
 
-import sys
-
 from django.http import HttpResponse
-from django.test import TestCase, skipUnlessDBFeature, skipIfDBFeature
+from django.test import TestCase, skipUnlessDBFeature
 from django.template.loader import render_to_string
 from django.utils.unittest import skip
 
