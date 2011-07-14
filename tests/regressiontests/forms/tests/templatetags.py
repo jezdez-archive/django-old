@@ -1,6 +1,7 @@
 from django import forms
 from django.template import Context, Template, TemplateSyntaxError
 from django.test import TestCase
+from django.template.formtags import RowModifier, FieldModifier
 
 
 def render(template, context=None):
@@ -19,6 +20,132 @@ class PersonForm(forms.Form):
     firstname = forms.CharField()
     lastname = forms.CharField()
     age = forms.IntegerField()
+
+
+class FormConfigNodeTests(TestCase):
+    def test_valid_syntax(self):
+        render('{% formconfig row using "my_row_template.html" %}')
+        render('{% formconfig row using "my_row_template.html" with myarg="bar" %}')
+        render('{% formconfig row with myarg="bar" %}')
+        render('{% formconfig row with myarg="bar" only %}')
+        render('{% formconfig row using "my_row_template.html" only %}')
+
+        render('{% formconfig field using "field.html" %}')
+        render('{% formconfig field using "field.html" with myarg="bar" %}')
+        render('{% formconfig field with myarg="bar" %}')
+        render('{% formconfig field with myarg="bar" only %}')
+        render('{% formconfig field using "field.html" only %}')
+        render('{% formconfig field using "field.html" for "spam" %}')
+        render('{% formconfig field using "field.html" for myvar %}')
+        render('{% formconfig field using template %}')
+
+    def test_invalid_syntax(self):
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row myarg="bar" %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row with %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row with only %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row using "my_row_template.html" for "spam" %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig field %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig field myarg="bar" %}')
+        with self.assertRaises(TemplateSyntaxError):
+            # wrong argument order
+            render('{% formconfig field with myarg="bar" using "field.html" %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig non_existent_modifier %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig non_existent_modifier with option=1 %}')
+
+    def test_row_config(self):
+        template = Template('{% formconfig row using "my_row_template.html" %}')
+        rowconfig = template.nodelist[0]
+        self.assertTrue(isinstance(rowconfig, RowModifier))
+
+        context = Context()
+        rowconfig.render(context)
+        self.assertTrue('_form_config' in context)
+
+    def test_row_config_using(self):
+        context = Context()
+        node = Template('{% formconfig row using "my_row_template.html" %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        self.assertEqual(config.retrieve('rowtemplate'), 'my_row_template.html')
+
+        context = Context()
+        node = Template('{% formconfig row using empty_var %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        self.assertEqual(config.retrieve('rowtemplate'), 'forms/rows/default.html')
+
+    def test_row_config_with(self):
+        context = Context()
+        node = Template('{% formconfig row with extra_class="fancy" %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        extra_context = config.retrieve('row_context')
+        self.assertTrue(extra_context)
+        self.assertTrue(extra_context['extra_class'], 'fancy')
+
+    def test_field_config(self):
+        template = Template('{% formconfig field with extra_class="fancy" %}')
+        rowconfig = template.nodelist[0]
+        self.assertTrue(isinstance(rowconfig, FieldModifier))
+
+        context = Context()
+        rowconfig.render(context)
+        self.assertTrue('_form_config' in context)
+
+    def test_field_config_using(self):
+        form = SimpleForm()
+
+        context = Context()
+        node = Template('{% formconfig field using "field.html" %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['name']),
+            'field.html')
+
+        context = Context()
+        node = Template('{% formconfig field using empty_var %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['name']),
+            'forms/widgets/input.html')
+
+    def test_field_config_with(self):
+        context = Context()
+        node = Template('{% formconfig field with type="email" %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        extra_context = config.retrieve('widget_context')
+        self.assertTrue(extra_context)
+        self.assertTrue(extra_context['type'], 'email')
+
+    def test_field_config_for(self):
+        form = PersonForm()
+        context = Context({'form': form})
+
+        node = Template('{% formconfig field using "field.html" for form.lastname %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['firstname']),
+            'forms/widgets/input.html')
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['lastname']),
+            'field.html')
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['age']),
+            'forms/widgets/input.html')
 
 
 class FormTagTests(TestCase):

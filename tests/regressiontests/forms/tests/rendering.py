@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import widgets
-from django.template.formtags import Fieldname, Fieldtype, FormConfig
+from django.template.formtags import ConfigFilter, FormConfig
 from django.test import TestCase
 
 
@@ -30,6 +30,14 @@ class FormConfigTests(TestCase):
         widget = config.retrieve('widget', bound_field=form['comment'])
         self.assertTrue(isinstance(widget, widgets.Textarea))
         self.assertEqual(widget, form.fields['comment'].widget)
+
+        # retrieve widget template
+
+        template_name = config.retrieve('widget_template', bound_field=form['name'])
+        self.assertEqual(template_name, 'forms/widgets/input.html')
+
+        template_name = config.retrieve('widget_template', bound_field=form['comment'])
+        self.assertEqual(template_name, 'forms/widgets/textarea.html')
 
         # retrieve label
 
@@ -64,7 +72,7 @@ class FormConfigTests(TestCase):
         widget = config.retrieve('widget', bound_field=form['comment'])
         self.assertEqual(widget.__class__, widgets.Textarea)
 
-        config.configure('widget', widgets.TextInput(), filter=Fieldname('comment'))
+        config.configure('widget', widgets.TextInput(), filter=ConfigFilter('comment'))
 
         widget = config.retrieve('widget', bound_field=form['comment'])
         self.assertEqual(widget.__class__, widgets.TextInput)
@@ -77,9 +85,9 @@ class FormConfigTests(TestCase):
         config = FormConfig()
 
         config.configure('widget', widgets.Textarea(),
-            filter=Fieldtype(forms.CharField))
+            filter=ConfigFilter('CharField'))
         config.configure('widget', widgets.HiddenInput(),
-            filter=Fieldname('short_biography'))
+            filter=ConfigFilter('short_biography'))
 
         widget = config.retrieve('widget', bound_field=form['name'])
         self.assertEqual(widget.__class__, widgets.Textarea)
@@ -97,11 +105,11 @@ class FormConfigTests(TestCase):
 
         config.push()
         config.configure('widget', widgets.Textarea(),
-            filter=Fieldtype(forms.CharField))
+            filter=ConfigFilter("CharField"))
 
         config.push()
         config.configure('widget', widgets.HiddenInput(),
-            filter=Fieldname('short_biography'))
+            filter=ConfigFilter('short_biography'))
 
         widget = config.retrieve('widget', bound_field=form['short_biography'])
         self.assertEqual(widget.__class__, widgets.HiddenInput)
