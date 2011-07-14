@@ -1,2 +1,2 @@
-{{ widget }}{% if can_add_related %}
-<a href="{{ related_url }}" class="add-another" id="add_id_{{ name }}" onclick="return showAddAnotherPopup(this);"> <img src="{{ ADMIN_MEDIA_PREFIX }}img/admin/icon_addlink.gif" width="10" height="10" alt="{{ add_another }}"/></a>{% endif %}
+{% load static %}{{ widget }}{% if can_add_related %}
+<a href="{{ related_url }}" class="add-another" id="add_id_{{ name }}" onclick="return showAddAnotherPopup(this);"> <img src="{% get_static_prefix %}admin/img/icon_addlink.gif" width="10" height="10" alt="{{ add_another }}"/></a>{% endif %}

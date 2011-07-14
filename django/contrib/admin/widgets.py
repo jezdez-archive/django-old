@@ -41,7 +41,6 @@ class FilteredSelectMultiple(forms.SelectMultiple):
         context.update({
             'verbose_name': self.verbose_name.replace('"', '\\"'),
             'is_stacked': int(self.is_stacked),
-            'prefix': settings.ADMIN_MEDIA_PREFIX,
             'value': map(force_unicode, value),
             'multiple': True,
         })
@@ -138,7 +137,6 @@ class ForeignKeyRawIdWidget(forms.TextInput):
         context.update({
             'url': url,
             'alt': _('Lookup'),
-            'admin_media_prefix': settings.ADMIN_MEDIA_PREFIX,
             'label': mark_safe(self.label_for_value(value)),
         })
         return context
@@ -256,7 +254,6 @@ class RelatedFieldWidgetWrapper(forms.Widget):
             'related_url': related_url,
             'can_add_related': self.can_add_related,
             'name': name,
-            'ADMIN_MEDIA_PREFIX': settings.ADMIN_MEDIA_PREFIX,
             'add_another': _('Add Another'),
         })
         return context
