@@ -213,7 +213,7 @@ class BaseNode(Node):
                     (tagname, bits[0]))
 
     @classmethod
-    def parse_with(cls, tagname, parser, bits, options, optional=False):
+    def parse_with(cls, tagname, parser, bits, options, allow_only=True, optional=False):
         if bits:
             if bits[0] == 'with':
                 bits.pop(0)
@@ -228,7 +228,7 @@ class BaseNode(Node):
                     (tagname, bits[0]))
 
         if bits:
-            if bits[0] == 'only':
+            if allow_only and bits[0] == 'only':
                 bits.pop(0)
                 options['only'] = True
 
@@ -300,7 +300,6 @@ class RowModifier(ModifierBase):
         options = {
             'using': None,
             'with': None,
-            'only': False,
         }
 
         if not bits:
@@ -308,7 +307,7 @@ class RowModifier(ModifierBase):
                 (tagname, modifier))
 
         cls.parse_using(tagname, parser, bits, options, optional=True)
-        cls.parse_with(tagname, parser, bits, options, optional=True)
+        cls.parse_with(tagname, parser, bits, options, allow_only=False, optional=True)
 
         if bits:
             raise TemplateSyntaxError('Unknown argument for %s %s tag: %r.' %
@@ -363,7 +362,7 @@ class FieldModifier(ModifierBase):
                 (tagname, modifier))
 
         cls.parse_using(tagname, parser, bits, options, optional=True)
-        cls.parse_with(tagname, parser, bits, options, optional=True)
+        cls.parse_with(tagname, parser, bits, options, allow_only=False, optional=True)
         cls.parse_for(tagname, parser, bits, options, optional=True)
 
         if bits:

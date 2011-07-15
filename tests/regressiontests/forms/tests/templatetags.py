@@ -27,14 +27,10 @@ class FormConfigNodeTests(TestCase):
         render('{% formconfig row using "my_row_template.html" %}')
         render('{% formconfig row using "my_row_template.html" with myarg="bar" %}')
         render('{% formconfig row with myarg="bar" %}')
-        render('{% formconfig row with myarg="bar" only %}')
-        render('{% formconfig row using "my_row_template.html" only %}')
 
         render('{% formconfig field using "field.html" %}')
         render('{% formconfig field using "field.html" with myarg="bar" %}')
         render('{% formconfig field with myarg="bar" %}')
-        render('{% formconfig field with myarg="bar" only %}')
-        render('{% formconfig field using "field.html" only %}')
         render('{% formconfig field using "field.html" for "spam" %}')
         render('{% formconfig field using "field.html" for myvar %}')
         render('{% formconfig field using template %}')
@@ -61,6 +57,16 @@ class FormConfigNodeTests(TestCase):
             render('{% formconfig non_existent_modifier %}')
         with self.assertRaises(TemplateSyntaxError):
             render('{% formconfig non_existent_modifier with option=1 %}')
+
+        # only is not allowed in formconfig
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row with myarg="bar" only %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row using "my_row_template.html" only %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig field with myarg="bar" only %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig field using "field.html" only %}')
 
     def test_row_config(self):
         template = Template('{% formconfig row using "my_row_template.html" %}')
