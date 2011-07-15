@@ -143,47 +143,6 @@ class BaseNode(Node):
             context[self.CONFIG_CONTEXT_VAR] = config
             return config
 
-    def render(self, context):
-        if 'nodelist' not in self.options:
-            try:
-                if 'using' in self.options:
-                    template_name = self.options['using'].resolve(context)
-                else:
-                    template_name = self.default_template_name
-                nodelist = get_template(template_name)
-            except:
-                if settings.TEMPLATE_DEBUG:
-                    raise
-                return u''
-        else:
-            nodelist = self.options['nodelist']
-        variables = []
-        for variable in self.variables:
-            try:
-                variable = variable.resolve(context)
-                variables.append(variable)
-            except VariableDoesNotExist:
-                pass
-
-        extra_context = {
-            self.single_template_var: variables[0] if variables else None,
-            self.list_template_var: variables,
-        }
-
-        if self.options['with']:
-            extra_context.update(dict([
-                (name, var.resolve(context))
-                for name, var in self.options['with'].iteritems()]))
-
-        if self.options['only']:
-            context = context.new(extra_context)
-            return nodelist.render(context)
-
-        context.update(extra_context)
-        output = nodelist.render(context)
-        context.pop()
-        return output
-
     @classmethod
     def parse_variables(cls, tagname, parser, bits, options):
         variables = []
@@ -272,10 +231,6 @@ class ModifierBase(BaseNode):
         self.modifer = modifier
         self.options = options
 
-    def render(self, context):
-        config = self.get_config(context)
-        return ''
-
 
 class RowModifier(ModifierBase):
     def render(self, context):
@@ -353,7 +308,6 @@ class FieldModifier(ModifierBase):
         options = {
             'using': None,
             'with': None,
-            'only': False,
             'for': None,
         }
 
@@ -395,7 +349,60 @@ class FormConfigNode(BaseNode):
 
 
 class BaseFormRenderNode(BaseNode):
-    pass
+    '''
+    Base class for ``form``, ``formrow`` and ``formfield`` -- tags that are
+    responsible for actually rendering a form.
+    '''
+    def get_nodelist(self, context):
+        if 'nodelist' in self.options:
+            return self.options['nodelist']
+        try:
+            if 'using' in self.options:
+                template_name = self.options['using'].resolve(context)
+            else:
+                template_name = self.default_template_name
+            return get_template(template_name)
+        except:
+            if settings.TEMPLATE_DEBUG:
+                raise
+
+    def get_extra_context(self, context):
+        variables = []
+        for variable in self.variables:
+            try:
+                variable = variable.resolve(context)
+                variables.append(variable)
+            except VariableDoesNotExist:
+                pass
+
+        extra_context =  {
+            self.single_template_var: variables[0] if variables else None,
+            self.list_template_var: variables,
+        }
+
+        if self.options['with']:
+            extra_context.update(dict([
+                (name, var.resolve(context))
+                for name, var in self.options['with'].iteritems()]))
+
+        return extra_context
+
+    def render(self, context):
+        only = self.options['only']
+
+        nodelist = self.get_nodelist(context)
+        if nodelist is None:
+            return ''
+        extra_context = self.get_extra_context(context)
+
+        if only:
+            context = context.new(extra_context)
+            return nodelist.render(context)
+        else:
+            context.update(extra_context)
+            output = nodelist.render(context)
+            context.pop()
+            return output
 
 
 class FormNode(BaseFormRenderNode):
@@ -405,6 +412,10 @@ class FormNode(BaseFormRenderNode):
 
     @classmethod
     def parse_using(cls, tagname, parser, bits, options):
+        '''
+        Parses content until ``{% endform %}`` if no template name is
+        specified after "using".
+        '''
         if bits:
             if bits[0] == 'using':
                 bits.pop(0)
