@@ -1,6 +1,7 @@
 from django import forms
 from django.template import Context, Template, TemplateSyntaxError
 from django.test import TestCase
+from django.template.formtags import FormNode
 from django.template.formtags import RowModifier, FieldModifier
 
 
@@ -10,6 +11,11 @@ def render(template, context=None):
     c = Context(context)
     t = Template(template)
     return t.render(c)
+
+
+def render_in_form(template, context=None):
+    template = '{% form myform using %}' + template + '{% endform %}'
+    return render(template, context)
 
 
 def compile_to_nodelist(template):
@@ -29,75 +35,83 @@ class PersonForm(forms.Form):
 
 
 class FormConfigNodeTests(TestCase):
-    def test_valid_syntax(self):
-        render('{% formconfig row using "my_row_template.html" %}')
-        render('{% formconfig row using "my_row_template.html" with myarg="bar" %}')
-        render('{% formconfig row with myarg="bar" %}')
+    def test_enforce_form_tag(self):
+        render('{% form myform using %}{% formconfig row using "my_row_template.html" %}{% endform %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig row using "my_row_template.html" %}')
+        render('{% form myform using %}{% formconfig field using "my_row_template.html" %}{% endform %}')
+        with self.assertRaises(TemplateSyntaxError):
+            render('{% formconfig field using "my_row_template.html" %}')
 
-        render('{% formconfig field using "field.html" %}')
-        render('{% formconfig field using "field.html" with myarg="bar" %}')
-        render('{% formconfig field with myarg="bar" %}')
-        render('{% formconfig field using "field.html" for "spam" %}')
-        render('{% formconfig field using "field.html" for myvar %}')
-        render('{% formconfig field using template %}')
+    def test_valid_syntax(self):
+        render_in_form('{% formconfig row using "my_row_template.html" %}')
+        render_in_form('{% formconfig row using "my_row_template.html" with myarg="bar" %}')
+        render_in_form('{% formconfig row with myarg="bar" %}')
+
+        render_in_form('{% formconfig field using "field.html" %}')
+        render_in_form('{% formconfig field using "field.html" with myarg="bar" %}')
+        render_in_form('{% formconfig field with myarg="bar" %}')
+        render_in_form('{% formconfig field using "field.html" for "spam" %}')
+        render_in_form('{% formconfig field using "field.html" for myvar %}')
+        render_in_form('{% formconfig field using template %}')
 
     def test_invalid_syntax(self):
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig row %}')
+            render_in_form('{% formconfig row %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig row myarg="bar" %}')
+            render_in_form('{% formconfig row myarg="bar" %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig row with %}')
+            render_in_form('{% formconfig row with %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig row with only %}')
+            render_in_form('{% formconfig row with only %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig row using "my_row_template.html" for "spam" %}')
+            render_in_form('{% formconfig row using "my_row_template.html" for "spam" %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig field %}')
+            render_in_form('{% formconfig field %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig field myarg="bar" %}')
+            render_in_form('{% formconfig field myarg="bar" %}')
         with self.assertRaises(TemplateSyntaxError):
             # wrong argument order
-            render('{% formconfig field with myarg="bar" using "field.html" %}')
+            render_in_form('{% formconfig field with myarg="bar" using "field.html" %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig non_existent_modifier %}')
+            render_in_form('{% formconfig non_existent_modifier %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig non_existent_modifier with option=1 %}')
+            render_in_form('{% formconfig non_existent_modifier with option=1 %}')
 
         # only is not allowed in formconfig
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig row with myarg="bar" only %}')
+            render_in_form('{% formconfig row with myarg="bar" only %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig row using "my_row_template.html" only %}')
+            render_in_form('{% formconfig row using "my_row_template.html" only %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig field with myarg="bar" only %}')
+            render_in_form('{% formconfig field with myarg="bar" only %}')
         with self.assertRaises(TemplateSyntaxError):
-            render('{% formconfig field using "field.html" only %}')
+            render_in_form('{% formconfig field using "field.html" only %}')
 
     def test_row_config(self):
         rowconfig = compile_to_nodelist('{% formconfig row using "my_row_template.html" %}')[0]
         self.assertTrue(isinstance(rowconfig, RowModifier))
 
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         rowconfig.render(context)
         self.assertTrue('_form_config' in context)
 
     def test_row_config_using(self):
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         node = compile_to_nodelist(
             '{% formconfig row using "my_row_template.html" %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(config.retrieve('rowtemplate'), 'my_row_template.html')
 
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         node = compile_to_nodelist('{% formconfig row using empty_var %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(config.retrieve('rowtemplate'), 'forms/rows/default.html')
 
     def test_row_config_with(self):
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         node = compile_to_nodelist('{% formconfig row with extra_class="fancy" %}')[0]
         node.render(context)
         config = node.get_config(context)
@@ -110,14 +124,14 @@ class FormConfigNodeTests(TestCase):
             '{% formconfig field with extra_class="fancy" %}')[0]
         self.assertTrue(isinstance(rowconfig, FieldModifier))
 
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         rowconfig.render(context)
         self.assertTrue('_form_config' in context)
 
     def test_field_config_using(self):
         form = SimpleForm()
 
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         node = compile_to_nodelist('{% formconfig field using "field.html" %}')[0]
         node.render(context)
         config = node.get_config(context)
@@ -125,7 +139,7 @@ class FormConfigNodeTests(TestCase):
             config.retrieve('widget_template', bound_field=form['name']),
             'field.html')
 
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         node = compile_to_nodelist('{% formconfig field using empty_var %}')[0]
         node.render(context)
         config = node.get_config(context)
@@ -134,7 +148,7 @@ class FormConfigNodeTests(TestCase):
             'forms/widgets/input.html')
 
     def test_field_config_with(self):
-        context = Context()
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         node = compile_to_nodelist('{% formconfig field with type="email" %}')[0]
         node.render(context)
         config = node.get_config(context)
@@ -144,7 +158,7 @@ class FormConfigNodeTests(TestCase):
 
     def test_field_config_for_bound_field(self):
         form = PersonForm()
-        context = Context({'form': form})
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True, 'form': form})
 
         node = compile_to_nodelist('{% formconfig field using "field.html" for form.lastname %}')[0]
         node.render(context)
@@ -161,7 +175,7 @@ class FormConfigNodeTests(TestCase):
 
     def test_field_config_for_field_name(self):
         form = PersonForm()
-        context = Context({'form': form})
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True, 'form': form})
 
         node = compile_to_nodelist('{% formconfig field using "field.html" for "firstname" %}')[0]
         node.render(context)
@@ -178,7 +192,7 @@ class FormConfigNodeTests(TestCase):
 
     def test_field_config_for_field_type(self):
         form = PersonForm()
-        context = Context({'form': form})
+        context = Context({FormNode.IN_FORM_CONTEXT_VAR: True, 'form': form})
 
         node = compile_to_nodelist('{% formconfig field using "field.html" for "IntegerField" %}')[0]
         node.render(context)

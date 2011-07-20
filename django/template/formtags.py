@@ -125,6 +125,8 @@ class FormConfig(object):
 
 class BaseNode(Node):
     CONFIG_CONTEXT_VAR = '_form_config'
+    IN_FORM_CONTEXT_VAR = '_form_render'
+
     form_config = FormConfig
     default_template_name = None
     single_template_var = None
@@ -231,24 +233,34 @@ class ModifierBase(BaseNode):
         self.modifer = modifier
         self.options = options
 
+    def enforce_form_tag(self, context):
+        if not context.get(self.IN_FORM_CONTEXT_VAR, False):
+            raise TemplateSyntaxError(
+                u'%s must be used inside a form tag.' % self.tagname)
+
+    def render(self, context):
+        self.enforce_form_tag(context)
+        return u''
+
 
 class RowModifier(ModifierBase):
     def render(self, context):
+        self.enforce_form_tag(context)
         config = self.get_config(context)
         if self.options['using']:
             try:
                 template_name = self.options['using'].resolve(context)
-            except VariableDoesNotExist, e:
+            except VariableDoesNotExist:
                 if settings.TEMPLATE_DEBUG:
                     raise
-                return ''
+                return u''
             config.configure('rowtemplate', template_name)
         if self.options['with']:
             extra_context = dict([
                 (name, var.resolve(context))
                 for name, var in self.options['with'].iteritems()])
             config.configure('row_context', extra_context)
-        return ''
+        return u''
 
     @classmethod
     def parse_bits(cls, tagname, modifier, bits, parser, tokens):
@@ -273,10 +285,9 @@ class RowModifier(ModifierBase):
 
 class FieldModifier(ModifierBase):
     def render(self, context):
+        self.enforce_form_tag(context)
         config = self.get_config(context)
-
         filter = None
-
         if self.options['for']:
             try:
                 var = self.options['for'].resolve(context)
@@ -285,7 +296,6 @@ class FieldModifier(ModifierBase):
                     raise
                 return ''
             filter = ConfigFilter(var)
-
         if self.options['using']:
             try:
                 template_name = self.options['using'].resolve(context)
@@ -294,13 +304,11 @@ class FieldModifier(ModifierBase):
                     raise
                 return ''
             config.configure('widget_template', template_name, filter=filter)
-
         if self.options['with']:
             extra_context = dict([
                 (name, var.resolve(context))
                 for name, var in self.options['with'].iteritems()])
             config.configure('widget_context', extra_context, filter=filter)
-
         return ''
 
     @classmethod
@@ -331,9 +339,6 @@ class FormConfigNode(BaseNode):
         'row': RowModifier,
         'field': FieldModifier,
     }
-
-    def render(self, context):
-        return ''
 
     @classmethod
     def parse(cls, parser, tokens):
@@ -409,6 +414,14 @@ class FormNode(BaseFormRenderNode):
     default_template_name = 'forms/layouts/default.html'
     single_template_var = 'form'
     list_template_var = 'forms'
+
+    def render(self, context):
+        context.push()
+        try:
+            context[self.IN_FORM_CONTEXT_VAR] = True
+            return super(FormNode, self).render(context)
+        finally:
+            context.pop()
 
     @classmethod
     def parse_using(cls, tagname, parser, bits, options):
