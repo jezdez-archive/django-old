@@ -12,6 +12,12 @@ def render(template, context=None):
     return t.render(c)
 
 
+def compile_to_nodelist(template):
+    rendered_template = Template('{% form myform using %}' + template + '{% endform %}')
+    form_node = rendered_template.nodelist[0]
+    return form_node.options['nodelist']
+
+
 class SimpleForm(forms.Form):
     name = forms.CharField()
 
@@ -69,8 +75,7 @@ class FormConfigNodeTests(TestCase):
             render('{% formconfig field using "field.html" only %}')
 
     def test_row_config(self):
-        template = Template('{% formconfig row using "my_row_template.html" %}')
-        rowconfig = template.nodelist[0]
+        rowconfig = compile_to_nodelist('{% formconfig row using "my_row_template.html" %}')[0]
         self.assertTrue(isinstance(rowconfig, RowModifier))
 
         context = Context()
@@ -79,20 +84,21 @@ class FormConfigNodeTests(TestCase):
 
     def test_row_config_using(self):
         context = Context()
-        node = Template('{% formconfig row using "my_row_template.html" %}').nodelist[0]
+        node = compile_to_nodelist(
+            '{% formconfig row using "my_row_template.html" %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(config.retrieve('rowtemplate'), 'my_row_template.html')
 
         context = Context()
-        node = Template('{% formconfig row using empty_var %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig row using empty_var %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(config.retrieve('rowtemplate'), 'forms/rows/default.html')
 
     def test_row_config_with(self):
         context = Context()
-        node = Template('{% formconfig row with extra_class="fancy" %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig row with extra_class="fancy" %}')[0]
         node.render(context)
         config = node.get_config(context)
         extra_context = config.retrieve('row_context')
@@ -100,8 +106,8 @@ class FormConfigNodeTests(TestCase):
         self.assertTrue(extra_context['extra_class'], 'fancy')
 
     def test_field_config(self):
-        template = Template('{% formconfig field with extra_class="fancy" %}')
-        rowconfig = template.nodelist[0]
+        rowconfig = compile_to_nodelist(
+            '{% formconfig field with extra_class="fancy" %}')[0]
         self.assertTrue(isinstance(rowconfig, FieldModifier))
 
         context = Context()
@@ -112,7 +118,7 @@ class FormConfigNodeTests(TestCase):
         form = SimpleForm()
 
         context = Context()
-        node = Template('{% formconfig field using "field.html" %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig field using "field.html" %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(
@@ -120,7 +126,7 @@ class FormConfigNodeTests(TestCase):
             'field.html')
 
         context = Context()
-        node = Template('{% formconfig field using empty_var %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig field using empty_var %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(
@@ -129,7 +135,7 @@ class FormConfigNodeTests(TestCase):
 
     def test_field_config_with(self):
         context = Context()
-        node = Template('{% formconfig field with type="email" %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig field with type="email" %}')[0]
         node.render(context)
         config = node.get_config(context)
         extra_context = config.retrieve('widget_context')
@@ -140,7 +146,7 @@ class FormConfigNodeTests(TestCase):
         form = PersonForm()
         context = Context({'form': form})
 
-        node = Template('{% formconfig field using "field.html" for form.lastname %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig field using "field.html" for form.lastname %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(
@@ -157,7 +163,7 @@ class FormConfigNodeTests(TestCase):
         form = PersonForm()
         context = Context({'form': form})
 
-        node = Template('{% formconfig field using "field.html" for "firstname" %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig field using "field.html" for "firstname" %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(
@@ -174,7 +180,7 @@ class FormConfigNodeTests(TestCase):
         form = PersonForm()
         context = Context({'form': form})
 
-        node = Template('{% formconfig field using "field.html" for "IntegerField" %}').nodelist[0]
+        node = compile_to_nodelist('{% formconfig field using "field.html" for "IntegerField" %}')[0]
         node.render(context)
         config = node.get_config(context)
         self.assertEqual(
