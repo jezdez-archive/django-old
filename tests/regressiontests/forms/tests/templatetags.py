@@ -136,7 +136,7 @@ class FormConfigNodeTests(TestCase):
         self.assertTrue(extra_context)
         self.assertTrue(extra_context['type'], 'email')
 
-    def test_field_config_for(self):
+    def test_field_config_for_bound_field(self):
         form = PersonForm()
         context = Context({'form': form})
 
@@ -152,6 +152,40 @@ class FormConfigNodeTests(TestCase):
         self.assertEqual(
             config.retrieve('widget_template', bound_field=form['age']),
             'forms/widgets/input.html')
+
+    def test_field_config_for_field_name(self):
+        form = PersonForm()
+        context = Context({'form': form})
+
+        node = Template('{% formconfig field using "field.html" for "firstname" %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['firstname']),
+            'field.html')
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['lastname']),
+            'forms/widgets/input.html')
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['age']),
+            'forms/widgets/input.html')
+
+    def test_field_config_for_field_type(self):
+        form = PersonForm()
+        context = Context({'form': form})
+
+        node = Template('{% formconfig field using "field.html" for "IntegerField" %}').nodelist[0]
+        node.render(context)
+        config = node.get_config(context)
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['firstname']),
+            'forms/widgets/input.html')
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['lastname']),
+            'forms/widgets/input.html')
+        self.assertEqual(
+            config.retrieve('widget_template', bound_field=form['age']),
+            'field.html')
 
 
 class FormTagTests(TestCase):
