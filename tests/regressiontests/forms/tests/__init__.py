@@ -4,6 +4,7 @@ from .fields import FieldsTests
 from .forms import *
 from .formsets import *
 from .input_formats import *
+from .layouts import *
 from .media import *
 from .models import *
 from .regressions import *

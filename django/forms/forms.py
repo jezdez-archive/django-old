@@ -482,7 +482,7 @@ class BoundField(StrAndUnicode):
             )
         return self.field.prepare_value(data)
 
-    def for_id(self):
+    def id(self):
         widget = self.field.widget
         for_id = widget.attrs.get('id') or self.auto_id
         if for_id:
@@ -498,11 +498,10 @@ class BoundField(StrAndUnicode):
         If attrs are given, they're used as HTML attributes on the <label> tag.
         """
         contents = contents or conditional_escape(self.label)
-        widget = self.field.widget
-        id_ = widget.attrs.get('id') or self.auto_id
+        id_ = self.id()
         if id_:
             attrs = attrs and flatatt(attrs) or ''
-            contents = u'<label for="%s"%s>%s</label>' % (widget.id_for_label(id_), attrs, unicode(contents))
+            contents = u'<label for="%s"%s>%s</label>' % (id_, attrs, unicode(contents))
         return mark_safe(contents)
 
     def css_classes(self, extra_classes=None):

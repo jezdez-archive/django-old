@@ -1,0 +1,14 @@
+{% block formconfig %}
+    {% formconfig row using "forms/rows/p.html" %}
+{% endblock %}
+
+{% block forms %}{% for form in forms %}
+{% if form.non_field_errors or form.hidden_field_errors %}<ul class="errorlist">
+    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+    {% for error in form.hidden_field_errors %}<li>{{ error }}</li>{% endfor %}
+</ul>{% endif %}
+{% block fields %}
+{% block visible_fields %}{% for field in form.visible_fields %}{% block field %}{% formrow field %}{% endblock %}{% endfor %}{% endblock %}
+{% block hidden_fields %}{% for field in form.hidden_fields %}{{ field.as_hidden }}{% endfor %}{% endblock %}
+{% endblock %}
+{% endfor %}{% endblock %}
