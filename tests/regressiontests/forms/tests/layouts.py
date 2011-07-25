@@ -219,3 +219,77 @@ class TableLayoutTests(TestCase):
             <br /><span class="helptext">Would you mind entering text here?</span>
         </td></tr>
         ''')
+
+
+class UlLayoutTests(TestCase):
+    def test_layout(self):
+        form = RegistrationForm()
+        with self.assertTemplateUsed('forms/layouts/ul.html'):
+            with self.assertTemplateUsed('forms/rows/li.html'):
+                layout = render('{% form form using "forms/layouts/ul.html" %}', {'form': form})
+        self.assertHTMLEqual(layout, '''
+        <li><label for="id_firstname">Your first name?</label> <input type="text" name="firstname" id="id_firstname" /></li>
+        <li><label for="id_lastname">Your last name:</label> <input type="text" name="lastname" id="id_lastname" /></li>
+        <li><label for="id_username">Username:</label> <input type="text" name="username" id="id_username" maxlength="30" /></li>
+        <li><label for="id_password">Password:</label> <input type="password" name="password" id="id_password" />
+            <span class="helptext">Make sure to use a secure password.</span></li>
+        <li><label for="id_password2">Retype password:</label> <input type="password" name="password2" id="id_password2" /></li>
+        <li><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" />
+            <input type="hidden" name="honeypot" id="id_honeypot" /></li>
+        ''')
+
+    def test_layout_with_errors(self):
+        form = RegistrationForm({'non_field_errors': True})
+        layout = render('{% form form using "forms/layouts/ul.html" %}', {'form': form})
+        self.maxDiff = None
+        self.assertHTMLEqual(layout, '''
+        <li><ul class="errorlist"><li>Please correct the errors below.</li></ul></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_firstname">Your first name?</label> <input type="text" name="firstname" id="id_firstname" /></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_lastname">Your last name:</label> <input type="text" name="lastname" id="id_lastname" /></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_username">Username:</label> <input type="text" name="username" id="id_username" maxlength="30" /></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_password">Password:</label> <input type="password" name="password" id="id_password" />
+            <span class="helptext">Make sure to use a secure password.</span></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_password2">Retype password:</label> <input type="password" name="password2" id="id_password2" /></li>
+        <li><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" />
+            <input type="hidden" name="honeypot" id="id_honeypot" /></li>
+        ''')
+
+        form = RegistrationForm({'non_field_errors': True, 'honeypot': 1})
+        layout = render('{% form form using "forms/layouts/ul.html" %}', {'form': form})
+        self.assertHTMLEqual(layout, '''
+        <li><ul class="errorlist"><li>Please correct the errors below.</li><li>Haha, you trapped into the honeypot.</li></ul></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_firstname">Your first name?</label> <input type="text" name="firstname" id="id_firstname" /></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_lastname">Your last name:</label> <input type="text" name="lastname" id="id_lastname" /></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_username">Username:</label> <input type="text" name="username" id="id_username" maxlength="30" /></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_password">Password:</label> <input type="password" name="password" id="id_password" />
+            <span class="helptext">Make sure to use a secure password.</span></li>
+        <li><ul class="errorlist"><li>This field is required.</li></ul><label for="id_password2">Retype password:</label> <input type="password" name="password2" id="id_password2" /></li>
+        <li><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" />
+            <input type="hidden" name="honeypot" value="1" id="id_honeypot" /></li>
+        ''')
+
+    def test_layout_with_custom_label(self):
+        form = OneFieldForm()
+        layout = render('''
+            {% form form using %}
+                {% formrow form.text using "forms/rows/li.html" with label="Custom label" %}
+            {% endform %}
+        ''', {'form': form})
+        self.assertHTMLEqual(layout, '''
+        <li><label for="id_text">Custom label:</label><input type="text" name="text" id="id_text" /></li>
+        ''')
+
+    def test_layout_with_custom_help_text(self):
+        form = OneFieldForm()
+        layout = render('''
+            {% form form using %}
+                {% formrow form.text using "forms/rows/li.html" with help_text="Would you mind entering text here?" %}
+            {% endform %}
+        ''', {'form': form})
+        self.assertHTMLEqual(layout, '''
+        <li>
+            <label for="id_text">Text:</label>
+            <input type="text" name="text" id="id_text" />
+            <span class="helptext">Would you mind entering text here?</span>
+        </li>
+        ''')
