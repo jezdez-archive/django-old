@@ -479,10 +479,22 @@ class FormRowTagTests(TestCase):
 
     def test_configure_template_with_extra_context(self):
         with self.assertTemplateUsed('simple_formrow_tag.html'):
-            render('''{% form myform using %}
+            self.assertHTMLEqual(render('''{% form myform using %}
                 {% formconfig row using "simple_formrow_tag.html" %}
-                {% formrow form.name with help_text="I want ham!" %}
-            {% endform %}''')
+                {% formrow form.name with extra_argument="I want ham!" %}
+            {% endform %}'''), '''Fields: 0 Extra argument: I want ham!''')
+
+    def test_configure_extra_context(self):
+        self.assertHTMLEqual(render('''{% form myform using %}
+            {% formconfig row with extra_argument="I want spam!" %}
+            {% formconfig row with extra_argument="I want ham!" %}
+            {% formrow form.name using "simple_formrow_tag.html"  %}
+        {% endform %}'''), '''Fields: 0 Extra argument: I want ham!''')
+
+        self.assertHTMLEqual(render('''{% form myform using %}
+            {% formconfig row using "simple_formrow_tag.html" with extra_argument="I want ham!" %}
+            {% formrow form.name %}
+        {% endform %}'''), '''Fields: 0 Extra argument: I want ham!''')
 
 
 class FormFieldTagTests(TestCase):

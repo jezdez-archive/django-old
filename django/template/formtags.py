@@ -474,6 +474,16 @@ class FormRowNode(BaseFormRenderNode):
             return template_name
         return self.default_template_name
 
+    def get_extra_context(self, context):
+        extra_context = super(FormRowNode, self).get_extra_context(context)
+        config = self.get_config(context)
+        configured_context = {}
+        # most recently used values should overwrite older ones
+        for extra in reversed(config.retrieve_all('row_context')):
+            configured_context.update(extra)
+        configured_context.update(extra_context)
+        return configured_context
+
     @classmethod
     def parse_using(cls, tagname, parser, bits, options, optional=True):
         return super(FormRowNode, cls).parse_using(
