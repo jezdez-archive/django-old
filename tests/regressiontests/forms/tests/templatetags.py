@@ -94,7 +94,7 @@ class FormConfigNodeTests(TestCase):
 
         context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         rowconfig.render(context)
-        self.assertTrue('_form_config' in context)
+        self.assertTrue(hasattr(context, '_form_config'))
 
     def test_row_config_using(self):
         context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
@@ -126,7 +126,7 @@ class FormConfigNodeTests(TestCase):
 
         context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         rowconfig.render(context)
-        self.assertTrue('_form_config' in context)
+        self.assertTrue(hasattr(context, '_form_config'))
 
     def test_field_config_using(self):
         form = SimpleForm()
@@ -469,6 +469,20 @@ class FormRowTagTests(TestCase):
     def test_default_template(self):
         with self.assertTemplateUsed('forms/rows/default.html'):
             render('{% formrow myform.name %}')
+
+    def test_configure_template(self):
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            render('''{% form myform using %}
+                {% formconfig row using "simple_formrow_tag.html" %}
+                {% formrow form.name %}
+            {% endform %}''')
+
+    def test_configure_template_with_extra_context(self):
+        with self.assertTemplateUsed('simple_formrow_tag.html'):
+            render('''{% form myform using %}
+                {% formconfig row using "simple_formrow_tag.html" %}
+                {% formrow form.name with help_text="I want ham!" %}
+            {% endform %}''')
 
 
 class FormFieldTagTests(TestCase):

@@ -124,7 +124,7 @@ class FormConfig(object):
 
 
 class BaseNode(Node):
-    CONFIG_CONTEXT_VAR = '_form_config'
+    CONFIG_CONTEXT_ATTR = '_form_config'
     IN_FORM_CONTEXT_VAR = '_form_render'
 
     form_config = FormConfig
@@ -139,10 +139,10 @@ class BaseNode(Node):
 
     def get_config(self, context):
         try:
-            return context[self.CONFIG_CONTEXT_VAR]
-        except KeyError:
+            return getattr(context, self.CONFIG_CONTEXT_ATTR)
+        except AttributeError:
             config = self.form_config()
-            context[self.CONFIG_CONTEXT_VAR] = config
+            setattr(context, self.CONFIG_CONTEXT_ATTR, config)
             return config
 
     @classmethod
@@ -358,6 +358,9 @@ class BaseFormRenderNode(BaseNode):
     Base class for ``form``, ``formrow`` and ``formfield`` -- tags that are
     responsible for actually rendering a form.
     '''
+    def get_template_name(self, context):
+        return self.default_template_name
+
     def get_nodelist(self, context):
         if 'nodelist' in self.options:
             return self.options['nodelist']
@@ -365,7 +368,7 @@ class BaseFormRenderNode(BaseNode):
             if 'using' in self.options:
                 template_name = self.options['using'].resolve(context)
             else:
-                template_name = self.default_template_name
+                template_name = self.get_template_name(context)
             return get_template(template_name)
         except:
             if settings.TEMPLATE_DEBUG:
@@ -451,6 +454,18 @@ class FormRowNode(BaseFormRenderNode):
     default_template_name = 'forms/rows/default.html'
     single_template_var = 'field'
     list_template_var = 'fields'
+
+    def get_template_name(self, context):
+        config = self.get_config(context)
+        template_name = config.retrieve('rowtemplate')
+        if template_name:
+            return template_name
+        return self.default_template_name
+
+    @classmethod
+    def parse_using(cls, tagname, parser, bits, options, optional=True):
+        return super(FormRowNode, cls).parse_using(
+            tagname, parser, bits, options, optional)
 
 
 class FormFieldNode(BaseFormRenderNode):
