@@ -50,18 +50,23 @@ class PLayoutTests(TestCase):
 
     def test_layout(self):
         form = RegistrationForm()
-        layout = render('{% form form using "forms/layouts/p.html" %}', {'form': form})
+        with self.assertTemplateUsed('forms/layouts/p.html'):
+            with self.assertTemplateUsed('forms/rows/p.html'):
+                layout = render('{% form form using "forms/layouts/p.html" %}', {'form': form})
         self.assertHTMLEqual(layout, '''
-        <p><label for="id_firstname">Your first name?</label> <input type="text" name="firstname" id="id_firstname" /></p>
-        <p><label for="id_lastname">Your last name:</label> <input type="text" name="lastname" id="id_lastname" /></p>
-        <p><label for="id_username">Username:</label> <input type="text" name="username" id="id_username" maxlength="30" /></p>
-        <p>
-            <label for="id_password">Password:</label> <input type="password" name="password" id="id_password" />
-            <span class="helptext">Make sure to use a secure password.</span>
+        <p><label for="id_firstname">Your first name?</label> <input type="text" name="firstname" id="id_firstname" />
         </p>
-        <p><label for="id_password2">Retype password:</label> <input type="password" name="password2" id="id_password2" /></p>
-        <p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" /></p>
+        <p><label for="id_lastname">Your last name:</label> <input type="text" name="lastname" id="id_lastname" />
+        </p>
+        <p><label for="id_username">Username:</label> <input type="text" name="username" id="id_username" maxlength="30" />
+        </p>
+        <p><label for="id_password">Password:</label> <input type="password" name="password" id="id_password" />
+         <span class="helptext">Make sure to use a secure password.</span></p>
+        <p><label for="id_password2">Retype password:</label> <input type="password" name="password2" id="id_password2" />
+        </p>
+        <p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" />
         <input type="hidden" name="honeypot" id="id_honeypot" />
+        </p>
         ''')
 
     def test_layout_with_errors(self):
@@ -82,8 +87,8 @@ class PLayoutTests(TestCase):
         </p>
         <ul class="errorlist"><li>This field is required.</li></ul>
         <p><label for="id_password2">Retype password:</label> <input type="password" name="password2" id="id_password2" /></p>
-        <p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" /></p>
-        <input type="hidden" name="honeypot" id="id_honeypot" />
+        <p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" />
+            <input type="hidden" name="honeypot" id="id_honeypot" /></p>
         ''')
 
         form = RegistrationForm({'non_field_errors': True, 'honeypot': 1})
@@ -106,8 +111,8 @@ class PLayoutTests(TestCase):
         </p>
         <ul class="errorlist"><li>This field is required.</li></ul>
         <p><label for="id_password2">Retype password:</label> <input type="password" name="password2" id="id_password2" /></p>
-        <p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" /></p>
-        <input type="hidden" name="honeypot" id="id_honeypot" value="1" />
+        <p><label for="id_age">Age:</label> <input type="text" name="age" id="id_age" />
+            <input type="hidden" name="honeypot" id="id_honeypot" value="1" /></p>
         ''')
 
     def test_layout_with_custom_label(self):
