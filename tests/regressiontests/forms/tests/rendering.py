@@ -121,3 +121,29 @@ class FormConfigTests(TestCase):
         config.pop()
         widget = config.retrieve('widget', bound_field=form['short_biography'])
         self.assertEqual(widget.__class__, widgets.TextInput)
+
+    def test_retrieve_all(self):
+        config = FormConfig()
+
+        config.configure('number', 1)
+        config.configure('number', 2)
+        self.assertEqual(list(config.retrieve_all('number')), [2, 1])
+
+        config.configure('number', 4, filter=lambda nr=None, **kwargs: nr == 'four')
+        self.assertEqual(list(config.retrieve_all('number')), [2, 1])
+        self.assertEqual(list(config.retrieve_all('number', nr='four')), [4, 2, 1])
+
+        config.push()
+        config.configure('number', 5, filter=lambda nr=None, **kwargs: nr == 'five')
+        self.assertEqual(list(config.retrieve_all('number')), [2, 1])
+        self.assertEqual(list(config.retrieve_all('number', nr='five')), [5, 2, 1])
+
+        config.configure('number', -1)
+        self.assertEqual(list(config.retrieve_all('number')), [-1, 2, 1])
+        self.assertEqual(list(config.retrieve_all('number', nr='four')), [-1, 4, 2, 1])
+        self.assertEqual(list(config.retrieve_all('number', nr='five')), [-1, 5, 2, 1])
+
+        config.pop()
+        self.assertEqual(list(config.retrieve_all('number')), [2, 1])
+        self.assertEqual(list(config.retrieve_all('number', nr='four')), [4, 2, 1])
+        self.assertEqual(list(config.retrieve_all('number', nr='five')), [2, 1])

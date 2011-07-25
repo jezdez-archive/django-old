@@ -122,6 +122,18 @@ class FormConfig(object):
             return None
         return self.defaults[key](**kwargs)
 
+    def retrieve_all(self, key, **kwargs):
+        '''
+        Returns a list of found values for ``key``, ordered by
+        most-recently-configured.
+        '''
+        values = []
+        for d in self.dicts:
+            for value, filter in d[key]:
+                if filter(**kwargs):
+                    values.insert(0, value)
+        return values
+
 
 class BaseNode(Node):
     CONFIG_CONTEXT_ATTR = '_form_config'
