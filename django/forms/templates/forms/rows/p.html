@@ -8,6 +8,6 @@
     {% block label %}{% if field.id %}<label for="{{ field.id }}">{% endif %}{{ label }}{% if label|last not in ":?.!" %}:{% endif %}{% if field.id %}</label>{% endif %}{% endblock %}
     {% block field %}{% formfield field %}{% endblock %}
     {% block help_text %}{% if help_text %}<span class="helptext">{{ help_text }}</span>{% endif %}{% endblock %}
-    {% block hidden_fields %}{% if render_hidden_fields %}{% for field in form.hidden_fields %}{{ field.as_hidden }}{% endfor %}{% endif %}{% endblock %}
+    {% block hidden_fields %}{% for field in hidden_fields %}{{ field.as_hidden }}{% endfor %}{% endblock %}
 </p>{% endblock %}
 {% endwith %}{% endwith %}{% endfor %}{% endblock %}
