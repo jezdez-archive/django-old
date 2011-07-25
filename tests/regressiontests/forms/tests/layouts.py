@@ -145,7 +145,7 @@ class TableLayoutTests(TestCase):
     def test_layout(self):
         form = RegistrationForm()
         with self.assertTemplateUsed('forms/layouts/table.html'):
-            with self.assertTemplateUsed('forms/rows/table.html'):
+            with self.assertTemplateUsed('forms/rows/tr.html'):
                 layout = render('{% form form using "forms/layouts/table.html" %}', {'form': form})
         self.assertHTMLEqual(layout, '''
         <tr><th><label for="id_firstname">Your first name?</label></th><td><input type="text" name="firstname" id="id_firstname" /></td></tr>
@@ -202,7 +202,7 @@ class TableLayoutTests(TestCase):
         form = OneFieldForm()
         layout = render('''
             {% form form using %}
-                {% formrow form.text using "forms/rows/table.html" with label="Custom label" %}
+                {% formrow form.text using "forms/rows/tr.html" with label="Custom label" %}
             {% endform %}
         ''', {'form': form})
         self.assertHTMLEqual(layout, '''
@@ -213,7 +213,7 @@ class TableLayoutTests(TestCase):
         form = OneFieldForm()
         layout = render('''
             {% form form using %}
-                {% formrow form.text using "forms/rows/table.html" with help_text="Would you mind entering text here?" %}
+                {% formrow form.text using "forms/rows/tr.html" with help_text="Would you mind entering text here?" %}
             {% endform %}
         ''', {'form': form})
         self.assertHTMLEqual(layout, '''
