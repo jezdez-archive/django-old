@@ -15,10 +15,11 @@ from django.utils.encoding import force_unicode, iri_to_uri
 from django.utils.html import (conditional_escape, escapejs, fix_ampersands,
     escape, urlize as urlize_impl, linebreaks, strip_tags)
 from django.utils.http import urlquote
-from django.utils.text import truncate_words, truncate_html_words, wrap, phone2numeric
+from django.utils.text import Truncator, wrap, phone2numeric
 from django.utils.safestring import mark_safe, SafeData, mark_for_escaping
 from django.utils.timesince import timesince, timeuntil
 from django.utils.translation import ugettext, ungettext
+from django.utils.text import normalize_newlines
 
 register = Library()
 
@@ -244,6 +245,20 @@ def title(value):
 title.is_safe = True
 title = stringfilter(title)
 
+def truncatechars(value, arg):
+    """
+    Truncates a string after a certain number of characters.
+
+    Argument: Number of characters to truncate after.
+    """
+    try:
+        length = int(arg)
+    except ValueError: # Invalid literal for int().
+        return value # Fail silently.
+    return Truncator(value).chars(length)
+truncatechars.is_safe = True
+truncatechars = stringfilter(truncatechars)
+
 def truncatewords(value, arg):
     """
     Truncates a string after a certain number of words.
@@ -256,7 +271,7 @@ def truncatewords(value, arg):
         length = int(arg)
     except ValueError: # Invalid literal for int().
         return value # Fail silently.
-    return truncate_words(value, length)
+    return Truncator(value).words(length, truncate=' ...')
 truncatewords.is_safe = True
 truncatewords = stringfilter(truncatewords)
 
@@ -272,7 +287,7 @@ def truncatewords_html(value, arg):
         length = int(arg)
     except ValueError: # invalid literal for int()
         return value # Fail silently.
-    return truncate_html_words(value, length)
+    return Truncator(value).words(length, html=True, truncate=' ...')
 truncatewords_html.is_safe = True
 truncatewords_html = stringfilter(truncatewords_html)
 
@@ -407,13 +422,16 @@ def linebreaks_filter(value, autoescape=None):
     return mark_safe(linebreaks(value, autoescape))
 linebreaks_filter.is_safe = True
 linebreaks_filter.needs_autoescape = True
+linebreaks = stringfilter(linebreaks)
 
 def linebreaksbr(value, autoescape=None):
     """
     Converts all newlines in a piece of plain text to HTML line breaks
     (``<br />``).
     """
-    if autoescape and not isinstance(value, SafeData):
+    autoescape = autoescape and not isinstance(value, SafeData)
+    value = normalize_newlines(value)
+    if autoescape:
         value = escape(value)
     return mark_safe(value.replace('\n', '<br />'))
 linebreaksbr.is_safe = True
@@ -908,6 +926,7 @@ register.filter(stringformat)
 register.filter(striptags)
 register.filter(time)
 register.filter(title)
+register.filter(truncatechars)
 register.filter(truncatewords)
 register.filter(truncatewords_html)
 register.filter(unordered_list)

@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 import os
 import sys
 from optparse import make_option
@@ -8,6 +10,7 @@ from django.core.management.base import CommandError, NoArgsCommand
 from django.utils.encoding import smart_str, smart_unicode
 
 from django.contrib.staticfiles import finders
+
 
 class Command(NoArgsCommand):
     """
@@ -47,8 +50,9 @@ class Command(NoArgsCommand):
             self.local = False
         else:
             self.local = True
-        # Use ints for file times (ticket #14665)
-        os.stat_float_times(False)
+        # Use ints for file times (ticket #14665), if supported
+        if hasattr(os, 'stat_float_times'):
+            os.stat_float_times(False)
 
     def handle_noargs(self, **options):
         self.clear = options['clear']
@@ -243,7 +247,7 @@ Type 'yes' to continue, or 'no' to cancel: """
                     os.makedirs(os.path.dirname(full_path))
                 except OSError:
                     pass
-            source_file = source_storage.open(path)
-            self.storage.save(prefixed_path, source_file)
+            with source_storage.open(path) as source_file:
+                self.storage.save(prefixed_path, source_file)
         if not prefixed_path in self.copied_files:
             self.copied_files.append(prefixed_path)

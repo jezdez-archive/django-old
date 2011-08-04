@@ -2,7 +2,6 @@
 
 # Unit tests for cache framework
 # Uses whatever cache backend is set in the test settings file.
-from __future__ import with_statement
 
 import hashlib
 import os
@@ -408,6 +407,11 @@ class BaseCacheTests(object):
         self.cache.set_many({'key3': 'sausage', 'key4': 'lobster bisque'}, 60*60*24*30 + 1)
         self.assertEqual(self.cache.get('key3'), 'sausage')
         self.assertEqual(self.cache.get('key4'), 'lobster bisque')
+
+    def test_float_timeout(self):
+        # Make sure a timeout given as a float doesn't crash anything.
+        self.cache.set("key1", "spam", 100.2)
+        self.assertEqual(self.cache.get("key1"), "spam")
 
     def perform_cull_test(self, initial_count, final_count):
         """This is implemented as a utility method, because only some of the backends

@@ -9,8 +9,10 @@ from localflavor.ch import CHLocalFlavorTests
 from localflavor.cl import CLLocalFlavorTests
 from localflavor.cz import CZLocalFlavorTests
 from localflavor.cn import CNLocalFlavorTests
+from localflavor.co import COLocalFlavorTests
 from localflavor.de import DELocalFlavorTests
 from localflavor.es import ESLocalFlavorTests
+from localflavor.ec import ECLocalFlavorTests
 from localflavor.fi import FILocalFlavorTests
 from localflavor.fr import FRLocalFlavorTests
 from localflavor.gb import GBLocalFlavorTests
@@ -25,6 +27,7 @@ from localflavor.it import ITLocalFlavorTests
 from localflavor.jp import JPLocalFlavorTests
 from localflavor.kw import KWLocalFlavorTests
 from localflavor.mk import MKLocalFlavorTests
+from localflavor.mx import MXLocalFlavorTests
 from localflavor.nl import NLLocalFlavorTests
 from localflavor.pl import PLLocalFlavorTests
 from localflavor.pt import PTLocalFlavorTests

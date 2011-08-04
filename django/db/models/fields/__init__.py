@@ -17,7 +17,7 @@ from django.utils.text import capfirst
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode, force_unicode, smart_str
 from django.utils import datetime_safe
-from django.utils.ipv6 import clean_ipv6_address, is_valid_ipv6_address
+from django.utils.ipv6 import clean_ipv6_address
 
 class NOT_PROVIDED:
     pass
@@ -967,7 +967,7 @@ class GenericIPAddressField(Field):
         if value and ':' in value:
             try:
                 return clean_ipv6_address(value, self.unpack_ipv4)
-            except ValidationError:
+            except exceptions.ValidationError:
                 pass
         return value
 

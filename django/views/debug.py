@@ -3,9 +3,9 @@ import os
 import re
 import sys
 import types
-from pprint import pformat
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.http import (HttpResponse, HttpResponseServerError,
     HttpResponseNotFound, HttpRequest, build_request_repr)
 from django.template import (Template, Context, TemplateDoesNotExist,
@@ -80,7 +80,7 @@ def get_exception_reporter_filter(request):
         try:
             default_exception_reporter_filter = getattr(mod, classname)()
         except AttributeError:
-            raise exceptions.ImproperlyConfigured('Default exception reporter filter module "%s" does not define a "%s" class' % (modname, classname))
+            raise ImproperlyConfigured('Default exception reporter filter module "%s" does not define a "%s" class' % (modname, classname))
     if request:
         return getattr(request, 'exception_reporter_filter', default_exception_reporter_filter)
     else:

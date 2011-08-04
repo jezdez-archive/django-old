@@ -136,6 +136,20 @@ SingleObjectMixin
         The name of the field on the model that contains the slug. By default,
         ``slug_field`` is ``'slug'``.
 
+    .. attribute:: slug_url_kwarg
+
+        .. versionadded:: 1.4
+
+        The name of the URLConf keyword argument that contains the slug. By
+        default, ``slug_url_kwarg`` is ``'slug'``.
+
+    .. attribute:: pk_url_kwarg
+
+        .. versionadded:: 1.4
+
+        The name of the URLConf keyword argument that contains the primary key.
+        By default, ``pk_url_kwarg`` is ``'pk'``.
+
     .. attribute:: context_object_name
 
         Designates the name of the variable to use in the context.
@@ -146,10 +160,11 @@ SingleObjectMixin
         ``queryset`` is provided, that queryset will be used as the
         source of objects; otherwise,
         :meth:`~SingleObjectMixin.get_queryset` will be used.
-        :meth:`~SingleObjectMixin.get_object` looks for a ``pk``
-        argument in the arguments to the view; if ``pk`` is found,
-        this method performs a primary-key based lookup using that
-        value. If no ``pk`` argument is found, it looks for a ``slug``
+        ``get_object()`` looks for a
+        :attr:`SingleObjectMixin.pk_url_kwarg` argument in the arguments
+        to the view; if this argument is found, this method performs a
+        primary-key based lookup using that value. If this argument is not
+        found, it looks for a :attr:`SingleObjectMixin.slug_url_kwarg`
         argument, and performs a slug lookup using the
         :attr:`SingleObjectMixin.slug_field`.
 
@@ -775,9 +790,9 @@ BaseDateListView
     .. attribute:: allow_empty
 
         A boolean specifying whether to display the page if no objects are
-        available. If this is ``False`` and no objects are available, the view
-        will raise a 404 instead of displaying an empty page. By default, this
-        is ``True``.
+        available. If this is ``True`` and no objects are available, the view
+        will display an empty page instead of raising a 404. By default, this
+        is ``False``.
 
     .. method:: get_dated_items():
 
@@ -1288,8 +1303,8 @@ TodayArchiveView
 .. class:: TodayArchiveView()
 
     A day archive page showing all objects for *today*. This is exactly the
-    same as ``archive_day``, except the ``year``/``month``/``day`` arguments
-    are not used,
+    same as :class:`django.views.generic.dates.DayArchiveView`, except today's
+    date is used instead of the ``year``/``month``/``day`` arguments.
 
     :class:`~django.views.generic.dates.BaseTodayArchiveView` implements the
     same behavior as :class:`~django.views.generic.dates.TodayArchiveView`, but
@@ -1298,7 +1313,8 @@ TodayArchiveView
 
     **Mixins**
 
-        * :class:`django.views.generic.dates.DayArchiveView`
+        * :class:`django.views.generic.list.MultipleObjectTemplateResponseMixin`
+        * :class:`django.views.generic.dates.BaseDayArchiveView`
 
 DateDetailView
 ~~~~~~~~~~~~~~
@@ -1316,8 +1332,9 @@ DateDetailView
 
     **Mixins**
 
-        * :class:`django.views.generic.list.MultipleObjectTemplateResponseMixin`
+        * :class:`django.views.generic.detail.SingleObjectTemplateResponseMixin`
+        * :class:`django.views.generic.detail.BaseDetailView`
+        * :class:`django.views.generic.dates.DateMixin`
         * :class:`django.views.generic.dates.YearMixin`
         * :class:`django.views.generic.dates.MonthMixin`
         * :class:`django.views.generic.dates.DayMixin`
-        * :class:`django.views.generic.dates.BaseDateListView`

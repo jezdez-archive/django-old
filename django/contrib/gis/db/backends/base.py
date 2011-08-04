@@ -3,7 +3,6 @@ Base/mixin classes for the spatial backend database operations and the
 `SpatialRefSys` model the backend.
 """
 import re
-from django.conf import settings
 from django.contrib.gis import gdal
 
 class BaseSpatialOperations(object):
@@ -122,7 +121,7 @@ class BaseSpatialOperations(object):
         raise NotImplementedError('Aggregate support not implemented for this spatial backend.')
 
     def spatial_lookup_sql(self, lvalue, lookup_type, value, field):
-        raise NotImplmentedError
+        raise NotImplementedError
 
     # Routines for getting the OGC-compliant models.
     def geometry_columns(self):
