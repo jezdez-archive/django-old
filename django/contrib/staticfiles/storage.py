@@ -58,7 +58,7 @@ class CacheBustingMixin(object):
         if content is None:
             if not self.exists(name):
                 raise SuspiciousOperation("Attempted access to '%s' denied." % name)
-            content = self.open(self.path(name))
+            content = self.open(name)
         path, filename = os.path.split(name)
         root, ext = os.path.splitext(filename)
         # Get the MD5 hash of the file
