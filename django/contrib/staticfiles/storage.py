@@ -1,32 +1,23 @@
 import hashlib
 import os
 import re
+import posixpath
 
 from django.conf import settings
 from django.core.cache import get_cache, InvalidCacheBackendError, cache as default_cache
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.files.storage import FileSystemStorage, get_storage_class
 from django.core.files.base import ContentFile
-from django.template import Template, Context
 from django.utils.importlib import import_module
 from django.utils.encoding import force_unicode
 from django.utils.functional import LazyObject
 
 from django.contrib.staticfiles.utils import check_settings
 
-
-urltag_re = re.compile(r"""
-url\(
-  (\s*)                 # allow whitespace wrapping (and capture)
-  (                     # capture actual url
-    [^\)\\\r\n]*?           # don't allow newlines, closing paran, escape chars (1)
-    (?:\\.                  # process all escapes here instead
-        [^\)\\\r\n]*?           # proceed, with previous restrictions (1)
-    )*                     # repeat until end
-  )
-  (\s*)                 # whitespace again (and capture)
-\)
-""", re.VERBOSE)
+conversions = [
+    re.compile(r"""(?P<url>url\(['"]{0,1}\s*(.*?)["']{0,1}\))"""),
+    re.compile(r"""(?P<url>@import\s*["']\s*(.*?)["'])"""),
+]
 
 
 class StaticFilesStorage(FileSystemStorage):
@@ -92,8 +83,7 @@ class CacheBustingMixin(object):
         if os.path.exists(hashed_name):
             return hashed_name
         # Save the file
-        rendered_content = Template(content.read()).render(Context({}))
-        hashed_name = self._save(hashed_name, ContentFile(rendered_content))
+        hashed_name = self._save(hashed_name, ContentFile(content.read()))
         # Use filenames with forward slashes, even on Windows
         hashed_name = force_unicode(hashed_name.replace('\\', '/'))
         self.cache.set(self.cache_key(name), hashed_name)
@@ -102,23 +92,31 @@ class CacheBustingMixin(object):
 
     def url_converter(self, name):
         """
-        Normalize the URL
+        Converts the matched URL depending on the parent level (`..`)
+        and returns the normalized and hashed URL using the url method
+        of the storage.
         """
         def converter(matchobj):
-            url = matchobj.groups()[1]
-            if url[:1] in '"\'':
-                url = url[1:]
-            if url[-1:] in '"\'':
-                url = url[:-1]
-            level = url.count(os.pardir)
+            matched, url = matchobj.groups()
+            if url.startswith(('http', 'https')):
+                # Completely ignore http(s) URLs
+                return matched
+            name_parts = name.split('/')
+            # Using posix normpath here to remove duplicates
+            url_parts = posixpath.normpath(url).split('/')
+            level = url.count('..')
             if level:
-                url_parts = name.split('/')[:-level-1] + url.split('/')[level:]
-                url = self.url('/'.join(url_parts))
-            return "url('%s')" % url
+                result = name_parts[:-level-1] + url_parts[level:]
+            else:
+                result = name_parts[:-1] + url_parts[-1:]
+            joined_result = '/'.join(result)
+            hashed_url = self.url(joined_result)
+            # Return the hashed and normalized version to the file
+            return 'url("%s")' % hashed_url
         return converter
 
     def path_level(self, (name, hashed_name)):
-        return len(name.split(os.sep))
+        return len(name.split('/'))
 
     def delete_cache(self, paths):
         self.cache.delete_many([self.cache_key(path) for path in paths])
@@ -128,13 +126,14 @@ class CacheBustingMixin(object):
         Post process method called by the collectstatic management command.
         """
         self.delete_cache(paths)
-        for original_name, hashed_name in sorted(
+        for name, hashed_name in sorted(
                 self.saved_files, key=self.path_level, reverse=True):
-            original = self.open(original_name)
-            converted_content = urltag_re.sub(
-                self.url_converter(original_name), original.read())
+            with self.open(name) as original_file:
+                content = original_file.read()
+                for regex in conversions:
+                    content = regex.sub(self.url_converter(name), content)
             with open(self.path(hashed_name), 'w') as hashed_file:
-                hashed_file.write(converted_content)
+                hashed_file.write(content)
 
 class CachedStaticFilesStorage(CacheBustingMixin, StaticFilesStorage):
     pass
