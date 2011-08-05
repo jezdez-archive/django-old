@@ -274,11 +274,12 @@ class TestBuildStaticCachedStorage(BuildStaticTestCase):
     """
     Tests for the Cache busting storage
     """
+    @classmethod
+    def setUpClass(cls):
+        storage.configured_storage._wrapped = empty
+
     def tearDown(self):
-        """
-        Resetting the global storage for staticfiles
-        """
-        storage.configured_storage._wrapped = storage.ConfiguredStorage()
+        storage.configured_storage._wrapped = empty
 
     def cached_file_path(self, relpath):
         template = "{%% load static from staticfiles %%}{%% static '%s' %%}"
