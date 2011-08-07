@@ -7,12 +7,13 @@ from django import forms
 from django.core.urlresolvers import reverse
 from django.forms.widgets import RadioFieldRenderer
 from django.forms.util import flatatt
-from django.templatetags.static import static
 from django.utils.html import escape
 from django.utils.text import Truncator
 from django.utils.translation import ugettext as _
 from django.utils.safestring import mark_safe
 from django.utils.encoding import force_unicode
+from django.contrib.admin.templatetags.admin_static import static
+
 
 class FilteredSelectMultiple(forms.SelectMultiple):
     """
@@ -31,9 +32,11 @@ class FilteredSelectMultiple(forms.SelectMultiple):
         super(FilteredSelectMultiple, self).__init__(attrs, choices)
 
     def render(self, name, value, attrs=None, choices=()):
-        if attrs is None: attrs = {}
+        if attrs is None:
+            attrs = {}
         attrs['class'] = 'selectfilter'
-        if self.is_stacked: attrs['class'] += 'stacked'
+        if self.is_stacked:
+            attrs['class'] += 'stacked'
         output = [super(FilteredSelectMultiple, self).render(name, value, attrs, choices)]
         output.append(u'<script type="text/javascript">addEvent(window, "load", function(e) {')
         # TODO: "id_" is hard-coded here. This should instead use the correct

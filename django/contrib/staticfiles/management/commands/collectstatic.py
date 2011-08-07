@@ -4,12 +4,11 @@ import os
 import sys
 from optparse import make_option
 
-from django.conf import settings
-from django.core.files.storage import FileSystemStorage, get_storage_class
+from django.core.files.storage import FileSystemStorage
 from django.core.management.base import CommandError, NoArgsCommand
 from django.utils.encoding import smart_str, smart_unicode
 
-from django.contrib.staticfiles import finders
+from django.contrib.staticfiles import finders, storage
 
 
 class Command(NoArgsCommand):
@@ -18,32 +17,36 @@ class Command(NoArgsCommand):
     locations to the settings.STATIC_ROOT.
     """
     option_list = NoArgsCommand.option_list + (
-        make_option('--noinput', action='store_false', dest='interactive',
-            default=True, help="Do NOT prompt the user for input of any kind."),
+        make_option('--noinput',
+            action='store_false', dest='interactive', default=True,
+            help="Do NOT prompt the user for input of any kind."),
         make_option('-i', '--ignore', action='append', default=[],
             dest='ignore_patterns', metavar='PATTERN',
             help="Ignore files or directories matching this glob-style "
                 "pattern. Use multiple times to ignore more."),
-        make_option('-n', '--dry-run', action='store_true', dest='dry_run',
-            default=False, help="Do everything except modify the filesystem."),
-        make_option('-c', '--clear', action='store_true', dest='clear',
-            default=False, help="Clear the existing files using the storage "
-                "before trying to copy or link the original file."),
-        make_option('-l', '--link', action='store_true', dest='link',
-            default=False, help="Create a symbolic link to each file instead of copying."),
+        make_option('-n', '--dry-run',
+            action='store_true', dest='dry_run', default=False,
+            help="Do everything except modify the filesystem."),
+        make_option('-c', '--clear',
+            action='store_true', dest='clear', default=False,
+            help="Clear the existing files using the storage "
+                 "before trying to copy or link the original file."),
+        make_option('-l', '--link',
+            action='store_true', dest='link', default=False,
+            help="Create a symbolic link to each file instead of copying."),
         make_option('--no-default-ignore', action='store_false',
             dest='use_default_ignore_patterns', default=True,
             help="Don't ignore the common private glob-style patterns 'CVS', "
                 "'.*' and '*~'."),
     )
-    help = "Collect static files from apps and other locations in a single location."
+    help = "Collect static files in a single location."
+    storage = storage.configured_storage
 
     def __init__(self, *args, **kwargs):
         super(NoArgsCommand, self).__init__(*args, **kwargs)
         self.copied_files = []
         self.symlinked_files = []
         self.unmodified_files = []
-        self.storage = get_storage_class(settings.STATICFILES_STORAGE)()
         try:
             self.storage.path('')
         except NotImplementedError:
@@ -104,7 +107,7 @@ Type 'yes' to continue, or 'no' to cancel: """
 
         handler = {
             True: self.link_file,
-            False: self.copy_file
+            False: self.copy_file,
         }[self.symlink]
 
         for finder in finders.get_finders():
@@ -153,7 +156,8 @@ Type 'yes' to continue, or 'no' to cancel: """
         for f in files:
             fpath = os.path.join(path, f)
             if self.dry_run:
-                self.log(u"Pretending to delete '%s'" % smart_unicode(fpath), level=1)
+                self.log(u"Pretending to delete '%s'" %
+                         smart_unicode(fpath), level=1)
             else:
                 self.log(u"Deleting '%s'" % smart_unicode(fpath), level=1)
                 self.storage.delete(fpath)
@@ -166,7 +170,8 @@ Type 'yes' to continue, or 'no' to cancel: """
         if self.storage.exists(prefixed_path):
             try:
                 # When was the target file modified last time?
-                target_last_modified = self.storage.modified_time(prefixed_path)
+                target_last_modified = \
+                    self.storage.modified_time(prefixed_path)
             except (OSError, NotImplementedError):
                 # The storage doesn't support ``modified_time`` or failed
                 pass
@@ -184,8 +189,10 @@ Type 'yes' to continue, or 'no' to cancel: """
                         full_path = None
                     # Skip the file if the source file is younger
                     if target_last_modified >= source_last_modified:
-                        if not ((self.symlink and full_path and not os.path.islink(full_path)) or
-                                (not self.symlink and full_path and os.path.islink(full_path))):
+                        if not ((self.symlink and full_path
+                                 and not os.path.islink(full_path)) or
+                                (not self.symlink and full_path
+                                 and os.path.islink(full_path))):
                             if prefixed_path not in self.unmodified_files:
                                 self.unmodified_files.append(prefixed_path)
                             self.log(u"Skipping '%s' (not modified)" % path)
