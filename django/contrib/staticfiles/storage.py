@@ -6,7 +6,7 @@ import re
 from django.conf import settings
 from django.core.cache import (get_cache, InvalidCacheBackendError,
                                cache as default_cache)
-from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import FileSystemStorage, get_storage_class
 from django.utils.encoding import force_unicode
 from django.utils.functional import LazyObject
@@ -39,30 +39,34 @@ class StaticFilesStorage(FileSystemStorage):
                                                  *args, **kwargs)
 
 
-class HashedFilesMixin(object):
-    patterns = [
+class CachedFilesMixin(object):
+    cached_patterns = [
         r"""(url\(['"]{0,1}\s*(.*?)["']{0,1}\))""",
         r"""(@import\s*["']\s*(.*?)["'])""",
     ]
 
     def __init__(self, *args, **kwargs):
-        super(HashedFilesMixin, self).__init__(*args, **kwargs)
+        super(CachedFilesMixin, self).__init__(*args, **kwargs)
         self.saved_files = []
         try:
             self.cache = get_cache('staticfiles')
         except InvalidCacheBackendError:
             # Use the default backend
             self.cache = default_cache
-        self.cached_patterns = []
-        for pattern in self.patterns:
-            self.cached_patterns.append(re.compile(pattern))
+        self._cached_patterns = []
+        for pattern in self.cached_patterns:
+            self._cached_patterns.append(re.compile(pattern))
 
     def hashed_name(self, name, content=None):
         if content is None:
             if not self.exists(name):
-                raise SuspiciousOperation(
-                    "Attempted access to '%s' denied." % name)
-            content = self.open(name)
+                raise ValueError("The file '%s' could not be found using %r." %
+                                 (name, self))
+            try:
+                content = self.open(name)
+            except IOError, e:
+                # Handle directory paths
+                return name
         path, filename = os.path.split(name)
         root, ext = os.path.splitext(filename)
         # Get the MD5 hash of the file
@@ -75,15 +79,20 @@ class HashedFilesMixin(object):
     def cache_key(self, name):
         return u'staticfiles:cache:%s' % name
 
-    def url(self, name):
+    def url(self, name, force=False):
+        """
+        Returns the real URL in DEBUG mode.
+        """
+        if settings.DEBUG and not force:
+            return super(CachedFilesMixin, self).url(name)
         cache_key = self.cache_key(name)
         hashed_name = self.cache.get(cache_key)
         if hashed_name is None:
             hashed_name = self.hashed_name(name)
-        return super(HashedFilesMixin, self).url(hashed_name)
+        return super(CachedFilesMixin, self).url(hashed_name)
 
     def save(self, name, content):
-        original_name = super(HashedFilesMixin, self).save(name, content)
+        original_name = super(CachedFilesMixin, self).save(name, content)
 
         # Return the name if the file is already there
         hashed_name = self.hashed_name(original_name, content)
@@ -115,10 +124,14 @@ class HashedFilesMixin(object):
                 return matched
             name_parts = name.split('/')
             # Using posix normpath here to remove duplicates
-            url_parts = posixpath.normpath(url).split('/')
+            result = url_parts = posixpath.normpath(url).split('/')
             level = url.count('..')
-            result = name_parts[:-(level + 1)] + url_parts[level or -1:]
-            hashed_url = self.url('/'.join(result))
+            if level:
+                result = name_parts[:-level-1] + url_parts[level:]
+            elif name_parts[:-1]:
+                result = name_parts[:-1] + url_parts[-1:]
+            joined_result = '/'.join(result)
+            hashed_url = self.url(joined_result, force=True)
             # Return the hashed and normalized version to the file
             return 'url("%s")' % hashed_url
         return converter
@@ -135,13 +148,17 @@ class HashedFilesMixin(object):
                 self.saved_files, key=self.path_level, reverse=True):
             with self.open(name) as original_file:
                 content = original_file.read()
-                for pattern in self.cached_patterns:
+                for pattern in self._cached_patterns:
                     content = pattern.sub(self.url_converter(name), content)
             with open(self.path(hashed_name), 'w') as hashed_file:
                 hashed_file.write(content)
 
 
-class CachedStaticFilesStorage(HashedFilesMixin, StaticFilesStorage):
+class CachedStaticFilesStorage(CachedFilesMixin, StaticFilesStorage):
+    """
+    A static file system storage backend which also saves
+    hashed copies of the files it saves.
+    """
     pass
 
 
