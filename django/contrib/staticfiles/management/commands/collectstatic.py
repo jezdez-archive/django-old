@@ -40,13 +40,13 @@ class Command(NoArgsCommand):
                 "'.*' and '*~'."),
     )
     help = "Collect static files in a single location."
-    storage = storage.configured_storage
 
     def __init__(self, *args, **kwargs):
         super(NoArgsCommand, self).__init__(*args, **kwargs)
         self.copied_files = []
         self.symlinked_files = []
         self.unmodified_files = []
+        self.storage = storage.configured_storage
         try:
             self.storage.path('')
         except NotImplementedError:
