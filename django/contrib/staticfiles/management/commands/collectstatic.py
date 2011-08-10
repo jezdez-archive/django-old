@@ -122,10 +122,10 @@ Type 'yes' to continue, or 'no' to cancel: """
         modified_files = self.copied_files + self.symlinked_files
         actual_count = len(modified_files)
 
-        # Here we check if the storage backend has a post_process method
-        # and pass it the list of modified files, if possible.
+        # Here we check if the storage backend has a post_process
+        # method and pass it the list of modified files.
         if hasattr(self.storage, 'post_process'):
-            self.storage.post_process(modified_files)
+            self.storage.post_process(modified_files, **options)
 
         unmodified_count = len(self.unmodified_files)
         if self.verbosity >= 1:

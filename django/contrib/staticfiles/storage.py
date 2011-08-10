@@ -60,11 +60,11 @@ class CachedFilesMixin(object):
     def hashed_name(self, name, content=None):
         if content is None:
             if not self.exists(name):
-                raise ValueError("The file '%s' could not be found using %r." %
+                raise ValueError("The file '%s' could not be found with %r." %
                                  (name, self))
             try:
                 content = self.open(name)
-            except IOError, e:
+            except IOError:
                 # Handle directory paths
                 return name
         path, filename = os.path.split(name)
@@ -127,7 +127,7 @@ class CachedFilesMixin(object):
             result = url_parts = posixpath.normpath(url).split('/')
             level = url.count('..')
             if level:
-                result = name_parts[:-level-1] + url_parts[level:]
+                result = name_parts[:-level - 1] + url_parts[level:]
             elif name_parts[:-1]:
                 result = name_parts[:-1] + url_parts[-1:]
             joined_result = '/'.join(result)
@@ -139,10 +139,12 @@ class CachedFilesMixin(object):
     def path_level(self, (name, hashed_name)):
         return len(name.split('/'))
 
-    def post_process(self, paths):
+    def post_process(self, paths, **options):
         """
-        Post process method called by the collectstatic management command.
+        Post process the given list of files (called from collectstatic).
         """
+        if options.get('dry_run', False):
+            return
         self.cache.delete_many([self.cache_key(path) for path in paths])
         for name, hashed_name in sorted(
                 self.saved_files, key=self.path_level, reverse=True):
