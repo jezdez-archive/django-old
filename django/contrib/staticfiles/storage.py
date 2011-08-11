@@ -143,27 +143,30 @@ class CachedFilesMixin(object):
         # then sort the files by the directory level
         path_level = lambda name: len(name.split('/'))
         for name in sorted(paths, key=path_level, reverse=True):
-            with self.open(name) as original_file:
 
-                # first get the original's file content
+            # first get a hashed name for the given file
+            hashed_name = self.hashed_name(name)
+
+            with self.open(name) as original_file:
+                # then get the original's file content
                 content = original_file.read()
 
-                # and a hashed name for it
-                hashed_name = self.hashed_name(name, ContentFile(content))
-
-                # then apply each replacement pattern on the content
+                # to apply each replacement pattern on the content
                 if name in processing_paths:
                     converter = self.url_converter(name)
                     for patterns in self._patterns.values():
                         for pattern in patterns:
                             content = pattern.sub(converter, content)
 
-                # and save the result
+                # then save the processed result
                 if self.exists(hashed_name):
                     self.delete(hashed_name)
+
                 saved_name = self._save(hashed_name, ContentFile(content))
                 hashed_name = force_unicode(saved_name.replace('\\', '/'))
                 processed_files.append(hashed_name)
+
+                # and then set the cache accordingly
                 self.cache.set(self.cache_key(name), hashed_name)
 
         return processed_files
