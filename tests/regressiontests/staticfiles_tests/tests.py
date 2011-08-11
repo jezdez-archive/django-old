@@ -49,7 +49,7 @@ class BaseStaticFilesTestCase(object):
         # gets accessed (by some other test), it evaluates settings.MEDIA_ROOT,
         # since we're planning on changing that we need to clear out the cache.
         default_storage._wrapped = empty
-        storage.configured_storage._wrapped = empty
+        storage.staticfiles_storage._wrapped = empty
 
         # To make sure SVN doesn't hangs itself with the non-ASCII characters
         # during checkout, we actually create one file dynamically.
@@ -305,15 +305,15 @@ class TestCollectionCachedStorage(BaseCollectionTestCase,
     def test_template_tag_simple_content(self):
         relpath = self.cached_file_path("cached/styles.css")
         self.assertEqual(relpath, "cached/styles.5653c259030b.css")
-        with storage.configured_storage.open(relpath) as relfile:
+        with storage.staticfiles_storage.open(relpath) as relfile:
             content = relfile.read()
-            self.assertFalse("cached/other.css" in content)
+            self.assertFalse("cached/other.css" in content, content)
             self.assertTrue("/static/cached/other.d41d8cd98f00.css" in content)
 
     def test_template_tag_absolute(self):
         relpath = self.cached_file_path("cached/absolute.css")
         self.assertEqual(relpath, "cached/absolute.cc80cb5e2eb1.css")
-        with storage.configured_storage.open(relpath) as relfile:
+        with storage.staticfiles_storage.open(relpath) as relfile:
             content = relfile.read()
             self.assertFalse("/static/cached/styles.css" in content)
             self.assertTrue("/static/cached/styles.5653c259030b.css" in content)
@@ -321,7 +321,7 @@ class TestCollectionCachedStorage(BaseCollectionTestCase,
     def test_template_tag_denorm(self):
         relpath = self.cached_file_path("cached/denorm.css")
         self.assertEqual(relpath, "cached/denorm.363de96e9b4b.css")
-        with storage.configured_storage.open(relpath) as relfile:
+        with storage.staticfiles_storage.open(relpath) as relfile:
             content = relfile.read()
             self.assertFalse("..//cached///styles.css" in content)
             self.assertTrue("/static/cached/styles.5653c259030b.css" in content)
@@ -329,7 +329,7 @@ class TestCollectionCachedStorage(BaseCollectionTestCase,
     def test_template_tag_relative(self):
         relpath = self.cached_file_path("cached/relative.css")
         self.assertEqual(relpath, "cached/relative.298ff891a8d4.css")
-        with storage.configured_storage.open(relpath) as relfile:
+        with storage.staticfiles_storage.open(relpath) as relfile:
             content = relfile.read()
             self.assertFalse("../cached/styles.css" in content)
             self.assertFalse('@import "styles.css"' in content)
@@ -338,7 +338,7 @@ class TestCollectionCachedStorage(BaseCollectionTestCase,
     def test_template_tag_url(self):
         relpath = self.cached_file_path("cached/url.css")
         self.assertEqual(relpath, "cached/url.615e21601e4b.css")
-        with storage.configured_storage.open(relpath) as relfile:
+        with storage.staticfiles_storage.open(relpath) as relfile:
             self.assertTrue("https://" in relfile.read())
 
 # we set DEBUG to False here since the template tag wouldn't work otherwise

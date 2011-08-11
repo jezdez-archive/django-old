@@ -46,7 +46,7 @@ class Command(NoArgsCommand):
         self.copied_files = []
         self.symlinked_files = []
         self.unmodified_files = []
-        self.storage = storage.configured_storage
+        self.storage = storage.staticfiles_storage
         try:
             self.storage.path('')
         except NotImplementedError:
@@ -110,6 +110,7 @@ Type 'yes' to continue, or 'no' to cancel: """
             False: self.copy_file,
         }[self.symlink]
 
+        found_files = []
         for finder in finders.get_finders():
             for path, storage in finder.list(self.ignore_patterns):
                 # Prefix the relative path if the source storage contains it
@@ -117,26 +118,35 @@ Type 'yes' to continue, or 'no' to cancel: """
                     prefixed_path = os.path.join(storage.prefix, path)
                 else:
                     prefixed_path = path
+                found_files.append(prefixed_path)
                 handler(path, prefixed_path, storage)
-
-        modified_files = self.copied_files + self.symlinked_files
-        actual_count = len(modified_files)
 
         # Here we check if the storage backend has a post_process
         # method and pass it the list of modified files.
         if hasattr(self.storage, 'post_process'):
-            self.storage.post_process(modified_files, **options)
+            post_processed = self.storage.post_process(found_files, **options)
+            for path in post_processed:
+                self.log(u"Post-processed '%s'" % path, level=1)
+        else:
+            post_processed = []
 
+        modified_files = self.copied_files + self.symlinked_files
+        actual_count = len(modified_files)
         unmodified_count = len(self.unmodified_files)
+
         if self.verbosity >= 1:
-            self.stdout.write(smart_str(u"\n%s static file%s %s %s%s.\n"
-                              % (actual_count,
-                                 actual_count != 1 and 's' or '',
-                                 self.symlink and 'symlinked' or 'copied',
-                                 destination_path and "to '%s'"
-                                    % destination_path or '',
-                                 unmodified_count and ' (%s unmodified)'
-                                    % unmodified_count or '')))
+            template = ("\n%(actual_count)s %(identifier)s %(action)s"
+                        "%(destination)s%(unmodified)s.\n")
+            summary = template % {
+                'actual_count': actual_count,
+                'identifier': 'static file' + (actual_count > 1 and 's' or ''),
+                'action': self.symlink and 'symlinked' or 'copied',
+                'destination': (destination_path and " to '%s'"
+                                % destination_path or ''),
+                'unmodified': (self.unmodified_files and ', %s unmodified'
+                               % unmodified_count or ''),
+            }
+            self.stdout.write(smart_str(summary))
 
     def log(self, msg, level=2):
         """

@@ -7,12 +7,14 @@ from django.conf import settings
 from django.core.cache import (get_cache, InvalidCacheBackendError,
                                cache as default_cache)
 from django.core.exceptions import ImproperlyConfigured
+from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage, get_storage_class
 from django.utils.encoding import force_unicode
 from django.utils.functional import LazyObject
 from django.utils.importlib import import_module
+from django.utils.datastructures import SortedDict
 
-from django.contrib.staticfiles import utils
+from django.contrib.staticfiles.utils import check_settings, matches_patterns
 
 
 class StaticFilesStorage(FileSystemStorage):
@@ -34,28 +36,31 @@ class StaticFilesStorage(FileSystemStorage):
         if base_url is None:
             raise ImproperlyConfigured("You're using the staticfiles app "
                 "without having set the STATIC_URL setting.")
-        utils.check_settings()
+        check_settings()
         super(StaticFilesStorage, self).__init__(location, base_url,
                                                  *args, **kwargs)
 
 
 class CachedFilesMixin(object):
-    cached_patterns = [
-        r"""(url\(['"]{0,1}\s*(.*?)["']{0,1}\))""",
-        r"""(@import\s*["']\s*(.*?)["'])""",
-    ]
+    patterns = (
+        ("*.css", (
+            r"""(url\(['"]{0,1}\s*(.*?)["']{0,1}\))""",
+            r"""(@import\s*["']\s*(.*?)["'])""",
+        )),
+    )
 
     def __init__(self, *args, **kwargs):
         super(CachedFilesMixin, self).__init__(*args, **kwargs)
-        self.saved_files = []
         try:
             self.cache = get_cache('staticfiles')
         except InvalidCacheBackendError:
             # Use the default backend
             self.cache = default_cache
-        self._cached_patterns = []
-        for pattern in self.cached_patterns:
-            self._cached_patterns.append(re.compile(pattern))
+        self._patterns = SortedDict()
+        for extension, patterns in self.patterns:
+            for pattern in patterns:
+                compiled = re.compile(pattern)
+                self._patterns.setdefault(extension, []).append(compiled)
 
     def hashed_name(self, name, content=None):
         if content is None:
@@ -91,23 +96,6 @@ class CachedFilesMixin(object):
             hashed_name = self.hashed_name(name)
         return super(CachedFilesMixin, self).url(hashed_name)
 
-    def save(self, name, content):
-        original_name = super(CachedFilesMixin, self).save(name, content)
-
-        # Return the name if the file is already there
-        hashed_name = self.hashed_name(original_name, content)
-        if os.path.exists(hashed_name):
-            return hashed_name
-
-        # or save the file with the hashed name
-        saved_name = self._save(hashed_name, content)
-
-        # Use filenames with forward slashes, even on Windows
-        hashed_name = force_unicode(saved_name.replace('\\', '/'))
-        self.cache.set(self.cache_key(name), hashed_name)
-        self.saved_files.append((name, hashed_name))
-        return hashed_name
-
     def url_converter(self, name):
         """
         Returns the custom URL converter for the given file name.
@@ -136,25 +124,49 @@ class CachedFilesMixin(object):
             return 'url("%s")' % hashed_url
         return converter
 
-    def path_level(self, (name, hashed_name)):
-        return len(name.split('/'))
-
-    def post_process(self, paths, **options):
+    def post_process(self, paths, dry_run=False, **options):
         """
         Post process the given list of files (called from collectstatic).
         """
-        if options.get('dry_run', False):
-            return
-        self.cache.delete_many([self.cache_key(path) for path in paths])
-        for name, hashed_name in sorted(
-                self.saved_files, key=self.path_level, reverse=True):
-            with self.open(name) as original_file:
-                content = original_file.read()
-                for pattern in self._cached_patterns:
-                    content = pattern.sub(self.url_converter(name), content)
-            with open(self.path(hashed_name), 'w') as hashed_file:
-                hashed_file.write(content)
+        processed_files = []
+        # don't even dare to process the files if we're in dry run mode
+        if dry_run:
+            return processed_files
 
+        # delete cache of all handled paths
+        self.cache.delete_many([self.cache_key(path) for path in paths])
+
+        # only try processing the files we have patterns for
+        matches = lambda path: matches_patterns(path, self._patterns.keys())
+        processing_paths = [path for path in paths if matches(path)]
+
+        # then sort the files by the directory level
+        path_level = lambda name: len(name.split('/'))
+        for name in sorted(paths, key=path_level, reverse=True):
+            with self.open(name) as original_file:
+
+                # first get the original's file content
+                content = original_file.read()
+
+                # and a hashed name for it
+                hashed_name = self.hashed_name(name, ContentFile(content))
+
+                # then apply each replacement pattern on the content
+                if name in processing_paths:
+                    converter = self.url_converter(name)
+                    for patterns in self._patterns.values():
+                        for pattern in patterns:
+                            content = pattern.sub(converter, content)
+
+                # and save the result
+                if self.exists(hashed_name):
+                    self.delete(hashed_name)
+                saved_name = self._save(hashed_name, ContentFile(content))
+                hashed_name = force_unicode(saved_name.replace('\\', '/'))
+                processed_files.append(hashed_name)
+                self.cache.set(self.cache_key(name), hashed_name)
+
+        return processed_files
 
 class CachedStaticFilesStorage(CachedFilesMixin, StaticFilesStorage):
     """
@@ -187,4 +199,4 @@ class ConfiguredStorage(LazyObject):
     def _setup(self):
         self._wrapped = get_storage_class(settings.STATICFILES_STORAGE)()
 
-configured_storage = ConfiguredStorage()
+staticfiles_storage = ConfiguredStorage()
