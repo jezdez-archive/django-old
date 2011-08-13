@@ -362,14 +362,37 @@ class TestFixtures(TestCase):
             % widget.pk
             )
 
+    def test_loaddata_works_when_fixture_has_forward_refs(self):
+        """
+        Regression for #3615 - Forward references cause fixtures not to load in MySQL (InnoDB)
+        """
+        management.call_command(
+            'loaddata',
+            'forward_ref.json',
+            verbosity=0,
+            commit=False
+        )
+        self.assertEqual(Book.objects.all()[0].id, 1)
+        self.assertEqual(Person.objects.all()[0].id, 4)
+
+    def test_loaddata_raises_error_when_fixture_has_invalid_foreign_key(self):
+        """
+        Regression for #3615 - Ensure data with nonexistent child key references raises error
+        """
+        stderr = StringIO()
+        management.call_command(
+            'loaddata',
+            'forward_ref_bad_data.json',
+            verbosity=0,
+            commit=False,
+            stderr=stderr,
+        )
+        self.assertTrue(
+            stderr.getvalue().startswith('Problem installing fixture')
+        )
+
 
 class NaturalKeyFixtureTests(TestCase):
-    def assertRaisesMessage(self, exc, msg, func, *args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except Exception, e:
-            self.assertEqual(msg, str(e))
-            self.assertTrue(isinstance(e, exc), "Expected %s, got %s" % (exc, type(e)))
 
     def test_nk_deserialize(self):
         """

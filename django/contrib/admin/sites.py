@@ -39,13 +39,9 @@ class AdminSite(object):
     password_change_template = None
     password_change_done_template = None
 
-    def __init__(self, name=None, app_name='admin'):
+    def __init__(self, name='admin', app_name='admin'):
         self._registry = {} # model_class class -> admin_class instance
-        self.root_path = None
-        if name is None:
-            self.name = 'admin'
-        else:
-            self.name = name
+        self.name = name
         self.app_name = app_name
         self._actions = {'delete_selected': actions.delete_selected}
         self._global_actions = self._actions.copy()
@@ -254,10 +250,7 @@ class AdminSite(object):
         Handles the "change password" task -- both form display and validation.
         """
         from django.contrib.auth.views import password_change
-        if self.root_path is not None:
-            url = '%spassword_change/done/' % self.root_path
-        else:
-            url = reverse('admin:password_change_done', current_app=self.name)
+        url = reverse('admin:password_change_done', current_app=self.name)
         defaults = {
             'current_app': self.name,
             'post_change_redirect': url
@@ -316,7 +309,6 @@ class AdminSite(object):
         from django.contrib.auth.views import login
         context = {
             'title': _('Log in'),
-            'root_path': self.root_path,
             'app_path': request.get_full_path(),
             REDIRECT_FIELD_NAME: request.get_full_path(),
         }
@@ -373,7 +365,6 @@ class AdminSite(object):
         context = {
             'title': _('Site administration'),
             'app_list': app_list,
-            'root_path': self.root_path,
         }
         context.update(extra_context or {})
         return TemplateResponse(request, [
@@ -416,7 +407,6 @@ class AdminSite(object):
         context = {
             'title': _('%s administration') % capfirst(app_label),
             'app_list': [app_dict],
-            'root_path': self.root_path,
         }
         context.update(extra_context or {})
 

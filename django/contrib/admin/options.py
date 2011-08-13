@@ -6,6 +6,7 @@ from django.forms.models import (modelform_factory, modelformset_factory,
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.admin import widgets, helpers
 from django.contrib.admin.util import unquote, flatten_fieldsets, get_deleted_objects, model_format_dict
+from django.contrib.admin.templatetags.admin_static import static
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -154,7 +155,8 @@ class BaseModelAdmin(object):
         """
         db = kwargs.get('using')
         if db_field.name in self.raw_id_fields:
-            kwargs['widget'] = widgets.ForeignKeyRawIdWidget(db_field.rel, using=db)
+            kwargs['widget'] = widgets.ForeignKeyRawIdWidget(db_field.rel,
+                                    self.admin_site, using=db)
         elif db_field.name in self.radio_fields:
             kwargs['widget'] = widgets.AdminRadioSelect(attrs={
                 'class': get_ul_class(self.radio_fields[db_field.name]),
@@ -174,7 +176,8 @@ class BaseModelAdmin(object):
         db = kwargs.get('using')
 
         if db_field.name in self.raw_id_fields:
-            kwargs['widget'] = widgets.ManyToManyRawIdWidget(db_field.rel, using=db)
+            kwargs['widget'] = widgets.ManyToManyRawIdWidget(db_field.rel,
+                                    self.admin_site, using=db)
             kwargs['help_text'] = ''
         elif db_field.name in (list(self.filter_vertical) + list(self.filter_horizontal)):
             kwargs['widget'] = widgets.FilteredSelectMultiple(db_field.verbose_name, (db_field.name in self.filter_vertical))
@@ -348,7 +351,8 @@ class ModelAdmin(BaseModelAdmin):
         return self.get_urls()
     urls = property(urls)
 
-    def _media(self):
+    @property
+    def media(self):
         js = [
             'core.js',
             'admin/RelatedObjectLookups.js',
@@ -361,8 +365,7 @@ class ModelAdmin(BaseModelAdmin):
             js.extend(['urlify.js', 'prepopulate.min.js'])
         if self.opts.get_ordered_objects():
             js.extend(['getElementsBySelector.js', 'dom-drag.js' , 'admin/ordering.js'])
-        return forms.Media(js=['admin/js/%s' % url for url in js])
-    media = property(_media)
+        return forms.Media(js=[static('admin/js/%s' % url) for url in js])
 
     def has_add_permission(self, request):
         """
@@ -434,6 +437,10 @@ class ModelAdmin(BaseModelAdmin):
         else:
             exclude = list(self.exclude)
         exclude.extend(self.get_readonly_fields(request, obj))
+        if self.exclude is None and hasattr(self.form, '_meta') and self.form._meta.exclude:
+            # Take the custom ModelForm's Meta.exclude into account only if the
+            # ModelAdmin doesn't define its own.
+            exclude.extend(self.form._meta.exclude)
         # if exclude is an empty list we pass None to be consistant with the
         # default on modelform_factory
         exclude = exclude or None
@@ -726,7 +733,6 @@ class ModelAdmin(BaseModelAdmin):
             'content_type_id': ContentType.objects.get_for_model(self.model).id,
             'save_as': self.save_as,
             'save_on_top': self.save_on_top,
-            'root_path': self.admin_site.root_path,
         })
         if add and self.add_form_template is not None:
             form_template = self.add_form_template
@@ -962,7 +968,6 @@ class ModelAdmin(BaseModelAdmin):
             'media': mark_safe(media),
             'inline_admin_formsets': inline_admin_formsets,
             'errors': helpers.AdminErrorList(form, formsets),
-            'root_path': self.admin_site.root_path,
             'app_label': opts.app_label,
         }
         context.update(extra_context or {})
@@ -1053,7 +1058,6 @@ class ModelAdmin(BaseModelAdmin):
             'media': mark_safe(media),
             'inline_admin_formsets': inline_admin_formsets,
             'errors': helpers.AdminErrorList(form, formsets),
-            'root_path': self.admin_site.root_path,
             'app_label': opts.app_label,
         }
         context.update(extra_context or {})
@@ -1146,7 +1150,7 @@ class ModelAdmin(BaseModelAdmin):
                     if form.has_changed():
                         obj = self.save_form(request, form, change=True)
                         self.save_model(request, obj, form, change=True)
-                        form.save_m2m()
+                        self.save_related(request, form, formsets=[], change=True)
                         change_msg = self.construct_change_message(request, form, None)
                         self.log_change(request, obj, change_msg)
                         changecount += 1
@@ -1195,7 +1199,6 @@ class ModelAdmin(BaseModelAdmin):
             'cl': cl,
             'media': media,
             'has_add_permission': self.has_add_permission(request),
-            'root_path': self.admin_site.root_path,
             'app_label': app_label,
             'action_form': action_form,
             'actions_on_top': self.actions_on_top,
@@ -1260,7 +1263,6 @@ class ModelAdmin(BaseModelAdmin):
             "perms_lacking": perms_needed,
             "protected": protected,
             "opts": opts,
-            "root_path": self.admin_site.root_path,
             "app_label": app_label,
         }
         context.update(extra_context or {})
@@ -1288,7 +1290,6 @@ class ModelAdmin(BaseModelAdmin):
             'action_list': action_list,
             'module_name': capfirst(force_unicode(opts.verbose_name_plural)),
             'object': obj,
-            'root_path': self.admin_site.root_path,
             'app_label': app_label,
         }
         context.update(extra_context or {})
@@ -1326,14 +1327,14 @@ class InlineModelAdmin(BaseModelAdmin):
         if self.verbose_name_plural is None:
             self.verbose_name_plural = self.model._meta.verbose_name_plural
 
-    def _media(self):
+    @property
+    def media(self):
         js = ['jquery.min.js', 'jquery.init.js', 'inlines.min.js']
         if self.prepopulated_fields:
-            js.extend(['urlify.js, prepopulate.min.js'])
+            js.extend(['urlify.js', 'prepopulate.min.js'])
         if self.filter_vertical or self.filter_horizontal:
             js.extend(['SelectBox.js', 'SelectFilter2.js'])
-        return forms.Media(js=['admin/js/%s' % url for url in js])
-    media = property(_media)
+        return forms.Media(js=[static('admin/js/%s' % url) for url in js])
 
     def get_formset(self, request, obj=None, **kwargs):
         """Returns a BaseInlineFormSet class for use in admin add/change views."""
@@ -1346,6 +1347,10 @@ class InlineModelAdmin(BaseModelAdmin):
         else:
             exclude = list(self.exclude)
         exclude.extend(self.get_readonly_fields(request, obj))
+        if self.exclude is None and hasattr(self.form, '_meta') and self.form._meta.exclude:
+            # Take the custom ModelForm's Meta.exclude into account only if the
+            # InlineModelAdmin doesn't define its own.
+            exclude.extend(self.form._meta.exclude)
         # if exclude is an empty list we use None, since that's the actual
         # default
         exclude = exclude or None

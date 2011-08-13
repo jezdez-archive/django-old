@@ -1,3 +1,4 @@
+from __future__ import with_statement
 import os
 import re
 import urllib
@@ -205,9 +206,10 @@ class ChangePasswordTest(AuthViewsTestCase):
         self.assertTrue(response['Location'].endswith('/password_change/done/'))
 
     def test_password_change_done_fails(self):
-        response = self.client.get('/password_change/done/')
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response['Location'].endswith('/login/?next=/password_change/done/'))
+        with self.settings(LOGIN_URL='/login/'):
+            response = self.client.get('/password_change/done/')
+            self.assertEqual(response.status_code, 302)
+            self.assertTrue(response['Location'].endswith('/login/?next=/password_change/done/'))
 
 
 class LoginTest(AuthViewsTestCase):

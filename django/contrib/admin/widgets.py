@@ -4,6 +4,7 @@ Form Widget classes specific to the Django admin site.
 
 import copy
 from django import forms
+from django.contrib.admin.templatetags.admin_static import static
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.utils.html import escape
 from django.utils.text import Truncator
@@ -21,9 +22,10 @@ class FilteredSelectMultiple(forms.SelectMultiple):
     """
     template_name = 'admin/forms/filtered_select_multiple.html'
 
-    class Media:
-        js = ["admin/js/%s" % path
-              for path in ["core.js", "SelectBox.js", "SelectFilter2.js"]]
+    @property
+    def media(self):
+        js = ["core.js", "SelectBox.js", "SelectFilter2.js"]
+        return forms.Media(js=[static("admin/js/%s" % path) for path in js])
 
     def __init__(self, verbose_name, is_stacked, attrs=None, choices=()):
         self.verbose_name = verbose_name
@@ -46,17 +48,37 @@ class FilteredSelectMultiple(forms.SelectMultiple):
         })
         return context
 
+    def render(self, name, value, attrs=None, choices=()):
+        if attrs is None:
+            attrs = {}
+        attrs['class'] = 'selectfilter'
+        if self.is_stacked:
+            attrs['class'] += 'stacked'
+        output = [super(FilteredSelectMultiple, self).render(name, value, attrs, choices)]
+        output.append(u'<script type="text/javascript">addEvent(window, "load", function(e) {')
+        # TODO: "id_" is hard-coded here. This should instead use the correct
+        # API to determine the ID dynamically.
+        output.append(u'SelectFilter.init("id_%s", "%s", %s, "%s"); });</script>\n'
+            % (name, self.verbose_name.replace('"', '\\"'), int(self.is_stacked), static('admin/')))
+        return mark_safe(u''.join(output))
+
 class AdminDateWidget(forms.DateInput):
-    class Media:
-        js = ["admin/js/calendar.js", "admin/js/admin/DateTimeShortcuts.js"]
+
+    @property
+    def media(self):
+        js = ["calendar.js", "admin/DateTimeShortcuts.js"]
+        return forms.Media(js=[static("admin/js/%s" % path) for path in js])
 
     def __init__(self, attrs={}, format=None):
         super(AdminDateWidget, self).__init__(
             attrs={'class': 'vDateField', 'size': '10'}, format=format)
 
 class AdminTimeWidget(forms.TimeInput):
-    class Media:
-        js = ["admin/js/calendar.js", "admin/js/admin/DateTimeShortcuts.js"]
+
+    @property
+    def media(self):
+        js = ["calendar.js", "admin/DateTimeShortcuts.js"]
+        return forms.Media(js=[static("admin/js/%s" % path) for path in js])
 
     def __init__(self, attrs={}, format=None):
         super(AdminTimeWidget, self).__init__(
@@ -111,10 +133,9 @@ class ForeignKeyRawIdWidget(forms.TextInput):
     A Widget for displaying ForeignKeys in the "raw_id" interface rather than
     in a <select> box.
     """
-    template_name = 'admin/forms/foreignkey_raw_id.html'
-
-    def __init__(self, rel, attrs=None, using=None):
+    def __init__(self, rel, admin_site, attrs=None, using=None):
         self.rel = rel
+        self.admin_site = admin_site
         self.db = using
         super(ForeignKeyRawIdWidget, self).__init__(attrs)
 
@@ -140,6 +161,36 @@ class ForeignKeyRawIdWidget(forms.TextInput):
             'label': mark_safe(self.label_for_value(value)),
         })
         return context
+
+    def render(self, name, value, attrs=None):
+        rel_to = self.rel.to
+        if attrs is None:
+            attrs = {}
+        extra = []
+        if rel_to in self.admin_site._registry:
+            # The related object is registered with the same AdminSite
+            related_url = reverse('admin:%s_%s_changelist' %
+                                    (rel_to._meta.app_label,
+                                    rel_to._meta.module_name),
+                                    current_app=self.admin_site.name)
+
+            params = self.url_parameters()
+            if params:
+                url = u'?' + u'&amp;'.join([u'%s=%s' % (k, v) for k, v in params.items()])
+            else:
+                url = u''
+            if "class" not in attrs:
+                attrs['class'] = 'vForeignKeyRawIdAdminField' # The JavaScript code looks for this hook.
+            # TODO: "lookup_id_" is hard-coded here. This should instead use
+            # the correct API to determine the ID dynamically.
+            extra.append(u'<a href="%s%s" class="related-lookup" id="lookup_id_%s" onclick="return showRelatedObjectLookupPopup(this);"> '
+                            % (related_url, url, name))
+            extra.append(u'<img src="%s" width="16" height="16" alt="%s" /></a>'
+                            % (static('admin/img/selector-search.gif'), _('Lookup')))
+        output = [super(ForeignKeyRawIdWidget, self).render(name, value, attrs)] + extra
+        if value:
+            output.append(self.label_for_value(value))
+        return mark_safe(u''.join(output))
 
     def base_url_parameters(self):
         return url_params_from_lookup_dict(self.rel.limit_choices_to)
@@ -171,6 +222,12 @@ class ManyToManyRawIdWidget(ForeignKeyRawIdWidget):
             # The JavaScript looks for this hook.
             attrs['class'] = 'vManyToManyRawIdAdminField'
 
+    def render(self, name, value, attrs=None):
+        if attrs is None:
+            attrs = {}
+        if self.rel.to in self.admin_site._registry:
+            # The related object is registered with the same AdminSite
+            attrs['class'] = 'vManyToManyRawIdAdminField'
         if value:
             value = ','.join([force_unicode(v) for v in value])
         else:
@@ -231,9 +288,9 @@ class RelatedFieldWidgetWrapper(forms.Widget):
         memo[id(self)] = obj
         return obj
 
-    def _media(self):
+    @property
+    def media(self):
         return self.widget.media
-    media = property(_media)
 
     def get_context(self, name, value, *args, **kwargs):
         rel_to = self.rel.to
