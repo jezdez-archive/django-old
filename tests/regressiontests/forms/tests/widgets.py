@@ -1437,7 +1437,7 @@ class WidgetsAPITests(TestCase):
             w.render('pwd', None, template_name='forms/widgets/decorated_widget.html'),
             '<input type="text" name="pwd" />Nice widget')
 
-    def test_render_alternative_template(self):
+    def test_render_extra_context(self):
         class SecretPassword(TextInput):
             template_name = 'forms/widgets/secret_pw.html'
 
