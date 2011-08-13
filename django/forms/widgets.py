@@ -162,17 +162,19 @@ class Widget(object):
         memo[id(self)] = obj
         return obj
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, template_name=None, extra_context=None):
         """
         Returns this Widget rendered as HTML, as a Unicode string.
 
         The 'value' given is not guaranteed to be valid input, so subclass
         implementations should program defensively.
         """
-        context = self.get_context(name, value, attrs=attrs)
-        return loader.render_to_string(self.template_name, context)
+        context = self.get_context(name, value, attrs=attrs, extra_context=extra_context)
+        if template_name is None:
+            template_name = self.template_name
+        return loader.render_to_string(template_name, context)
 
-    def get_context(self, name, value, attrs=None):
+    def get_context(self, name, value, attrs=None, extra_context=None):
         final_attrs = self.build_attrs(attrs)
         if 'name' in final_attrs:
             final_attrs.pop('name')
@@ -183,6 +185,8 @@ class Widget(object):
             'required': self.is_required,
         }
         context.update(self.get_context_data())
+        if extra_context is not None:
+            context.update(extra_context)
         return Context(context)
 
     def get_context_data(self):
@@ -243,8 +247,8 @@ class Input(Widget):
     input_type = None  # Subclasses must define this.
     template_name = 'forms/widgets/input.html'
 
-    def get_context(self, name, value, attrs=None):
-        context = super(Input, self).get_context(name, value, attrs)
+    def get_context(self, name, value, attrs=None, extra_context=None):
+        context = super(Input, self).get_context(name, value, attrs, extra_context=extra_context)
         context['type'] = self.input_type
         context.update(self.get_context_data())
 
@@ -274,10 +278,11 @@ class PasswordInput(Input):
         super(PasswordInput, self).__init__(attrs)
         self.render_value = render_value
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, template_name=None, extra_context=None):
         if not self.render_value:
             value=None
-        return super(PasswordInput, self).render(name, value, attrs)
+        return super(PasswordInput, self).render(
+            name, value, attrs, template_name=template_name, extra_context=extra_context)
 
 
 class HiddenInput(Input):
@@ -295,7 +300,7 @@ class MultipleHiddenInput(HiddenInput):
         # choices can be any iterable
         self.choices = choices
 
-    def render(self, name, value, attrs=None, choices=()):
+    def render(self, name, value, attrs=None, choices=(), template_name=None, extra_context=None):
         if value is None: value = []
         final_attrs = self.build_attrs(attrs)
         id_ = final_attrs.get('id', None)
@@ -308,7 +313,7 @@ class MultipleHiddenInput(HiddenInput):
                 input_attrs['id'] = '%s_%s' % (id_, i)
             input_ = HiddenInput()
             input_.is_required = self.is_required
-            inputs.append(input_.render(name, force_unicode(v), input_attrs))
+            inputs.append(input_.render(name, force_unicode(v), input_attrs, template_name=template_name, extra_context=extra_context))
         return u''.join(inputs)
 
     def value_from_datadict(self, data, files, name):
@@ -332,8 +337,9 @@ class BaseFileInput(Input):
 
 
 class FileInput(BaseFileInput):
-    def render(self, name, value, attrs=None):
-        return super(FileInput, self).render(name, None, attrs=attrs)
+    def render(self, name, value, attrs=None, template_name=None, extra_context=None):
+        return super(FileInput, self).render(
+            name, None, attrs=attrs, template_name=template_name, extra_context=extra_context)
 
 FILE_INPUT_CONTRADICTION = object()
 
@@ -357,9 +363,8 @@ class ClearableFileInput(BaseFileInput):
         """
         return name + '_id'
 
-    def get_context(self, name, value, attrs=None):
-        context = super(ClearableFileInput, self).get_context(name, value,
-                                                              attrs=attrs)
+    def get_context(self, name, value, attrs=None, extra_context=None):
+        context = super(ClearableFileInput, self).get_context(name, value, attrs=attrs, extra_context=extra_context)
         checkbox_name = self.clear_checkbox_name(name)
         checkbox_id = self.clear_checkbox_id(checkbox_name)
         context.update({
@@ -397,7 +402,7 @@ class Textarea(Widget):
             default_attrs.update(attrs)
         super(Textarea, self).__init__(default_attrs)
 
-    def get_context(self, name, value, attrs=None):
+    def get_context(self, name, value, attrs=None, extra_context=None):
         if value is None:
             value = ''
         context = {
@@ -406,6 +411,8 @@ class Textarea(Widget):
             'value': value,
         }
         context.update(self.get_context_data())
+        if extra_context is not None:
+            context.update(extra_context)
         return context
 
 
@@ -513,7 +520,7 @@ class CheckboxInput(Input):
         # if the checkbox should be checked for that value.
         self.check_test = check_test
 
-    def get_context(self, name, value, attrs=None):
+    def get_context(self, name, value, attrs=None, extra_context=None):
         final_attrs = self.build_attrs(attrs)
         try:
             result = self.check_test(value)
@@ -521,8 +528,7 @@ class CheckboxInput(Input):
             result = False
         if result:
             final_attrs['checked'] = 'checked'
-        context = super(CheckboxInput, self).get_context(name, None,
-                                                         final_attrs)
+        context = super(CheckboxInput, self).get_context(name, None, final_attrs, extra_context=extra_context)
         context.update(self.get_context_data())
 
         if value not in ('', True, False, None):
@@ -557,14 +563,16 @@ class Select(Widget):
         # more than once.
         self.choices = list(choices)
 
-    def render(self, name, value, attrs=None, choices=()):
-        context = self.get_context(name, value, attrs, choices)
-        return loader.render_to_string(self.template_name, context)
+    def render(self, name, value, attrs=None, choices=(), template_name=None, extra_context=None):
+        context = self.get_context(name, value, attrs, choices=choices, extra_context=extra_context)
+        if template_name is None:
+            template_name = self.template_name
+        return loader.render_to_string(template_name, context)
 
-    def get_context(self, name, value, attrs=None, choices=()):
+    def get_context(self, name, value, attrs=None, choices=(), extra_context=None):
         if value is None:
             value = ''
-        context = super(Select, self).get_context(name, value, attrs)
+        context = super(Select, self).get_context(name, value, attrs=attrs, extra_context=extra_context)
 
         final_choices = []
         for option_value, option_label in chain(self.choices, choices):
@@ -579,6 +587,8 @@ class Select(Widget):
             'choices': final_choices,
             'value': force_unicode(value),
         })
+        if extra_context is not None:
+            context.update(extra_context)
         return context
 
 
@@ -592,12 +602,13 @@ class NullBooleanSelect(Select):
                    (u'3', ugettext('No')))
         super(NullBooleanSelect, self).__init__(attrs, choices)
 
-    def render(self, name, value, attrs=None, choices=()):
+    def render(self, name, value, attrs=None, choices=(), template_name=None, extra_context=None):
         try:
             value = {True: u'2', False: u'3', u'2': u'2', u'3': u'3'}[value]
         except KeyError:
             value = u'1'
-        return super(NullBooleanSelect, self).render(name, value, attrs, choices)
+        return super(NullBooleanSelect, self).render(
+            name, value, attrs=attrs, choices=choices, template_name=template_name, extra_context=extra_context)
 
     def value_from_datadict(self, data, files, name):
         value = data.get(name, None)
@@ -619,18 +630,21 @@ class NullBooleanSelect(Select):
 
 
 class SelectMultiple(Select):
-    def render(self, name, value, attrs=None, choices=()):
+    def render(self, name, value, attrs=None, choices=(), template_name=None, extra_context=None):
         if value is None:
             value = []
-        return super(SelectMultiple, self).render(name, value, attrs, choices)
+        return super(SelectMultiple, self).render(
+            name, value, attrs=attrs, choices=choices, template_name=template_name, extra_context=extra_context)
 
-    def get_context(self, name, value, attrs, choices):
-        context = super(SelectMultiple, self).get_context(name, value,
-                                                          attrs, choices)
+    def get_context(self, name, value, attrs, choices, extra_context=None):
+        context = super(SelectMultiple, self).get_context(
+            name, value, attrs=attrs, choices=choices, extra_context=extra_context)
         context.update({
             'value': map(force_unicode, value),
             'multiple': True,
         })
+        if extra_context is not None:
+            context.update(extra_context)
         return context
 
     def value_from_datadict(self, data, files, name):
@@ -787,7 +801,7 @@ class MultiWidget(Widget):
         self.widgets = [isinstance(w, type) and w() or w for w in widgets]
         super(MultiWidget, self).__init__(attrs)
 
-    def get_context(self, name, value, attrs=None):
+    def get_context(self, name, value, attrs=None, extra_context=None):
         if self.is_localized:
             for widget in self.widgets:
                 widget.is_localized = self.is_localized
@@ -808,15 +822,18 @@ class MultiWidget(Widget):
             output.append(widget.render(name + '_%s' % i, widget_value, final_attrs))
         ctx = Context({'widgets': output})
         ctx.update(self.get_context_data())
+        if extra_context is not None:
+            ctx.update(extra_context)
         return ctx
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, template_name=None, extra_context=None):
         if hasattr(self, 'format_output'):
             import warnings
             warnings.warn(("format_output() is deprecated: use templates "
                            "to alter MultiWidget rendering"),
                           DeprecationWarning)
-        return super(MultiWidget, self).render(name, value, attrs)
+        return super(MultiWidget, self).render(
+            name, value, attrs=attrs, template_name=template_name, extra_context=extra_context)
 
     def id_for_label(self, id_):
         # See the comment for RadioSelect.id_for_label()

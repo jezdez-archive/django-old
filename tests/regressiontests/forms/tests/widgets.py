@@ -42,6 +42,11 @@ class FormsWidgetTestCase(TestCase):
         w = TextInput(attrs={'onBlur': mark_safe("function('foo')")})
         self.assertHTMLEqual(w.render('email', ''), u'<input type="text" name="email" onBlur="function(\'foo\')" />\n')
 
+        w = TextInput()
+        self.assertHTMLEqual(
+            w.render('extended', '', template_name='forms/widgets/extended_widget.html', extra_context={'template': 'forms/widgets/input.html'}),
+            u'<input type="text" name="extended" />Extended!')
+
     def test_passwordinput(self):
         w = PasswordInput()
         self.assertHTMLEqual(w.render('email', ''), u'<input type="password" name="email" />\n')
@@ -67,6 +72,12 @@ class FormsWidgetTestCase(TestCase):
         self.assertHTMLEqual(w.render('email', '', attrs={'class': 'special'}), u'<input type="password" name="email" class="special" />\n')
 
         self.assertHTMLEqual(w.render('email', 'ŠĐĆŽćžšđ', attrs={'class': 'fun'}), u'<input type="password" name="email" value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" class="fun" />\n')
+
+        w = PasswordInput()
+        self.assertHTMLEqual(
+            w.render('extended', '', template_name='forms/widgets/extended_widget.html', extra_context={'template': 'forms/widgets/input.html'}),
+            u'<input type="password" name="extended" />Extended!')
+
 
     def test_hiddeninput(self):
         w = HiddenInput()
@@ -95,6 +106,10 @@ class FormsWidgetTestCase(TestCase):
         w = HiddenInput()
         self.assertHTMLEqual(w.render('get_spam', False), u'<input type="hidden" name="get_spam" value="False" />\n')
         self.assertHTMLEqual(w.render('get_spam', True), u'<input type="hidden" name="get_spam" value="True" />\n')
+
+        self.assertHTMLEqual(
+            w.render('extended', '', template_name='forms/widgets/extended_widget.html', extra_context={'template': 'forms/widgets/input.html'}),
+            u'<input type="hidden" name="extended" />Extended!')
 
     def test_multiplehiddeninput(self):
         w = MultipleHiddenInput()
@@ -125,6 +140,12 @@ class FormsWidgetTestCase(TestCase):
         # Each input gets a separate ID.
         w = MultipleHiddenInput()
         self.assertHTMLEqual(w.render('letters', list('abc'), attrs={'id': 'hideme'}), u'<input type="hidden" name="letters" value="a" id="hideme_0" />\n<input type="hidden" name="letters" value="b" id="hideme_1" />\n<input type="hidden" name="letters" value="c" id="hideme_2" />\n')
+
+        self.assertHTMLEqual(
+            w.render('extended', list('abc'), template_name='forms/widgets/extended_widget.html', extra_context={'template': 'forms/widgets/input.html'}), u'''
+                <input type="hidden" name="extended" value="a" />Extended!
+                <input type="hidden" name="extended" value="b" />Extended!
+                <input type="hidden" name="extended" value="c" />Extended!''')
 
     def test_fileinput(self):
         # FileInput widgets don't ever show the value, because the old value is of no use
@@ -162,6 +183,11 @@ class FormsWidgetTestCase(TestCase):
         # with here)
         self.assertTrue(w._has_changed('resume.txt', {'filename': 'resume.txt', 'content': 'My resume'}))
 
+        w = FileInput()
+        self.assertHTMLEqual(
+            w.render('extended', '', template_name='forms/widgets/extended_widget.html', extra_context={'template': 'forms/widgets/input.html'}),
+            u'<input type="file" name="extended" />Extended!')
+
     def test_textarea(self):
         w = Textarea()
         self.assertHTMLEqual(w.render('msg', ''), u'<textarea name="msg" rows="10" cols="40"></textarea>\n')
@@ -181,6 +207,11 @@ class FormsWidgetTestCase(TestCase):
         self.assertHTMLEqual(w.render('msg', '', attrs={'class': 'special'}), u'<textarea name="msg" rows="10" cols="40" class="special"></textarea>\n')
 
         self.assertHTMLEqual(w.render('msg', 'ŠĐĆŽćžšđ', attrs={'class': 'fun'}), u'<textarea name="msg" rows="10" cols="40" class="fun">\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111</textarea>\n')
+
+        w = Textarea()
+        self.assertHTMLEqual(
+            w.render('extended', '', template_name='forms/widgets/extended_widget.html', extra_context={'template': 'forms/widgets/textarea.html'}),
+            u'<textarea name="extended" rows="10" cols="40" />Extended!')
 
     def test_checkboxinput(self):
         w = CheckboxInput()
@@ -231,6 +262,11 @@ class FormsWidgetTestCase(TestCase):
         self.assertTrue(w._has_changed(False, u'on'))
         self.assertFalse(w._has_changed(True, u'on'))
         self.assertTrue(w._has_changed(True, u''))
+
+        w = CheckboxInput()
+        self.assertHTMLEqual(
+            w.render('extended', '', template_name='forms/widgets/extended_widget.html', extra_context={'template': 'forms/widgets/input.html'}),
+            u'<input type="checkbox" name="extended" />Extended!')
 
     def test_select(self):
         w = Select()
@@ -383,6 +419,17 @@ class FormsWidgetTestCase(TestCase):
 </select>
 """)
 
+        w = Select()
+        self.assertHTMLEqual(
+            w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')),
+                template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            """<select name="beatle">
+                <option value="J" selected="selected">John</option>
+                <option value="P">Paul</option>
+                <option value="G">George</option>
+                <option value="R">Ringo</option>
+            </select>Extended!""")
+
     def test_nullbooleanselect(self):
         w = NullBooleanSelect()
         self.assertHTMLEqual(w.render('is_cool', True), """<select name="is_cool">
@@ -422,6 +469,15 @@ class FormsWidgetTestCase(TestCase):
         self.assertTrue(w._has_changed(True, False))
         self.assertTrue(w._has_changed(True, None))
         self.assertTrue(w._has_changed(True, False))
+
+        w = NullBooleanSelect()
+        self.assertHTMLEqual(
+            w.render('is_cool', True, template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            """<select name="is_cool">
+            <option value="1">Unknown</option>
+            <option value="2" selected="selected">Yes</option>
+            <option value="3">No</option>
+            </select>Extended!""")
 
     def test_selectmultiple(self):
         w = SelectMultiple()
@@ -584,6 +640,16 @@ class FormsWidgetTestCase(TestCase):
 </optgroup>
 </select>
 """)
+
+        w = SelectMultiple()
+        self.assertHTMLEqual(
+            w.render('beatles', ['J'], choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')), template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            """<select name="beatles" multiple="multiple">
+            <option value="J" selected="selected">John</option>
+            <option value="P">Paul</option>
+            <option value="G">George</option>
+            <option value="R">Ringo</option>
+            </select>Extended!""")
 
     def test_radioselect(self):
         w = RadioSelect()
@@ -757,6 +823,16 @@ beatle J R Ringo False""")
 <li><label for="bar_3"><input type="radio" id="bar_3" value="R" name="beatle" /> Ringo</label></li>
 </ul>
 """)
+
+        w = RadioSelect()
+        self.assertHTMLEqual(
+            w.render('beatle', 'J', choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')), template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            """<ul>
+            <li><label><input checked="checked" type="radio" value="J" name="beatle" /> John</label></li>
+            <li><label><input type="radio" value="P" name="beatle" /> Paul</label></li>
+            <li><label><input type="radio" value="G" name="beatle" /> George</label></li>
+            <li><label><input type="radio" value="R" name="beatle" /> Ringo</label></li>
+            </ul>Extended!""")
 
     def test_checkboxselectmultiple(self):
         w = CheckboxSelectMultiple()
@@ -945,6 +1021,20 @@ beatle J R Ringo False""")
 </ul>
 """)
 
+        w = CheckboxSelectMultiple()
+        self.assertHTMLEqual(
+            w.render('beatles', ['J'], choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo')), template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            """<ul>
+            <li><label><input type="checkbox" name="beatles" value="J" checked="checked" />
+             John</label></li>
+            <li><label><input type="checkbox" name="beatles" value="P" />
+             Paul</label></li>
+            <li><label><input type="checkbox" name="beatles" value="G" />
+             George</label></li>
+            <li><label><input type="checkbox" name="beatles" value="R" />
+             Ringo</label></li>
+            </ul>Extended!""")
+
     def test_multi(self):
         class MyMultiWidget(MultiWidget):
             template_name = 'forms/widgets/my_multi_widget.html'
@@ -976,6 +1066,11 @@ beatle J R Ringo False""")
         # short circuiting while testing the widgets.
         self.assertTrue(w._has_changed(u'john__lennon', [u'john', u'denver']))
 
+        w = MyMultiWidget(widgets=(TextInput(attrs={'class': 'big'}), TextInput(attrs={'class': 'small'})))
+        self.assertHTMLEqual(
+            w.render('name', ['john', 'lennon'], template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            u'<input type="text" name="name_0" value="john" class="big" /><br /><input type="text" name="name_1" value="lennon" class="small" />Extended!')
+
     def test_splitdatetime(self):
         w = SplitDateTimeWidget()
         self.assertHTMLEqual(w.render('date', ''), u'<input type="text" name="date_0" />\n<input type="text" name="date_1" />\n\n')
@@ -994,6 +1089,11 @@ beatle J R Ringo False""")
         self.assertTrue(w._has_changed(datetime.datetime(2008, 5, 6, 12, 40, 00), [u'2008-05-06', u'12:40:00']))
         self.assertFalse(w._has_changed(datetime.datetime(2008, 5, 6, 12, 40, 00), [u'06/05/2008', u'12:40']))
         self.assertTrue(w._has_changed(datetime.datetime(2008, 5, 6, 12, 40, 00), [u'06/05/2008', u'12:41']))
+
+        w = SplitDateTimeWidget()
+        self.assertHTMLEqual(
+            w.render('date', datetime.datetime(2006, 1, 10, 7, 30), template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            u'<input type="text" name="date_0" value="2006-01-10" /><input type="text" name="date_1" value="07:30:00" />Extended!')
 
     def test_datetimeinput(self):
         w = DateTimeInput()
@@ -1017,6 +1117,11 @@ beatle J R Ringo False""")
         w = DateTimeInput(format=custom_format)
         self.assertFalse(w._has_changed(formats.localize_input(data), data.strftime(custom_format)))
 
+        w = DateTimeInput()
+        self.assertHTMLEqual(
+            w.render('date', None, template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            u'<input type="text" name="date" />Extended!')
+
     def test_dateinput(self):
         w = DateInput()
         self.assertHTMLEqual(w.render('date', None), u'<input type="text" name="date" />\n')
@@ -1039,6 +1144,11 @@ beatle J R Ringo False""")
         custom_format = '%d.%m.%Y'
         w = DateInput(format=custom_format)
         self.assertFalse(w._has_changed(formats.localize_input(data), data.strftime(custom_format)))
+
+        w = DateInput()
+        self.assertHTMLEqual(
+            w.render('date', None, template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            u'<input type="text" name="date" />Extended!')
 
     def test_timeinput(self):
         w = TimeInput()
@@ -1065,6 +1175,11 @@ beatle J R Ringo False""")
         w = TimeInput(format=custom_format)
         self.assertFalse(w._has_changed(formats.localize_input(data), data.strftime(custom_format)))
 
+        w = TimeInput()
+        self.assertHTMLEqual(
+            w.render('time', None, template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            u'<input type="text" name="time" />Extended!')
+
     def test_splithiddendatetime(self):
         from django.forms.widgets import SplitHiddenDateTimeWidget
 
@@ -1075,6 +1190,10 @@ beatle J R Ringo False""")
         self.assertHTMLEqual(w.render('date', d), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:34" />\n\n')
         self.assertHTMLEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51, 34)), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:34" />\n\n')
         self.assertHTMLEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51)), u'<input type="hidden" name="date_0" value="2007-09-17" />\n<input type="hidden" name="date_1" value="12:51:00" />\n\n')
+
+        self.assertHTMLEqual(
+            w.render('date', '', template_name='forms/widgets/extended_widget.html', extra_context={'template': w.template_name}),
+            u'<input type="hidden" name="date_0" /><input type="hidden" name="date_1" />Extended!')
 
 
 class FormsI18NWidgetsTestCase(TestCase):
@@ -1283,8 +1402,8 @@ class WidgetsAPITests(TestCase):
         class OtherWidget(PasswordInput):
             template_name = 'forms/widgets/secret_pw.html'
 
-            def get_context(self, name, value, attrs=None):
-                ctx = super(OtherWidget, self).get_context(name, value, attrs)
+            def get_context(self, name, value, attrs=None, **kwargs):
+                ctx = super(OtherWidget, self).get_context(name, value, attrs, **kwargs)
                 ctx['secret'] = True
                 return ctx
 
@@ -1305,9 +1424,24 @@ class WidgetsAPITests(TestCase):
                 ctx['has_placeholder'] = True
                 return ctx
 
-            def get_context(self, name, value, attrs=None):
-                ctx = super(EmailWidget, self).get_context(name, value, attrs)
+            def get_context(self, name, value, attrs=None, **kwargs):
+                ctx = super(EmailWidget, self).get_context(name, value, attrs, **kwargs)
                 ctx['attrs']['placeholder'] = 'john@example.com'
                 return ctx
         w = EmailWidget()
         self.assertHTMLEqual(w.render('email', 'test@example.com'), '<input type="email" name="email" value="test@example.com" placeholder="john@example.com" />\nYup, there is a placeholder\n')
+
+    def test_render_alternative_template(self):
+        w = TextInput()
+        self.assertHTMLEqual(
+            w.render('pwd', None, template_name='forms/widgets/decorated_widget.html'),
+            '<input type="text" name="pwd" />Nice widget')
+
+    def test_render_alternative_template(self):
+        class SecretPassword(TextInput):
+            template_name = 'forms/widgets/secret_pw.html'
+
+        w = SecretPassword()
+        self.assertHTMLEqual(
+            w.render('pwd', None, extra_context={'secret': True}),
+            u'''<input type="text" name="pwd" />This password is secret, don't tell anyone!''')
