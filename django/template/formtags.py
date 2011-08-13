@@ -69,7 +69,7 @@ class ConfigPopException(Exception):
 class FormConfig(object):
     defaults = {
         'layout': lambda **kwargs: 'forms/layouts/default.html',
-        'rowtemplate': lambda **kwargs: 'forms/rows/default.html',
+        'row_template': lambda **kwargs: 'forms/rows/default.html',
         'label': default_label,
         'help_text': default_help_text,
         'widget': default_widget,
@@ -265,7 +265,7 @@ class RowModifier(ModifierBase):
                 if settings.TEMPLATE_DEBUG:
                     raise
                 return u''
-            config.configure('rowtemplate', template_name)
+            config.configure('row_template', template_name)
         if self.options['with']:
             extra_context = dict([
                 (name, var.resolve(context))
@@ -471,7 +471,7 @@ class FormRowNode(BaseFormRenderNode):
 
     def get_template_name(self, context):
         config = self.get_config(context)
-        return config.retrieve('rowtemplate')
+        return config.retrieve('row_template')
 
     def get_extra_context(self, context):
         extra_context = super(FormRowNode, self).get_extra_context(context)

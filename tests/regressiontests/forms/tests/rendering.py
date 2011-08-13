@@ -57,7 +57,7 @@ class FormConfigTests(TestCase):
 
         # retrieve row template
 
-        template = config.retrieve('rowtemplate', fields=(form['name'], form['email'],))
+        template = config.retrieve('row_template', fields=(form['name'], form['email'],))
         self.assertEqual(template, 'forms/rows/default.html')
 
         # retrieve form layout

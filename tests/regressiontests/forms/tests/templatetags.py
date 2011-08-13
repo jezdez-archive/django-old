@@ -102,13 +102,13 @@ class FormConfigNodeTests(TestCase):
             '{% formconfig row using "my_row_template.html" %}')[0]
         node.render(context)
         config = node.get_config(context)
-        self.assertEqual(config.retrieve('rowtemplate'), 'my_row_template.html')
+        self.assertEqual(config.retrieve('row_template'), 'my_row_template.html')
 
         context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
         node = compile_to_nodelist('{% formconfig row using empty_var %}')[0]
         node.render(context)
         config = node.get_config(context)
-        self.assertEqual(config.retrieve('rowtemplate'), 'forms/rows/default.html')
+        self.assertEqual(config.retrieve('row_template'), 'forms/rows/default.html')
 
     def test_row_config_with(self):
         context = Context({FormNode.IN_FORM_CONTEXT_VAR: True})
