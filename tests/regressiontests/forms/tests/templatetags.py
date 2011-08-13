@@ -513,3 +513,26 @@ class FormFieldTagTests(TestCase):
     def test_widget_template(self):
         with self.assertTemplateUsed('forms/widgets/input.html'):
             render('{% formfield myform.name %}', {'myform': SimpleForm()})
+        with self.assertTemplateUsed('simple_formfield_tag.html'):
+            render('{% formfield myform.name using "simple_formfield_tag.html" %}', {'myform': SimpleForm()})
+
+    def test_configure_template_with_extra_context(self):
+        form = SimpleForm()
+        with self.assertTemplateUsed('simple_formfield_tag.html'):
+            self.assertHTMLEqual(render('''{% form myform using %}
+                {% formconfig field using "simple_formfield_tag.html" %}
+                {% formfield form.name with extra_argument="I want bacon!" %}
+            {% endform %}''', {'myform': form}), '''Type: text Extra argument: I want bacon!''')
+
+    def test_configure_extra_context(self):
+        form = SimpleForm()
+        self.assertHTMLEqual(render('''{% form myform using %}
+            {% formconfig field with extra_argument="I want spam!" %}
+            {% formconfig field with extra_argument="I want ham!" %}
+            {% formfield form.name using "simple_formfield_tag.html"  %}
+        {% endform %}''', {'myform': form}), '''Type: text Extra argument: I want ham!''')
+
+        self.assertHTMLEqual(render('''{% form myform using %}
+            {% formconfig field using "simple_formfield_tag.html" with extra_argument="I want ham!" %}
+            {% formfield form.name %}
+        {% endform %}''', {'myform': form}), '''Type: text Extra argument: I want ham!''')

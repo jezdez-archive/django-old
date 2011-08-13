@@ -140,7 +140,6 @@ class BaseNode(Node):
     IN_FORM_CONTEXT_VAR = '_form_render'
 
     form_config = FormConfig
-    default_template_name = None
     single_template_var = None
     list_template_var = None
 
@@ -371,9 +370,9 @@ class BaseFormRenderNode(BaseNode):
     responsible for actually rendering a form.
     '''
     def get_template_name(self, context):
-        return self.default_template_name
+        raise NotImplementedError
 
-    def get_nodelist(self, context):
+    def get_nodelist(self, context, extra_context):
         if 'nodelist' in self.options:
             return self.options['nodelist']
         try:
@@ -397,8 +396,9 @@ class BaseFormRenderNode(BaseNode):
 
         extra_context =  {
             self.single_template_var: variables[0] if variables else None,
-            self.list_template_var: variables,
         }
+        if self.list_template_var:
+            extra_context[self.list_template_var] = variables
 
         if self.options['with']:
             extra_context.update(dict([
@@ -410,10 +410,10 @@ class BaseFormRenderNode(BaseNode):
     def render(self, context):
         only = self.options['only']
 
-        nodelist = self.get_nodelist(context)
+        extra_context = self.get_extra_context(context)
+        nodelist = self.get_nodelist(context, extra_context)
         if nodelist is None:
             return ''
-        extra_context = self.get_extra_context(context)
 
         if only:
             context = context.new(extra_context)
@@ -426,9 +426,12 @@ class BaseFormRenderNode(BaseNode):
 
 
 class FormNode(BaseFormRenderNode):
-    default_template_name = 'forms/layouts/default.html'
     single_template_var = 'form'
     list_template_var = 'forms'
+
+    def get_template_name(self, context):
+        config = self.get_config(context)
+        return config.retrieve('layout')
 
     def render(self, context):
         context.push()
@@ -463,16 +466,12 @@ class FormNode(BaseFormRenderNode):
 
 
 class FormRowNode(BaseFormRenderNode):
-    default_template_name = 'forms/rows/default.html'
     single_template_var = 'field'
     list_template_var = 'fields'
 
     def get_template_name(self, context):
         config = self.get_config(context)
-        template_name = config.retrieve('rowtemplate')
-        if template_name:
-            return template_name
-        return self.default_template_name
+        return config.retrieve('rowtemplate')
 
     def get_extra_context(self, context):
         extra_context = super(FormRowNode, self).get_extra_context(context)
@@ -491,27 +490,75 @@ class FormRowNode(BaseFormRenderNode):
 
 
 class FormFieldNode(BaseFormRenderNode):
-    def __init__(self, field):
-        self.field = field
+    single_template_var = 'field'
+
+    def get_extra_context(self, context):
+        extra_context = super(FormFieldNode, self).get_extra_context(context)
+        field = extra_context[self.single_template_var]
+        config = self.get_config(context)
+        configured_context = {}
+        # most recently used values should overwrite older ones
+        for extra in reversed(config.retrieve_all('widget_context', bound_field=field)):
+            configured_context.update(extra)
+        configured_context.update(extra_context)
+        return configured_context
 
     def render(self, context):
+        only = self.options['only']
+        config = self.get_config(context)
+
+        assert len(self.variables) == 1
         try:
-            field = self.field.resolve(context)
+            bound_field = self.variables[0].resolve(context)
         except VariableDoesNotExist:
             if settings.DEBUG:
                 raise
             return u''
-        return unicode(field)
+
+        extra_context = self.get_extra_context(context)
+        template_name = config.retrieve('widget_template', bound_field=bound_field)
+        if 'using' in self.options:
+            try:
+                template_name = self.options['using'].resolve(context)
+            except VariableDoesNotExist:
+                if settings.DEBUG:
+                    raise
+                return u''
+
+        output = bound_field.as_widget(
+            template_name=template_name,
+            extra_context=extra_context)
+        if bound_field.field.show_hidden_initial:
+            return output + bound_field.as_hidden(only_initial=True)
+        return output
+
+        if only:
+            context = context.new(extra_context)
+            output = bound_field.as_widget(context,
+                template_name=template_name,
+                extra_context=extra_context)
+        else:
+            context.update(extra_context)
+            output = bound_field.as_widget(context,
+                template_name=template_name,
+                extra_context=extra_context)
+            context.pop()
+        return output
 
     @classmethod
-    def parse(cls, parser, tokens):
-        bits = tokens.split_contents()
-        tagname = bits.pop(0)
-        if len(bits) != 1:
-            raise TemplateSyntaxError('%s expects exactly one argument.' %
-                tagname)
-        field_var = Variable(bits[0])
-        return cls(field_var)
+    def parse_variables(cls, tagname, parser, bits, options):
+        variables = []
+        while bits and bits[0] not in ('using', 'with', 'only'):
+            variables.append(Variable(bits.pop(0)))
+        if len(variables) != 1:
+            raise TemplateSyntaxError(
+                u'%s tag expectes exactly one template variable as argument.' % tagname)
+        return variables
+
+    @classmethod
+    def parse_using(cls, tagname, parser, bits, options, optional=True):
+        return super(FormFieldNode, cls).parse_using(
+            tagname, parser, bits, options, optional)
 
 
 register.tag('formconfig', FormConfigNode.parse)

@@ -58,7 +58,7 @@ class SelectDateWidget(Widget):
             this_year = datetime.date.today().year
             self.years = range(this_year, this_year+10)
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, **kwargs):
         try:
             year_val, month_val, day_val = value.year, value.month, value.day
         except AttributeError:

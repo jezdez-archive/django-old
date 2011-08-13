@@ -421,7 +421,7 @@ class BoundField(StrAndUnicode):
         return self.form.errors.get(self.name, self.form.error_class())
     errors = property(_errors)
 
-    def as_widget(self, widget=None, attrs=None, only_initial=False):
+    def as_widget(self, widget=None, attrs=None, only_initial=False, template_name=None, extra_context=None):
         """
         Renders the field by rendering the passed widget, adding any HTML
         attributes passed as attrs.  If no widget is specified, then the
@@ -442,7 +442,8 @@ class BoundField(StrAndUnicode):
             name = self.html_name
         else:
             name = self.html_initial_name
-        return widget.render(name, self.value(), attrs=attrs)
+        return widget.render(name, self.value(), attrs=attrs,
+            template_name=template_name, extra_context=extra_context)
 
     def as_text(self, attrs=None, **kwargs):
         """
