@@ -504,7 +504,6 @@ class FormFieldNode(BaseFormRenderNode):
         return configured_context
 
     def render(self, context):
-        only = self.options['only']
         config = self.get_config(context)
 
         assert len(self.variables) == 1
@@ -530,19 +529,6 @@ class FormFieldNode(BaseFormRenderNode):
             extra_context=extra_context)
         if bound_field.field.show_hidden_initial:
             return output + bound_field.as_hidden(only_initial=True)
-        return output
-
-        if only:
-            context = context.new(extra_context)
-            output = bound_field.as_widget(context,
-                template_name=template_name,
-                extra_context=extra_context)
-        else:
-            context.update(extra_context)
-            output = bound_field.as_widget(context,
-                template_name=template_name,
-                extra_context=extra_context)
-            context.pop()
         return output
 
     @classmethod
