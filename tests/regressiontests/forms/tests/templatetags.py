@@ -492,7 +492,7 @@ class FormRowTagTests(TestCase):
         self.assertHTMLEqual(render('''{% form myform using %}
             {% formconfig row with extra_argument="I want spam!" %}
             {% formconfig row with extra_argument="I want ham!" %}
-            {% formrow form.name using "simple_formrow_tag.html"  %}
+            {% formrow form.name using "simple_formrow_tag.html" %}
         {% endform %}'''), '''Fields: 0 Extra argument: I want ham!''')
 
         self.assertHTMLEqual(render('''{% form myform using %}
@@ -533,7 +533,7 @@ class FormFieldTagTests(TestCase):
         self.assertHTMLEqual(render('''{% form myform using %}
             {% formconfig field with extra_argument="I want spam!" %}
             {% formconfig field with extra_argument="I want ham!" %}
-            {% formfield form.name using "simple_formfield_tag.html"  %}
+            {% formfield form.name using "simple_formfield_tag.html" %}
         {% endform %}''', {'myform': form}), '''Type: text Extra argument: I want ham!''')
 
         self.assertHTMLEqual(render('''{% form myform using %}
