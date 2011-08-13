@@ -520,6 +520,20 @@ class FormFieldTagTests(TestCase):
         with self.assertTemplateUsed('simple_formfield_tag.html'):
             render('{% formfield myform.name using "simple_formfield_tag.html" %}', {'myform': SimpleForm()})
 
+    def test_outer_scope(self):
+        self.assertHTMLEqual(render('''
+            {% with "yepyep" as extra_argument %}
+            {% formfield myform.name using "simple_formfield_tag.html" %}
+            {% endwith %}
+        ''', {'myform': SimpleForm()}), 'Type: text Extra argument: yepyep')
+
+    def test_only_option(self):
+        self.assertHTMLEqual(render('''
+            {% with "yepyep" as extra_argument %}
+            {% formfield myform.name using "simple_formfield_tag.html" only %}
+            {% endwith %}
+        ''', {'myform': SimpleForm()}), 'Type: text')
+
     def test_configure_template_with_extra_context(self):
         form = SimpleForm()
         with self.assertTemplateUsed('simple_formfield_tag.html'):
@@ -536,10 +550,11 @@ class FormFieldTagTests(TestCase):
             {% formfield form.name using "simple_formfield_tag.html" %}
         {% endform %}''', {'myform': form}), '''Type: text Extra argument: I want ham!''')
 
+        context = Context({'myform': form})
         self.assertHTMLEqual(render('''{% form myform using %}
             {% formconfig field using "simple_formfield_tag.html" with extra_argument="I want ham!" %}
             {% formfield form.name %}
-        {% endform %}''', {'myform': form}), '''Type: text Extra argument: I want ham!''')
+        {% endform %}''', context), '''Type: text Extra argument: I want ham!''')
 
     def test_change_widget(self):
         form = SimpleForm()

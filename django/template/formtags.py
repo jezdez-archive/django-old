@@ -525,10 +525,20 @@ class FormFieldNode(BaseFormRenderNode):
                     raise
                 return u''
 
+        if self.options['only']:
+            context_instance = context.new(extra_context)
+        else:
+            context.update(extra_context)
+            context_instance = context
+
         output = bound_field.as_widget(
             widget=widget,
             template_name=template_name,
-            extra_context=extra_context)
+            context_instance=context_instance)
+
+        if not self.options['only']:
+            context.pop()
+
         if bound_field.field.show_hidden_initial:
             return output + bound_field.as_hidden(only_initial=True)
         return output
