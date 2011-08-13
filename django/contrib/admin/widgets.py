@@ -32,13 +32,14 @@ class FilteredSelectMultiple(forms.SelectMultiple):
         self.is_stacked = is_stacked
         super(FilteredSelectMultiple, self).__init__(attrs, choices)
 
-    def get_context(self, name, value, attrs, choices):
-        attrs = attrs or {}
+    def get_context(self, name, value, attrs, choices, **kwargs):
+        if attrs is None:
+            attrs = {}
         attrs['class'] = 'selectfilter'
         if self.is_stacked:
             attrs['class'] += 'stacked'
-        context = super(FilteredSelectMultiple,
-                        self).get_context(name, value, attrs, choices)
+        context = super(FilteredSelectMultiple, self).get_context(
+            name, value, attrs=attrs, choices=choices, **kwargs)
 
         context.update({
             'verbose_name': self.verbose_name.replace('"', '\\"'),
@@ -47,20 +48,6 @@ class FilteredSelectMultiple(forms.SelectMultiple):
             'multiple': True,
         })
         return context
-
-    def render(self, name, value, attrs=None, choices=()):
-        if attrs is None:
-            attrs = {}
-        attrs['class'] = 'selectfilter'
-        if self.is_stacked:
-            attrs['class'] += 'stacked'
-        output = [super(FilteredSelectMultiple, self).render(name, value, attrs, choices)]
-        output.append(u'<script type="text/javascript">addEvent(window, "load", function(e) {')
-        # TODO: "id_" is hard-coded here. This should instead use the correct
-        # API to determine the ID dynamically.
-        output.append(u'SelectFilter.init("id_%s", "%s", %s, "%s"); });</script>\n'
-            % (name, self.verbose_name.replace('"', '\\"'), int(self.is_stacked), static('admin/')))
-        return mark_safe(u''.join(output))
 
 class AdminDateWidget(forms.DateInput):
 
@@ -133,40 +120,22 @@ class ForeignKeyRawIdWidget(forms.TextInput):
     A Widget for displaying ForeignKeys in the "raw_id" interface rather than
     in a <select> box.
     """
+    template_name = 'admin/forms/foreignkey_raw_id.html'
+
     def __init__(self, rel, admin_site, attrs=None, using=None):
         self.rel = rel
         self.admin_site = admin_site
         self.db = using
         super(ForeignKeyRawIdWidget, self).__init__(attrs)
 
-    def get_context(self, name, value, attrs=None):
-        attrs = attrs or {}
-        if "class" not in attrs:
-            # The JavaScript looks for this hook.
-            attrs['class'] = 'vForeignKeyRawIdAdminField'
-
-        context = super(ForeignKeyRawIdWidget, self).get_context(
-            name, value, attrs)
-
-        context['related_url'] = '../../../%s/%s/' % (
-            self.rel.to._meta.app_label, self.rel.to._meta.object_name.lower())
-
-        params = self.url_parameters()
-        url = u''
-        if params:
-            url = u'?' + u'&'.join([u'%s=%s' % (k, v) for k, v in params.items()])
-        context.update({
-            'url': url,
-            'alt': _('Lookup'),
-            'label': mark_safe(self.label_for_value(value)),
-        })
-        return context
-
-    def render(self, name, value, attrs=None):
+    def get_context(self, name, value, attrs=None, **kwargs):
         rel_to = self.rel.to
         if attrs is None:
             attrs = {}
-        extra = []
+
+        context = super(ForeignKeyRawIdWidget, self).get_context(
+            name, value, attrs=attrs, **kwargs)
+
         if rel_to in self.admin_site._registry:
             # The related object is registered with the same AdminSite
             related_url = reverse('admin:%s_%s_changelist' %
@@ -175,22 +144,20 @@ class ForeignKeyRawIdWidget(forms.TextInput):
                                     current_app=self.admin_site.name)
 
             params = self.url_parameters()
+            url = u''
             if params:
-                url = u'?' + u'&amp;'.join([u'%s=%s' % (k, v) for k, v in params.items()])
-            else:
-                url = u''
-            if "class" not in attrs:
-                attrs['class'] = 'vForeignKeyRawIdAdminField' # The JavaScript code looks for this hook.
-            # TODO: "lookup_id_" is hard-coded here. This should instead use
-            # the correct API to determine the ID dynamically.
-            extra.append(u'<a href="%s%s" class="related-lookup" id="lookup_id_%s" onclick="return showRelatedObjectLookupPopup(this);"> '
-                            % (related_url, url, name))
-            extra.append(u'<img src="%s" width="16" height="16" alt="%s" /></a>'
-                            % (static('admin/img/selector-search.gif'), _('Lookup')))
-        output = [super(ForeignKeyRawIdWidget, self).render(name, value, attrs)] + extra
-        if value:
-            output.append(self.label_for_value(value))
-        return mark_safe(u''.join(output))
+                url = u'?' + u'&'.join([u'%s=%s' % (k, v) for k, v in params.items()])
+            if "class" not in context['attrs']:
+                context['attrs']['class'] = 'vForeignKeyRawIdAdminField' # The JavaScript code looks for this hook.
+
+            context.update({
+                'related_url': related_url,
+                'url': url,
+                'alt': _('Lookup'),
+            })
+
+        context['label'] = mark_safe(self.label_for_value(value))
+        return context
 
     def base_url_parameters(self):
         return url_params_from_lookup_dict(self.rel.limit_choices_to)
@@ -216,13 +183,7 @@ class ManyToManyRawIdWidget(ForeignKeyRawIdWidget):
     """
     template_name = 'admin/forms/foreignkey_raw_id.html'
 
-    def get_context(self, name, value, attrs=None):
-        attrs = attrs or {}
-        if "class" not in attrs:
-            # The JavaScript looks for this hook.
-            attrs['class'] = 'vManyToManyRawIdAdminField'
-
-    def render(self, name, value, attrs=None):
+    def get_context(self, name, value, attrs=None, **kwargs):
         if attrs is None:
             attrs = {}
         if self.rel.to in self.admin_site._registry:
@@ -232,9 +193,7 @@ class ManyToManyRawIdWidget(ForeignKeyRawIdWidget):
             value = ','.join([force_unicode(v) for v in value])
         else:
             value = ''
-
-        return super(ManyToManyRawIdWidget,
-                     self).get_context(name, value, attrs)
+        return super(ManyToManyRawIdWidget, self).get_context(name, value, attrs=attrs, **kwargs)
 
     def url_parameters(self):
         return self.base_url_parameters()
@@ -295,17 +254,13 @@ class RelatedFieldWidgetWrapper(forms.Widget):
     def get_context(self, name, value, *args, **kwargs):
         rel_to = self.rel.to
         info = (rel_to._meta.app_label, rel_to._meta.object_name.lower())
-        try:
-            related_url = reverse('admin:%s_%s_add' % info, current_app=self.admin_site.name)
-        except NoReverseMatch:
-            info = (
-                self.admin_site.root_path,
-                rel_to._meta.app_label,
-                rel_to._meta.object_name.lower())
-            related_url = '%s%s/%s/add/' % info
         self.widget.choices = self.choices
         context = super(RelatedFieldWidgetWrapper, self).get_context(
             name, value, *args, **kwargs)
+        if self.can_add_related:
+            related_url = reverse('admin:%s_%s_add' % info, current_app=self.admin_site.name)
+        else:
+            related_url = None
         context.update({
             'widget': self.widget.render(name, value, *args, **kwargs),
             'related_url': related_url,

@@ -192,14 +192,14 @@ class AdminForeignKeyRawIdWidget(DjangoTestCase):
 class FilteredSelectMultipleWidgetTest(DjangoTestCase):
     def test_render(self):
         w = widgets.FilteredSelectMultiple('test', False)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', 'test')),
             '<select multiple="multiple" name="test" class="selectfilter">\n</select><script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 0, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % admin_media_prefix()
         )
 
     def test_stacked_render(self):
         w = widgets.FilteredSelectMultiple('test', True)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', 'test')),
             '<select multiple="multiple" name="test" class="selectfilterstacked">\n</select><script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 1, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % admin_media_prefix()
         )
@@ -208,7 +208,7 @@ class FilteredSelectMultipleWidgetTest(DjangoTestCase):
 class AdminSplitDateTimeWidgetTest(DjangoTestCase):
     def test_render(self):
         w = widgets.AdminSplitDateTime()
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
             '<p class="datetime">Date: <input type="text" name="test_0" value="2007-12-01" class="vDateField" size="10" />\n<br />Time: <input type="text" name="test_1" value="09:30:00" class="vTimeField" size="8" />\n</p>\n',
         )
@@ -233,7 +233,7 @@ class AdminFileWidgetTest(DjangoTestCase):
         )
 
         w = widgets.AdminFileWidget()
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', album.cover_art)),
             '<p class="file-upload">Currently: <a href="%(STORAGE_URL)salbums/hybrid_theory.jpg">albums\hybrid_theory.jpg</a>\n<span class="clearable-file-input"><input type="checkbox" name="test-clear" id="test-clear_id" />\n<label for="test-clear_id">Clear</label></span>\n<br />\nChange: <input type="file" name="test" />\n</p>\n' % { 'STORAGE_URL': default_storage.url('') },
         )
@@ -253,7 +253,7 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         rel = models.Album._meta.get_field('band').rel
 
         w = widgets.ForeignKeyRawIdWidget(rel, widget_admin_site)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', band.pk, attrs={})),
             '<input type="text" name="test" value="%(bandpk)s" class="vForeignKeyRawIdAdminField" /><a href="/widget_admin/admin_widgets/band/?t=id" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Linkin Park</strong>' % dict(admin_media_prefix(), bandpk=band.pk)
         )
@@ -268,7 +268,7 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         )
         rel = models.Inventory._meta.get_field('parent').rel
         w = widgets.ForeignKeyRawIdWidget(rel, widget_admin_site)
-        self.assertEqual(
+        self.assertHTMLEqual(
             w.render('test', core.parent_id, attrs={}),
             '<input type="text" name="test" value="86" class="vForeignKeyRawIdAdminField" /><a href="/widget_admin/admin_widgets/inventory/?t=barcode" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="%(ADMIN_MEDIA_PREFIX)simg/selector-search.gif" width="16" height="16" alt="Lookup" /></a>&nbsp;<strong>Apple</strong>' % admin_media_prefix()
         )
@@ -281,7 +281,7 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         rel = models.Bee._meta.get_field('honeycomb').rel
 
         w = widgets.ForeignKeyRawIdWidget(rel, widget_admin_site)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('honeycomb_widget', big_honeycomb.pk, attrs={})),
             '<input type="text" name="honeycomb_widget" value="%(hcombpk)s" />&nbsp;<strong>Honeycomb object</strong>' % {'hcombpk': big_honeycomb.pk}
         )
@@ -294,7 +294,7 @@ class ForeignKeyRawIdWidgetTest(DjangoTestCase):
         rel = models.Individual._meta.get_field('parent').rel
 
         w = widgets.ForeignKeyRawIdWidget(rel, widget_admin_site)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('individual_widget', subject1.pk, attrs={})),
             '<input type="text" name="individual_widget" value="%(subj1pk)s" />&nbsp;<strong>Individual object</strong>' % {'subj1pk': subject1.pk}
         )
@@ -326,7 +326,7 @@ class ManyToManyRawIdWidgetTest(DjangoTestCase):
         rel = models.Band._meta.get_field('members').rel
 
         w = widgets.ManyToManyRawIdWidget(rel, widget_admin_site)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('test', [m1.pk, m2.pk], attrs={})),
             '<input type="text" name="test" value="%(m1pk)s,%(m2pk)s" class="vManyToManyRawIdAdminField" /><a href="/widget_admin/admin_widgets/member/" class="related-lookup" id="lookup_id_test" onclick="return showRelatedObjectLookupPopup(this);"> <img src="/static/admin/img/selector-search.gif" width="16" height="16" alt="Lookup" /></a>' % dict(admin_media_prefix(), m1pk=m1.pk, m2pk=m2.pk)
         )
@@ -354,12 +354,12 @@ class ManyToManyRawIdWidgetTest(DjangoTestCase):
         rel = models.Advisor._meta.get_field('companies').rel
 
         w = widgets.ManyToManyRawIdWidget(rel, widget_admin_site)
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('company_widget1', [c1.pk, c2.pk], attrs={})),
             '<input type="text" name="company_widget1" value="%(c1pk)s,%(c2pk)s" />' % {'c1pk': c1.pk, 'c2pk': c2.pk}
         )
 
-        self.assertEqual(
+        self.assertHTMLEqual(
             conditional_escape(w.render('company_widget2', [c1.pk])),
             '<input type="text" name="company_widget2" value="%(c1pk)s" />' % {'c1pk': c1.pk}
         )

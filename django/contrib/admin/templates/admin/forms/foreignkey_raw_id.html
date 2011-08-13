@@ -1,2 +1,2 @@
 {% load static %}{% include "forms/widgets/input.html" %}
-<a href="{{ related_url }}{{ url }}" class="related-lookup" id="lookup_id_{{ name }}" onclick="return showRelatedObjectLookupPopup(this);"> <img src="{% get_static_prefix %}admin/img/selector-search.gif" width="16" height="16" alt="{{ alt }}" /></a>{{ label }}
+{% if related_url %}<a href="{{ related_url }}{{ url }}" class="related-lookup" id="lookup_id_{{ name }}" onclick="return showRelatedObjectLookupPopup(this);"> <img src="{% get_static_prefix %}admin/img/selector-search.gif" width="16" height="16" alt="{{ alt }}" /></a>{% endif %}{{ label }}
