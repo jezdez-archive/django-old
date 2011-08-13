@@ -1,16 +1,20 @@
 from django import forms
 from django.template import Context, Template, TemplateSyntaxError
 from django.test import TestCase
+from django.template.formtags import FormConfig, ConfigFilter
 from django.template.formtags import FormNode
 from django.template.formtags import RowModifier, FieldModifier
 
 
-def render(template, context=None):
+def render(template, context=None, config=None):
     if context is None:
         context = {}
-    c = Context(context)
+    if not hasattr(context, 'dicts'):
+        context = Context(context)
+    if config is not None:
+        setattr(context, FormNode.CONFIG_CONTEXT_ATTR, config)
     t = Template(template)
-    return t.render(c)
+    return t.render(context)
 
 
 def render_in_form(template, context=None):
@@ -536,3 +540,12 @@ class FormFieldTagTests(TestCase):
             {% formconfig field using "simple_formfield_tag.html" with extra_argument="I want ham!" %}
             {% formfield form.name %}
         {% endform %}''', {'myform': form}), '''Type: text Extra argument: I want ham!''')
+
+    def test_change_widget(self):
+        form = SimpleForm()
+        config = FormConfig()
+        config.configure('widget', forms.PasswordInput(), filter=ConfigFilter(form['name']))
+
+        self.assertHTMLEqual(render('''{% form myform using %}
+            {% formfield form.name %}
+        {% endform %}''', {'myform': form}, config), '''<input type="password" name="name" id="id_name" />''')

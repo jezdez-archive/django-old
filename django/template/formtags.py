@@ -514,6 +514,7 @@ class FormFieldNode(BaseFormRenderNode):
                 raise
             return u''
 
+        widget = config.retrieve('widget', bound_field=bound_field)
         extra_context = self.get_extra_context(context)
         template_name = config.retrieve('widget_template', bound_field=bound_field)
         if 'using' in self.options:
@@ -525,6 +526,7 @@ class FormFieldNode(BaseFormRenderNode):
                 return u''
 
         output = bound_field.as_widget(
+            widget=widget,
             template_name=template_name,
             extra_context=extra_context)
         if bound_field.field.show_hidden_initial:
