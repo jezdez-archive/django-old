@@ -185,6 +185,25 @@ commonly used groups of widgets:
             >>> name.render('name', 'A name')
             u'<input title="Your name" type="text" name="name" value="A name" size="10" />'
 
+    .. method:: Widget.render(name, value[, attrs, template_name, extra_context, context_instance])
+
+        This method returns the widget's HTML representation. The first two
+        arguments are mandatory and should contain the values for the HTML
+        element attributes ``name`` and ``value``. The ``value`` argument may
+        be ``None`` if no default value should be rendered. Specify additional
+        HTML attributes as dictionary with the ``attrs`` parameter. The given
+        attributes will be joined with the :attr:`~Widget.attrs` attribute given
+        to the widget's constructor.
+
+        .. versionadded:: 1.5
+
+        You can also change some template settings with arguments to the
+        ``render`` method, since all built-in widgets are rendered from
+        templates. An alternative template can be used by specifying the
+        ``template_name`` argument. Additional context variables can be passed
+        as dictionary with ``extra_context``. Use the ``context_instance``
+        argument if you already have constructed your own
+        :class:`~django.template.context.Context` instance.
 
 .. class:: TextInput
 
