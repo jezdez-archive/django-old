@@ -55,7 +55,22 @@ ignored. HTML can either be compared directly with the new
 :meth:`~django.test.testcase.TestCase.assertHTMLEqual` assertion or use the
 ``html=True`` flag with :meth:`~django.test.testcase.TestCase.assertContains`
 to test if the test client's response contains a HTML fragment. See the
-:ref:`assertion's documentation<assertions>` for more information.
+:ref:`assertion documentation<assertions>` for more information.
+
+``assertTemplateUsed`` as context managers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is now possible to check whether a template was used or not in a block of
+code with the :meth:`~django.test.testcase.TestCase.assertTemplateUsed` and
+:meth:`~django.test.testcase.TestCase.assertTemplateNotUsed` assertions. They
+can be used as a context manager::
+
+    with self.assertTemplateUsed('index.html'):
+        render_to_string('index.html')
+    with self.assertTemplateNotUsed('base.html'):
+        render_to_string('index.html')
+
+See the :ref:`assertion documentation<assertions>` for more information.
 
 .. _backwards-incompatible-changes-1.5:
 .. _deprecated-features-1.5:

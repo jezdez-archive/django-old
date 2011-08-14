@@ -597,7 +597,7 @@ class TransactionTestCase(SimpleTestCase):
     def assertTemplateUsed(self, response=None, template_name=None, msg_prefix=''):
         """
         Asserts that the template with the provided name was used in rendering
-        the response.
+        the response. Also useable as context manager.
         """
         if response is None and template_name is None:
             raise TypeError(u'response and/or template_name argument must be provided')
@@ -624,7 +624,7 @@ class TransactionTestCase(SimpleTestCase):
     def assertTemplateNotUsed(self, response=None, template_name=None, msg_prefix=''):
         """
         Asserts that the template with the provided name was NOT used in
-        rendering the response.
+        rendering the response. Also useable as context manager.
         """
         if response is None and template_name is None:
             raise TypeError(u'response and/or template_name argument must be provided')
