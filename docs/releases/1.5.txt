@@ -19,23 +19,6 @@ we've `begun the deprecation process for some features`_.
 What's new in Django 1.5
 ========================
 
-Private widgets API
-~~~~~~~~~~~~~~~~~~~
-
-With the addition of a template-based widgets API, parts of the
-widgets API have been deprecated. They weren't considered as public parts and
-if you use standard widgets, backwards compatibility applies. However, if you
-have custom widgets defined using the mechanisms above, you will need to
-update them to the new API:
-
-* ``MultiWidget``'s ``format_output`` method has been deprecated. Existing
-  implementations of ``format_output`` to add data between widgets won't have
-  any effect.
-
-* ``RadioSelect``'s ``renderer`` API has been deprecated. Direct call to
-  ``RadioSelect``'s ``get_renderer()`` method still works but assiging a
-  custom renderer to ``RadioSelect`` won't have any impact on the rendering.
-
 Widgets API
 ~~~~~~~~~~~
 
@@ -55,7 +38,8 @@ ignored. HTML can either be compared directly with the new
 :meth:`~django.test.testcase.TestCase.assertHTMLEqual` and
 :meth:`~django.test.testcase.TestCase.assertHTMLNotEqual` assertions or use
 the ``html=True`` flag with
-:meth:`~django.test.testcase.TestCase.assertContains` and :meth:`~django.test.testcase.TestCase.assertNotContains` to test if the test
+:meth:`~django.test.testcase.TestCase.assertContains` and
+:meth:`~django.test.testcase.TestCase.assertNotContains` to test if the test
 client's response contains a HTML fragment. See the :ref:`assertion
 documentation<assertions>` for more information.
 
@@ -75,4 +59,31 @@ can be used as a context manager::
 See the :ref:`assertion documentation<assertions>` for more information.
 
 .. _backwards-incompatible-changes-1.5:
+
+Backwards incompatible changes in 1.5
+=====================================
+
+Private widgets API
+~~~~~~~~~~~~~~~~~~~
+
+With the addition of a template-based widgets API, parts of the
+widgets API have been deprecated. They weren't considered as public parts and
+if you use standard widgets, backwards compatibility applies. However, if you
+have custom widgets defined using the mechanisms above, you will need to
+update them to the new API:
+
+* ``MultiWidget``'s ``format_output`` method has been deprecated. Existing
+  implementations of ``format_output`` to add data between widgets won't have
+  any effect.
+
+* ``RadioSelect``'s ``renderer`` API has been deprecated. Direct call to
+  ``RadioSelect``'s ``get_renderer()`` method still works but assiging a
+  custom renderer to ``RadioSelect`` won't have any impact on the rendering.
+
+* Any widget's ``render`` method should now accept the optional
+  ``template_name``, ``extra_context`` and ``context_instance`` arguments.
+  Update your custom widgets to reflect that change. It is recommended that
+  your :class:`~django.forms.widgets.Widget` subclasses accept a ``**kwargs``
+  argument in the ``render`` method.
+
 .. _deprecated-features-1.5:
