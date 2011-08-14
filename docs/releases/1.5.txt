@@ -19,14 +19,28 @@ we've `begun the deprecation process for some features`_.
 What's new in Django 1.5
 ========================
 
+Template based form rendering
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The form to HTML rendering in the past was hardcoded in the python source
+files and though hard to extend and hard to override. Therefor is now a
+template based rendering available that outputs complete forms in a paragraph
+based layout (formerly ``as_p()``), list based (``as_ul``) or as a table
+(``as_table``). It is possible to break down the rendering into different
+styled rows and to customize widgets right from the template.
+
+An additional template loader (``django.template.loaders.forms.Loader``) that
+loads widget templates is enabled by default and will be until Django 1.6.
+
+Read :doc:`/topics/forms/rendering` for more details about the new template
+based rendering.
+
 Widgets API
 ~~~~~~~~~~~
 
 The form widgets now have a :doc:`public API<../ref/forms/widgets>` for easier
-custom rendering: the rendering is now done using Django templates and hooks
-have been added to let users define custom widgets. An additional template
-loader (``django.template.loaders.forms.Loader``) that loads widget templates
-is enabled by default and will be until Django 1.6.
+custom rendering and like the rest of the form library is the widget rendering
+now done using Django templates.
 
 HTML comparisons in tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~
