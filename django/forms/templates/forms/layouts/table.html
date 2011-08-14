@@ -5,8 +5,8 @@
     {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
     {% for error in form.hidden_field_errors %}<li>{{ error }}</li>{% endfor %}
 </ul></td></tr>{% endif %}{% endblock %}
-{% block fields %}{% for field in form.visible_fields %}
+{% block rows %}{% for field in form.visible_fields %}
 {% if forloop.last %}{% formconfig row with hidden_fields=form.hidden_fields %}{% endif %}
-{% block field %}{% formrow field %}{% endblock %}
+{% block row %}{% formrow field %}{% endblock %}
 {% endfor %}{% endblock %}
 {% endfor %}{% endblock %}
