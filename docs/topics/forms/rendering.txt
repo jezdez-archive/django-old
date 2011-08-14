@@ -134,8 +134,12 @@ loop::
     <form action="/contact/" method="post">
         {% for field in form %}
             <div class="fieldWrapper">
-                {{ field.errors }}
-                {{ field.label_tag }}: {{ field }}
+                <ul>
+                {% for error in field.errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+                </ul>
+                <label for="id_{{ field.html_name }}">{{ field.label }}</label>: {% formfield field %}
             </div>
         {% endfor %}
         <p><input type="submit" value="Send message" /></p>
@@ -148,10 +152,6 @@ templates:
     ``{{ field.label }}``
         The label of the field, e.g. ``Email address``.
 
-    ``{{ field.label_tag }}``
-        The field's label wrapped in the appropriate HTML ``<label>`` tag,
-        e.g. ``<label for="id_email">Email address</label>``
-
     ``{{ field.html_name }}``
         The name of the field that will be used in the input element's name
         field. This takes the form prefix into account, if it has been set.
@@ -160,7 +160,7 @@ templates:
         Any help text that has been associated with the field.
 
     ``{{ field.errors }}``
-        A list of any validation errors corresponding to this field. You use
+        A list of any validation errors corresponding to this field. You can
         customize the presentation of the errors with a ``{% for error in
         field.errors %}`` loop::
 
@@ -201,12 +201,11 @@ these two methods::
                 {# Include the hidden fields in the form #}
                 {% if forloop.first %}
                     {% for hidden in form.hidden_fields %}
-                    {{ hidden }}
+                    {% formfield hidden %}
                     {% endfor %}
                 {% endif %}
 
-                {{ field.errors }}
-                {{ field.label_tag }}: {{ field }}
+                {% formrow field %}
             </div>
         {% endfor %}
         <p><input type="submit" value="Send message" /></p>
