@@ -45,18 +45,42 @@ Create custom layouts
 Sometimes the sample layouts mentioned above just don't cut your needs. In
 that case there are some possibilities to customize them. The simplest way is
 to use django's template inheritance, extending from a built-in layout, and
-only overwriting the bits you want to modify. In this case, use the layout
-that matches your needs best and customize it by overriding one of the
-following blocks:
+only overwrite the bits you want to modify. In this case, use the layout that
+matches your needs best and customize it by overriding one of the following
+blocks:
 
-* ``config``
-* ``errors``
-* ``rows``
-* ``hidden_fields``
+* ``formconfig``: In this block happen all the ``{% formconfig %}`` tags that
+  are used in the layout. The built-in layouts configure their row level
+  template here.
+
+* ``forms``: This one wraps the whole output. Use this to add markup before or
+  after the rendered forms::
+
+    {% extends "forms/layouts/p.html" %}
+
+    {% block forms %}
+        <form action="" method="post">{% csrf_token %}
+            {{ block.super }}
+            <p><input type="submit" value="submit" /></p>
+        </form>
+    {% endblock %}
+
+  The preceding example shows a custom form layout that renderes all elements
+  in a paragraph based layout that also contains the necessary ``<form>`` tag
+  and a submit button.
+
+* ``errors``: All non field errors and errors of hidden fields are rendered
+  in this block.
+
+* ``rows``: The ``rows`` block contains a for loop that iterates over all
+  visible fields and displays them in the ``row`` block. Hidden fields are
+  rendered in the last row.
+
+* ``row``: This block is wrapped around the ``{% formrow %}`` tag.
 
 Alternatively it is ofcourse possible to write your own form layout from
-scratch. Have a look at the existing ones to get an idea what is possible and
-how the template code could look like.
+scratch. Have a look at the existing ones to get an idea what is possible,
+what cases to take into account and how the template code could look like.
 
 Form rows
 ~~~~~~~~~
