@@ -52,10 +52,12 @@ The :class:`~django.test.testcase.TestCase` base class provided by django has
 now some helpers to compare HTML on it's semantical equivilance. Basic
 differences like argument quoting and how self-closing tags are closed are
 ignored. HTML can either be compared directly with the new
-:meth:`~django.test.testcase.TestCase.assertHTMLEqual` assertion or use the
-``html=True`` flag with :meth:`~django.test.testcase.TestCase.assertContains`
-to test if the test client's response contains a HTML fragment. See the
-:ref:`assertion documentation<assertions>` for more information.
+:meth:`~django.test.testcase.TestCase.assertHTMLEqual` and
+:meth:`~django.test.testcase.TestCase.assertHTMLNotEqual` assertions or use
+the ``html=True`` flag with
+:meth:`~django.test.testcase.TestCase.assertContains` and :meth:`~django.test.testcase.TestCase.assertNotContains` to test if the test
+client's response contains a HTML fragment. See the :ref:`assertion
+documentation<assertions>` for more information.
 
 ``assertTemplateUsed`` as context managers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
