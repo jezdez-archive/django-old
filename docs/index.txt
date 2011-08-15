@@ -132,6 +132,11 @@ Forms
       :doc:`Formsets <topics/forms/formsets>` |
       :doc:`Customizing validation <ref/forms/validation>`
 
+    * **Render to HTML:**
+      :doc:`Display forms as HTML <topics/forms/rendering>` |
+      :doc:`Built-in form layouts <ref/forms/layouts>` |
+      :ref:`Custom form layouts <custom form layouts>`
+
     * **Extras:**
       :doc:`Form preview <ref/contrib/formtools/form-preview>` |
       :doc:`Form wizard <ref/contrib/formtools/form-wizard>`
