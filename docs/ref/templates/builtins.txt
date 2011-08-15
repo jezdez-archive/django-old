@@ -395,6 +395,94 @@ somewhere else. This is done by not specifying a template name after the
         ... your form layout here ...
     {% endform %}
 
+.. templatetag:: formconfig
+
+formconfig
+~~~~~~~~~~
+
+.. versionadded:: 1.5
+
+The :ttag:`formconfig` tag can be used to configure some of the form template
+tags arguments upfront so that they don't need to be specified over and over
+again.
+
+The first argument specifies which part of the form should be configured:
+
+``row``
+^^^^^^^
+
+The :ttag:`formrow` tag takes arguments to specify which template is used to
+render the row and whether additional variables are passed into this template.
+These parameters can be configured for multiple form rows with a ``{%
+formconfig row ... %}`` tag. The syntax is the same as with :ttag:`formrow`::
+
+    {% formconfig row using "forms/rows/p.html" %}
+    {% formconfig row using "my_form_layout.html" with hide_errors=1 only %}
+
+Please note that form configurations will only be available in a form layout
+or wrapped by a :ttag:`form` template tag. They also only apply to all the
+form tags that come after the ``formconfig``. It is possible to overwrite
+already set options. Here is a valid example::
+
+    {% form myform using %}
+    <form action="" method="post" id="signup">{% csrf_token %}
+        {% formconfig row using "forms/rows/p.html" %}
+        {% formrow form.username %}
+        {% formrow form.password %}
+
+        {% formconfig row using "forms/rows/tr.html" %}
+        <table>
+        {% formrow form.firstname form.lastname %}
+        {% formrow form.age %}
+        {% formrow form.city form.street %}
+        </table>
+
+        <p><input type="submit" value="Signup!" /></p>
+    </form>
+    {% endform %}
+
+``field``
+^^^^^^^^^
+
+A form field takes the same arguments as a form row does. So are the same
+configuration options available here. However it has an additional one which
+limits the number of fields to which the configuration should be applied.
+
+List a form field after the ``for`` keyword to only configure the arguments of
+that particular field. The following ``formconfig`` example will only affect
+the second :ttag:`formfield` tag but the first one will be left untouched::
+
+    {% formconfig field using "input.html" with type="password" for userform.password %}
+    {% formfield userform.username %}
+    {% formfield userform.password %}
+
+Some more generic field filters are available. So can strings be used to limit
+configurations either to a specific field name or a field type::
+
+    {% formconfig field with placeholder="Type to search ..." for "search" %}
+    {% formfield myform.search %}
+
+    {% formconfig field using "forms/widgets/textarea.html" for "CharField" %}
+    {% formfield myform.comment %}
+
+.. templatetag:: formfield
+
+formfield
+~~~~~~~~~
+
+.. versionadded:: 1.5
+
+Renders a form field using the associated widget. You can specify a widget
+template with the ``using`` keyword. Otherwise it will fall back to the
+:ref:`widget's default template <built-in widgets>`.
+
+It also accepts :ttag:`include`-like parameters::
+
+    {% formfield userform.password using "input.html" with type="password" %}
+
+The ``formfield`` tag should only be used in a form layout, usually in a row
+template.
+
 .. templatetag:: formrow
 
 formrow
@@ -416,24 +504,6 @@ The ``formrow`` tag is usually only used in form layouts.
 
 See the documentation on :doc:`row templates and how they are customized
 </ref/forms/layouts>` for more details.
-
-.. templatetag:: formfield
-
-formfield
-~~~~~~~~~
-
-.. versionadded:: 1.5
-
-Renders a form field using the associated widget. You can specify a widget
-template with the ``using`` keyword. Otherwise it will fall back to the
-:ref:`widget's default template <built-in widgets>`.
-
-It also accepts :ttag:`include`-like parameters::
-
-    {% formfield userform.password using "input.html" with type="password" %}
-
-The ``formfield`` tag should only be used in a form layout, usually in a row
-template.
 
 .. templatetag:: if
 
