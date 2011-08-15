@@ -3,13 +3,17 @@ Form layouts
 
 .. highlightlang:: html+django
 
-Form layouts are reusable templates.
+Form layouts are reusable templates that contain information on how a form is
+presented as HTML. In the following is described which layouts are available
+by default and how to create your own ones. Have a look at the :ttag:`form
+templatetags <form>` for more information on how to use them during form
+rendering.
 
 Built-in layouts
 ----------------
 
-Django provides with three sample implementations of how a form layout could
-look like.
+Django ships with three sample implementations of how a form layout could look
+like.
 
 ``forms/layouts/p.html``
 ~~~~~~~~~~~~~~~~~~~~~~~~
