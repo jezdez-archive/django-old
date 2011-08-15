@@ -66,7 +66,7 @@ above example::
         <p><input type="submit" value="Send message" /></p>
     </form>
 
-``forms/layouts/my_layout.html`` is able to extend one of the builtin layouts,
+``forms/layouts/my_layout.html`` is able to extend one of the built-in layouts,
 modifying the parts you want to change::
 
     {% extends "forms/layouts/table.html" %}

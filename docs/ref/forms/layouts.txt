@@ -65,7 +65,7 @@ blocks:
         </form>
     {% endblock %}
 
-  The preceding example shows a custom form layout that renderes all elements
+  The preceding example shows a custom form layout that renders all elements
   in a paragraph based layout that also contains the necessary ``<form>`` tag
   and a submit button.
 
@@ -78,16 +78,38 @@ blocks:
 
 * ``row``: This block is wrapped around the ``{% formrow %}`` tag.
 
-Alternatively it is ofcourse possible to write your own form layout from
+Alternatively it is of course possible to write your own form layout from
 scratch. Have a look at the existing ones to get an idea what is possible,
 what cases to take into account and how the template code could look like.
 
 Form rows
 ~~~~~~~~~
 
-Following blocks are used in the built-in row templates:
+A vital part of any form layout is one or are many templates for form
+rows. A row can be used to render one or multiple fields in a repeating
+manner.
 
-* ``errors``
-* ``label``
-* ``field``
-* ``help_text``
+The built-in row templates render each passed in field in a separate row. You
+can extend and override these like you can with complete form layouts as
+described above. Use the following blocks to customize them to your needs:
+
+* ``row``: This is the most outer block and wraps all the generated HTML.
+  Use it to wrap the row into additional markup.
+
+* ``field``: You can use this block to wrap every single field into additional
+  markup.
+
+* ``errors``: Errors are displayed as a ``<ul>`` list. Override the ``errors``
+  block to customize their appearance.
+
+* ``label``: Change the label markup by overriding this block.
+
+* ``widget``: This one contains just the ``{% formfield %}`` tag that will
+  render the field's widget.
+
+* ``help_text``: Change the help text markup by overriding this block.
+
+* ``hidden_fields``: The built-in row templates allow hidden fields to be
+  passed into the row with the template variable named ``hidden_fields``. The
+  form layouts pass all the form's hidden fields into the last rendered form
+  row.
