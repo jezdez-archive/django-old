@@ -1,13 +1,13 @@
-{% block fields %}{% for field in fields %}
+{% block row %}{% for field in fields %}
 {% with field.css_classes as classes %}
 {% with label|default:field.label as label and help_text|default:field.help_text as help_text %}
-{% block p %}<tr{% if classes %} class="{{ classes }}"{% endif %}>
+{% block field %}<tr{% if classes %} class="{{ classes }}"{% endif %}>
     <th>{% block label %}{% if field.id %}<label for="{{ field.id }}">{% endif %}{{ label }}{% if label|last not in ":?.!" %}:{% endif %}{% if field.id %}</label>{% endif %}{% endblock %}</th>
     <td>
         {% block errors %}{% if field.errors %}<ul class="errorlist">{% for error in field.errors %}
             <li>{{ error }}</li>
         {% endfor %}</ul>{% endif %}{% endblock %}
-        {% block field %}{% formfield field %}{% endblock %}
+        {% block widget %}{% formfield field %}{% endblock %}
         {% block help_text %}{% if help_text %}<br /><span class="helptext">{{ help_text }}</span>{% endif %}{% endblock %}
         {% block hidden_fields %}{% for field in hidden_fields %}{{ field.as_hidden }}{% endfor %}{% endblock %}
     </td>
