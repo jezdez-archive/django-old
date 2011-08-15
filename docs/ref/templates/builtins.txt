@@ -402,7 +402,7 @@ formrow
 
 .. versionadded:: 1.5
 
-The ``formrow`` tag is a bit similiar to the :ttag:`form` tag but acts on a
+The ``formrow`` tag is a quite similar to the :ttag:`form` tag but acts on a
 set of form fields instead of complete forms. It takes one or more fields as
 arguments and a template which should be used to render those fields::
 
@@ -410,7 +410,7 @@ arguments and a template which should be used to render those fields::
 
 It also accepts :ttag:`include`-like parameters::
 
-    {% formrow myform.field using "my_row_layout.html" with hide_errors=1 %}
+    {% formrow myform.field using "my_row_layout.html" with hide_errors=1 only %}
 
 The ``formrow`` tag is usually only used in form layouts.
 
@@ -424,15 +424,16 @@ formfield
 
 .. versionadded:: 1.5
 
-Renders a form field using the associated widget. It does not take any extra
-arguments::
+Renders a form field using the associated widget. You can specify a widget
+template with the ``using`` keyword. Otherwise it will fall back to the
+:ref:`widget's default template <built-in widgets>`.
 
-    {% formfield userform.username %}
+It also accepts :ttag:`include`-like parameters::
+
+    {% formfield userform.password using "input.html" with type="password" %}
 
 The ``formfield`` tag should only be used in a form layout, usually in a row
 template.
-
-.. GSOC-TODO: include on how widgets can be modified wit the {% widget %} tag.
 
 .. templatetag:: if
 
