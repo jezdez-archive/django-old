@@ -347,7 +347,7 @@ than -- the following::
 .. templatetag:: form
 
 form
-~~~~
+^^^^
 
 .. versionadded:: 1.5
 
@@ -385,7 +385,7 @@ it does in the :ttag:`include` tag. It prevents other but not explicitly
 specified variables to be available in the layout's template context.
 
 Inline layouts
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 Inlining the form layout is also possible if you don't plan to reuse it
 somewhere else. This is done by not specifying a template name after the
@@ -398,7 +398,7 @@ somewhere else. This is done by not specifying a template name after the
 .. templatetag:: formconfig
 
 formconfig
-~~~~~~~~~~
+^^^^^^^^^^
 
 .. versionadded:: 1.5
 
@@ -409,7 +409,7 @@ again.
 The first argument specifies which part of the form should be configured:
 
 ``row``
-^^^^^^^
+~~~~~~~
 
 The :ttag:`formrow` tag takes arguments to specify which template is used to
 render the row and whether additional variables are passed into this template.
@@ -442,7 +442,7 @@ already set options. Here is a valid example::
     {% endform %}
 
 ``field``
-^^^^^^^^^
+~~~~~~~~~
 
 A form field takes the same arguments as a form row does. So are the same
 configuration options available here. However it has an additional one which
@@ -468,7 +468,7 @@ configurations either to a specific field name or a field type::
 .. templatetag:: formfield
 
 formfield
-~~~~~~~~~
+^^^^^^^^^
 
 .. versionadded:: 1.5
 
@@ -486,7 +486,7 @@ template.
 .. templatetag:: formrow
 
 formrow
-~~~~~~~
+^^^^^^^
 
 .. versionadded:: 1.5
 
