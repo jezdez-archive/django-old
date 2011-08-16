@@ -4,9 +4,7 @@
 {% block field %}<tr{% if classes %} class="{{ classes }}"{% endif %}>
     <th>{% block label %}{% if field.id %}<label for="{{ field.id }}">{% endif %}{{ label }}{% if label|last not in ":?.!" %}:{% endif %}{% if field.id %}</label>{% endif %}{% endblock %}</th>
     <td>
-        {% block errors %}{% if field.errors %}<ul class="errorlist">{% for error in field.errors %}
-            <li>{{ error }}</li>
-        {% endfor %}</ul>{% endif %}{% endblock %}
+        {% block errors %}{% include "forms/errors.html" with errors=field.errors %}{% endblock %}
         {% block widget %}{% formfield field %}{% endblock %}
         {% block help_text %}{% if help_text %}<br /><span class="helptext">{{ help_text }}</span>{% endif %}{% endblock %}
         {% block hidden_fields %}{% for field in hidden_fields %}{{ field.as_hidden }}{% endfor %}{% endblock %}
