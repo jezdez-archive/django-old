@@ -34,8 +34,9 @@ class ConfigFilter(object):
                     return True
         if self.var == bound_field.name:
             return True
-        if self.var == bound_field.field.__class__.__name__:
-            return True
+        for class_ in bound_field.field.__class__.__mro__:
+            if self.var == class_.__name__:
+                return True
 
     def __repr__(self):
         return "<%s: %r>" % (self.__class__.__name__, self.var)

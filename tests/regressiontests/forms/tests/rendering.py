@@ -4,10 +4,15 @@ from django.template.formtags import ConfigFilter, FormConfig
 from django.test import TestCase
 
 
+class AgeField(forms.IntegerField):
+    pass
+
+
 class RegistrationForm(forms.Form):
     name = forms.CharField(label='First- and Lastname', max_length=50)
     email = forms.EmailField(max_length=50,
         help_text='Please enter a valid email.')
+    age = AgeField()
     short_biography = forms.CharField(max_length=200)
     comment = forms.CharField(widget=widgets.Textarea)
 
@@ -121,6 +126,16 @@ class FormConfigTests(TestCase):
         config.pop()
         widget = config.retrieve('widget', bound_field=form['short_biography'])
         self.assertEqual(widget.__class__, widgets.TextInput)
+
+    def test_field_filter_works_on_subclasses(self):
+        form = RegistrationForm()
+        config = FormConfig()
+
+        config.configure('widget', widgets.HiddenInput(),
+            filter=ConfigFilter("IntegerField"))
+
+        widget = config.retrieve('widget', bound_field=form['age'])
+        self.assertEqual(widget.__class__, widgets.HiddenInput)
 
     def test_retrieve_all(self):
         config = FormConfig()
