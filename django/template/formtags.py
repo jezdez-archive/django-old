@@ -370,6 +370,9 @@ class BaseFormRenderNode(BaseNode):
     Base class for ``form``, ``formrow`` and ``formfield`` -- tags that are
     responsible for actually rendering a form.
     '''
+    def is_list_variable(self, var):
+        return False
+
     def get_template_name(self, context):
         raise NotImplementedError
 
@@ -391,7 +394,10 @@ class BaseFormRenderNode(BaseNode):
         for variable in self.variables:
             try:
                 variable = variable.resolve(context)
-                variables.append(variable)
+                if self.is_list_variable(variable):
+                    variables.extend(variable)
+                else:
+                    variables.append(variable)
             except VariableDoesNotExist:
                 pass
 
@@ -429,6 +435,17 @@ class BaseFormRenderNode(BaseNode):
 class FormNode(BaseFormRenderNode):
     single_template_var = 'form'
     list_template_var = 'forms'
+
+    def is_list_variable(self, var):
+        if not hasattr(var, '__iter__'):
+            return False
+        # we assume its a form if the var has these fields
+        significant_attributes = ('is_bound', 'data', 'fields')
+        for attr in significant_attributes:
+            if hasattr(var, attr):
+                return False
+        # form duck-typing was not successful so it must be a list
+        return True
 
     def get_template_name(self, context):
         config = self.get_config(context)
@@ -469,6 +486,11 @@ class FormNode(BaseFormRenderNode):
 class FormRowNode(BaseFormRenderNode):
     single_template_var = 'field'
     list_template_var = 'fields'
+
+    def is_list_variable(self, var):
+        if hasattr(var, '__iter__'):
+            return True
+        return False
 
     def get_template_name(self, context):
         config = self.get_config(context)

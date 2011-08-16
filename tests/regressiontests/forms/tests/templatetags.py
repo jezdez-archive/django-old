@@ -366,6 +366,20 @@ class FormTagTests(TestCase):
         with self.assertTemplateUsed('forms/layouts/default.html'):
             render('{% form myform %}')
 
+    def test_form_list_as_argument(self):
+        form1 = PersonForm()
+        form2 = SimpleForm()
+        form_list = [form1, form2, form2]
+        self.assertHTMLEqual(
+            render('{% form forms using "simple_form_tag.html" %}', {
+                'forms': form_list,
+            }), '''
+            Forms: 3
+            1. Form Fields: firstname lastname age
+            2. Form Fields: name
+            3. Form Fields: name
+            ''')
+
 
 class FormRowTagTests(TestCase):
     def test_valid_syntax(self):
@@ -499,6 +513,29 @@ class FormRowTagTests(TestCase):
             {% formconfig row using "simple_formrow_tag.html" with extra_argument="I want ham!" %}
             {% formrow form.name %}
         {% endform %}'''), '''Fields: 0 Extra argument: I want ham!''')
+
+    def test_field_list_as_argument(self):
+        form = PersonForm()
+        self.assertHTMLEqual(render('''{% form myform using %}
+            {% formrow form using "simple_formrow_tag.html" %}
+        {% endform %}''', {'myform': form}), '''
+            Fields: 3
+            1. Field: firstname
+            2. Field: lastname
+            3. Field: age
+        ''')
+
+        form = PersonForm()
+        self.assertHTMLEqual(render('''{% form myform using %}
+            {% formrow form.lastname form None form.firstname using "simple_formrow_tag.html" %}
+        {% endform %}''', {'myform': form}), '''
+            Fields: 5
+            1. Field: lastname
+            2. Field: firstname
+            3. Field: lastname
+            4. Field: age
+            5. Field: firstname
+        ''')
 
 
 class FormFieldTagTests(TestCase):
