@@ -140,6 +140,12 @@ class BaseNode(Node):
     CONFIG_CONTEXT_ATTR = '_form_config'
     IN_FORM_CONTEXT_VAR = '_form_render'
 
+    optional_using_parameter = False
+    optional_with_parameter = False
+    accept_only_parameter = True
+    accept_for_parameter = False
+    optional_for_parameter = False
+
     form_config = FormConfig
     single_template_var = None
     list_template_var = None
@@ -168,7 +174,7 @@ class BaseNode(Node):
         return variables
 
     @classmethod
-    def parse_using(cls, tagname, parser, bits, options, optional=False):
+    def parse_using(cls, tagname, parser, bits, options):
         if bits:
             if bits[0] == 'using':
                 bits.pop(0)
@@ -181,12 +187,12 @@ class BaseNode(Node):
                 else:
                     raise TemplateSyntaxError(
                         u'%s: expected a template name after "using".' % tagname)
-            elif not optional:
+            elif not cls.optional_using_parameter:
                 raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
                     (tagname, bits[0]))
 
     @classmethod
-    def parse_with(cls, tagname, parser, bits, options, allow_only=True, optional=False):
+    def parse_with(cls, tagname, parser, bits, options):
         if bits:
             if bits[0] == 'with':
                 bits.pop(0)
@@ -196,17 +202,17 @@ class BaseNode(Node):
                         u'"with" in %s tag needs at least one '
                         u'keyword argument.' % tagname)
                 options['with'] = arguments
-            elif bits[0] not in ('only',) and not optional:
+            elif bits[0] not in ('only',) and not cls.optional_with_parameter:
                 raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
                     (tagname, bits[0]))
 
         if bits:
-            if allow_only and bits[0] == 'only':
+            if cls.accept_only_parameter and bits[0] == 'only':
                 bits.pop(0)
                 options['only'] = True
 
     @classmethod
-    def parse_for(cls, tagname, parser, bits, options, optional=False):
+    def parse_for(cls, tagname, parser, bits, options):
         if bits:
             if bits[0] == 'for':
                 bits.pop(0)
@@ -215,7 +221,7 @@ class BaseNode(Node):
                 else:
                     raise TemplateSyntaxError(
                         u'%s: expected an argument after "for".' % tagname)
-            elif not optional:
+            elif not cls.optional_for_parameter:
                 raise TemplateSyntaxError('Unknown argument for %s tag: %r.' %
                     (tagname, bits[0]))
 
@@ -240,6 +246,11 @@ class BaseNode(Node):
 
 
 class ModifierBase(BaseNode):
+    accept_for_parameter = False
+
+    template_config_name = None
+    context_config_name = None
+
     def __init__(self, tagname, modifier, options):
         self.tagname = tagname
         self.modifer = modifier
@@ -250,52 +261,6 @@ class ModifierBase(BaseNode):
             raise TemplateSyntaxError(
                 u'%s must be used inside a form tag.' % self.tagname)
 
-    def render(self, context):
-        self.enforce_form_tag(context)
-        return u''
-
-
-class RowModifier(ModifierBase):
-    def render(self, context):
-        self.enforce_form_tag(context)
-        config = self.get_config(context)
-        if self.options['using']:
-            try:
-                template_name = self.options['using'].resolve(context)
-            except VariableDoesNotExist:
-                if settings.TEMPLATE_DEBUG:
-                    raise
-                return u''
-            config.configure('row_template', template_name)
-        if self.options['with']:
-            extra_context = dict([
-                (name, var.resolve(context))
-                for name, var in self.options['with'].iteritems()])
-            config.configure('row_context', extra_context)
-        return u''
-
-    @classmethod
-    def parse_bits(cls, tagname, modifier, bits, parser, tokens):
-        options = {
-            'using': None,
-            'with': None,
-        }
-
-        if not bits:
-            raise TemplateSyntaxError('%s %s: at least one argument is required.' %
-                (tagname, modifier))
-
-        cls.parse_using(tagname, parser, bits, options, optional=True)
-        cls.parse_with(tagname, parser, bits, options, allow_only=False, optional=True)
-
-        if bits:
-            raise TemplateSyntaxError('Unknown argument for %s %s tag: %r.' %
-                (tagname, modifier, ' '.join(bits)))
-
-        return cls(tagname, modifier, options)
-
-
-class FieldModifier(ModifierBase):
     def render(self, context):
         self.enforce_form_tag(context)
         config = self.get_config(context)
@@ -315,13 +280,13 @@ class FieldModifier(ModifierBase):
                 if settings.TEMPLATE_DEBUG:
                     raise
                 return ''
-            config.configure('widget_template', template_name, filter=filter)
+            config.configure(self.template_config_name, template_name, filter=filter)
         if self.options['with']:
             extra_context = dict([
                 (name, var.resolve(context))
                 for name, var in self.options['with'].iteritems()])
-            config.configure('widget_context', extra_context, filter=filter)
-        return ''
+            config.configure(self.context_config_name, extra_context, filter=filter)
+        return u''
 
     @classmethod
     def parse_bits(cls, tagname, modifier, bits, parser, tokens):
@@ -335,15 +300,37 @@ class FieldModifier(ModifierBase):
             raise TemplateSyntaxError('%s %s: at least one argument is required.' %
                 (tagname, modifier))
 
-        cls.parse_using(tagname, parser, bits, options, optional=True)
-        cls.parse_with(tagname, parser, bits, options, allow_only=False, optional=True)
-        cls.parse_for(tagname, parser, bits, options, optional=True)
+        cls.parse_using(tagname, parser, bits, options)
+        cls.parse_with(tagname, parser, bits, options)
+        if cls.accept_for_parameter:
+            cls.parse_for(tagname, parser, bits, options)
 
         if bits:
             raise TemplateSyntaxError('Unknown argument for %s %s tag: %r.' %
                 (tagname, modifier, ' '.join(bits)))
 
         return cls(tagname, modifier, options)
+
+
+class RowModifier(ModifierBase):
+    optional_using_parameter = True
+    optional_with_parameter = True
+    accept_only_parameter = False
+    accept_for_parameter = False
+
+    template_config_name = 'row_template'
+    context_config_name = 'row_context'
+
+
+class FieldModifier(ModifierBase):
+    optional_using_parameter = True
+    optional_with_parameter = True
+    accept_only_parameter = False
+    accept_for_parameter = True
+    optional_for_parameter = True
+
+    template_config_name = 'widget_template'
+    context_config_name = 'widget_context'
 
 
 class FormConfigNode(BaseNode):
@@ -487,6 +474,8 @@ class FormRowNode(BaseFormRenderNode):
     single_template_var = 'field'
     list_template_var = 'fields'
 
+    optional_using_parameter = True
+
     def is_list_variable(self, var):
         if hasattr(var, '__iter__'):
             return True
@@ -506,14 +495,11 @@ class FormRowNode(BaseFormRenderNode):
         configured_context.update(extra_context)
         return configured_context
 
-    @classmethod
-    def parse_using(cls, tagname, parser, bits, options, optional=True):
-        return super(FormRowNode, cls).parse_using(
-            tagname, parser, bits, options, optional)
-
 
 class FormFieldNode(BaseFormRenderNode):
     single_template_var = 'field'
+
+    optional_using_parameter = True
 
     def get_extra_context(self, context):
         extra_context = super(FormFieldNode, self).get_extra_context(context)
@@ -575,11 +561,6 @@ class FormFieldNode(BaseFormRenderNode):
             raise TemplateSyntaxError(
                 u'%s tag expectes exactly one template variable as argument.' % tagname)
         return variables
-
-    @classmethod
-    def parse_using(cls, tagname, parser, bits, options, optional=True):
-        return super(FormFieldNode, cls).parse_using(
-            tagname, parser, bits, options, optional)
 
 
 register.tag('formconfig', FormConfigNode.parse)
