@@ -192,6 +192,7 @@ class AdminForeignKeyRawIdWidget(DjangoTestCase):
 class FilteredSelectMultipleWidgetTest(DjangoTestCase):
     def test_render(self):
         w = widgets.FilteredSelectMultiple('test', False)
+        conditional_escape(w.render('test', 'test'))
         self.assertHTMLEqual(
             conditional_escape(w.render('test', 'test')),
             '<select multiple="multiple" name="test" class="selectfilter">\n</select><script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 0, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % admin_media_prefix()

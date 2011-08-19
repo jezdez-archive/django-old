@@ -280,7 +280,7 @@ class TextInput(Input):
 class PasswordInput(Input):
     input_type = 'password'
 
-    def __init__(self, attrs=None, template_name=None, render_value=False):
+    def __init__(self, attrs=None, render_value=False, template_name=None):
         super(PasswordInput, self).__init__(attrs=attrs, template_name=template_name)
         self.render_value = render_value
 
@@ -300,7 +300,7 @@ class MultipleHiddenInput(HiddenInput):
     A widget that handles <input type="hidden"> for fields that have a list
     of values.
     """
-    def __init__(self, attrs=None, template_name=None, choices=()):
+    def __init__(self, attrs=None, choices=(), template_name=None):
         super(MultipleHiddenInput, self).__init__(
             attrs=attrs, template_name=template_name)
         # choices can be any iterable
@@ -429,7 +429,7 @@ class Textarea(Widget):
 class DateInput(Input):
     input_type = 'text'
 
-    def __init__(self, attrs=None, template_name=None, format=None):
+    def __init__(self, attrs=None, format=None, template_name=None):
         super(DateInput, self).__init__(
             attrs=attrs, template_name=template_name)
         if format:
@@ -462,7 +462,7 @@ class DateInput(Input):
 class DateTimeInput(Input):
     input_type = 'text'
 
-    def __init__(self, attrs=None, template_name=None, format=None):
+    def __init__(self, attrs=None, format=None, template_name=None):
         super(DateTimeInput, self).__init__(
             attrs=attrs, template_name=template_name)
         if format:
@@ -495,7 +495,7 @@ class DateTimeInput(Input):
 class TimeInput(Input):
     input_type = 'text'
 
-    def __init__(self, attrs=None, template_name=None, format=None):
+    def __init__(self, attrs=None, format=None, template_name=None):
         super(TimeInput, self).__init__(
             attrs=attrs, template_name=template_name)
         if format:
@@ -527,7 +527,7 @@ class TimeInput(Input):
 class CheckboxInput(Input):
     input_type = 'checkbox'
 
-    def __init__(self, attrs=None, template_name=None, check_test=bool):
+    def __init__(self, attrs=None, check_test=bool, template_name=None):
         super(CheckboxInput, self).__init__(
             attrs=attrs, template_name=template_name)
         # check_test is a callable that takes a value and returns True
@@ -570,7 +570,7 @@ class CheckboxInput(Input):
 class Select(Widget):
     template_name = 'forms/widgets/select.html'
 
-    def __init__(self, attrs=None, template_name=None, choices=()):
+    def __init__(self, attrs=None, choices=(), template_name=None):
         super(Select, self).__init__(
             attrs=attrs, template_name=template_name)
         # choices can be any iterable, but we may need to render this widget
@@ -904,7 +904,7 @@ class SplitDateTimeWidget(MultiWidget):
     A Widget that splits datetime input into two <input type="text"> boxes.
     """
 
-    def __init__(self, attrs=None, template_name=None, date_format=None, time_format=None):
+    def __init__(self, attrs=None, date_format=None, time_format=None, template_name=None ):
         widgets = (DateInput(attrs=attrs, format=date_format),
                    TimeInput(attrs=attrs, format=time_format))
         super(SplitDateTimeWidget, self).__init__(
@@ -922,7 +922,7 @@ class SplitHiddenDateTimeWidget(SplitDateTimeWidget):
     """
     is_hidden = True
 
-    def __init__(self, attrs=None, template_name=None, date_format=None, time_format=None):
+    def __init__(self, attrs=None, date_format=None, time_format=None, template_name=None):
         super(SplitHiddenDateTimeWidget, self).__init__(
             attrs=attrs, template_name=template_name,
             date_format=date_format, time_format=time_format)
