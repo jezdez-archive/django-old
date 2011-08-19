@@ -150,11 +150,13 @@ class Widget(object):
     is_required = False
     template_name = None  # The template used to render this form
 
-    def __init__(self, attrs=None):
+    def __init__(self, attrs=None, template_name=None):
         if attrs is not None:
             self.attrs = attrs.copy()
         else:
             self.attrs = {}
+        if template_name is not None:
+            self.template_name = template_name
 
     def __deepcopy__(self, memo):
         obj = copy.copy(self)
@@ -278,8 +280,8 @@ class TextInput(Input):
 class PasswordInput(Input):
     input_type = 'password'
 
-    def __init__(self, attrs=None, render_value=False):
-        super(PasswordInput, self).__init__(attrs)
+    def __init__(self, attrs=None, template_name=None, render_value=False):
+        super(PasswordInput, self).__init__(attrs=attrs, template_name=template_name)
         self.render_value = render_value
 
     def render(self, name, value, attrs=None, **kwargs):
@@ -298,16 +300,19 @@ class MultipleHiddenInput(HiddenInput):
     A widget that handles <input type="hidden"> for fields that have a list
     of values.
     """
-    def __init__(self, attrs=None, choices=()):
-        super(MultipleHiddenInput, self).__init__(attrs)
+    def __init__(self, attrs=None, template_name=None, choices=()):
+        super(MultipleHiddenInput, self).__init__(
+            attrs=attrs, template_name=template_name)
         # choices can be any iterable
         self.choices = choices
 
-    def render(self, name, value, attrs=None, choices=(), **kwargs):
+    def render(self, name, value, attrs=None, choices=(), template_name=None, **kwargs):
         if value is None: value = []
         final_attrs = self.build_attrs(attrs)
         id_ = final_attrs.get('id', None)
         inputs = []
+        if template_name is None:
+            template_name = self.template_name
         for i, v in enumerate(value):
             input_attrs = final_attrs
             if id_:
@@ -316,7 +321,9 @@ class MultipleHiddenInput(HiddenInput):
                 input_attrs['id'] = '%s_%s' % (id_, i)
             input_ = HiddenInput()
             input_.is_required = self.is_required
-            inputs.append(input_.render(name, force_unicode(v), attrs=input_attrs, **kwargs))
+            inputs.append(input_.render(
+                name, force_unicode(v), attrs=input_attrs,
+                template_name=template_name, **kwargs))
         return u''.join(inputs)
 
     def value_from_datadict(self, data, files, name):
@@ -397,12 +404,13 @@ class ClearableFileInput(BaseFileInput):
 class Textarea(Widget):
     template_name = 'forms/widgets/textarea.html'
 
-    def __init__(self, attrs=None):
+    def __init__(self, attrs=None, template_name=None):
         # The 'rows' and 'cols' attributes are required for HTML correctness.
         default_attrs = {'cols': '40', 'rows': '10'}
         if attrs:
             default_attrs.update(attrs)
-        super(Textarea, self).__init__(default_attrs)
+        super(Textarea, self).__init__(
+            attrs=default_attrs, template_name=template_name)
 
     def get_context(self, name, value, attrs=None, extra_context=None, context_instance=None):
         if value is None:
@@ -421,8 +429,9 @@ class Textarea(Widget):
 class DateInput(Input):
     input_type = 'text'
 
-    def __init__(self, attrs=None, format=None):
-        super(DateInput, self).__init__(attrs)
+    def __init__(self, attrs=None, template_name=None, format=None):
+        super(DateInput, self).__init__(
+            attrs=attrs, template_name=template_name)
         if format:
             self.format = format
             self.manual_format = True
@@ -453,8 +462,9 @@ class DateInput(Input):
 class DateTimeInput(Input):
     input_type = 'text'
 
-    def __init__(self, attrs=None, format=None):
-        super(DateTimeInput, self).__init__(attrs)
+    def __init__(self, attrs=None, template_name=None, format=None):
+        super(DateTimeInput, self).__init__(
+            attrs=attrs, template_name=template_name)
         if format:
             self.format = format
             self.manual_format = True
@@ -485,8 +495,9 @@ class DateTimeInput(Input):
 class TimeInput(Input):
     input_type = 'text'
 
-    def __init__(self, attrs=None, format=None):
-        super(TimeInput, self).__init__(attrs)
+    def __init__(self, attrs=None, template_name=None, format=None):
+        super(TimeInput, self).__init__(
+            attrs=attrs, template_name=template_name)
         if format:
             self.format = format
             self.manual_format = True
@@ -516,8 +527,9 @@ class TimeInput(Input):
 class CheckboxInput(Input):
     input_type = 'checkbox'
 
-    def __init__(self, attrs=None, check_test=bool):
-        super(CheckboxInput, self).__init__(attrs)
+    def __init__(self, attrs=None, template_name=None, check_test=bool):
+        super(CheckboxInput, self).__init__(
+            attrs=attrs, template_name=template_name)
         # check_test is a callable that takes a value and returns True
         # if the checkbox should be checked for that value.
         self.check_test = check_test
@@ -558,8 +570,9 @@ class CheckboxInput(Input):
 class Select(Widget):
     template_name = 'forms/widgets/select.html'
 
-    def __init__(self, attrs=None, choices=()):
-        super(Select, self).__init__(attrs)
+    def __init__(self, attrs=None, template_name=None, choices=()):
+        super(Select, self).__init__(
+            attrs=attrs, template_name=template_name)
         # choices can be any iterable, but we may need to render this widget
         # multiple times. Thus, collapse it into a list so it can be consumed
         # more than once.
@@ -598,11 +611,12 @@ class NullBooleanSelect(Select):
     """
     A Select Widget intended to be used with NullBooleanField.
     """
-    def __init__(self, attrs=None):
+    def __init__(self, attrs=None, template_name=None):
         choices = ((u'1', ugettext('Unknown')),
                    (u'2', ugettext('Yes')),
                    (u'3', ugettext('No')))
-        super(NullBooleanSelect, self).__init__(attrs, choices)
+        super(NullBooleanSelect, self).__init__(
+            attrs=attrs, template_name=template_name, choices=choices)
 
     def render(self, name, value, attrs=None, choices=(), **kwargs):
         try:
@@ -799,9 +813,10 @@ class MultiWidget(Widget):
     """
     template_name = 'forms/widgets/multiwidget.html'
 
-    def __init__(self, widgets, attrs=None):
+    def __init__(self, widgets, attrs=None, template_name=None):
         self.widgets = [isinstance(w, type) and w() or w for w in widgets]
-        super(MultiWidget, self).__init__(attrs)
+        super(MultiWidget, self).__init__(
+            attrs=attrs, template_name=template_name)
 
     def get_context(self, name, value, attrs=None, extra_context=None, context_instance=None):
         if self.is_localized:
@@ -889,10 +904,11 @@ class SplitDateTimeWidget(MultiWidget):
     A Widget that splits datetime input into two <input type="text"> boxes.
     """
 
-    def __init__(self, attrs=None, date_format=None, time_format=None):
+    def __init__(self, attrs=None, template_name=None, date_format=None, time_format=None):
         widgets = (DateInput(attrs=attrs, format=date_format),
                    TimeInput(attrs=attrs, format=time_format))
-        super(SplitDateTimeWidget, self).__init__(widgets, attrs)
+        super(SplitDateTimeWidget, self).__init__(
+            widgets, attrs=attrs, template_name=template_name)
 
     def decompress(self, value):
         if value:
@@ -906,8 +922,10 @@ class SplitHiddenDateTimeWidget(SplitDateTimeWidget):
     """
     is_hidden = True
 
-    def __init__(self, attrs=None, date_format=None, time_format=None):
-        super(SplitHiddenDateTimeWidget, self).__init__(attrs, date_format, time_format)
+    def __init__(self, attrs=None, template_name=None, date_format=None, time_format=None):
+        super(SplitHiddenDateTimeWidget, self).__init__(
+            attrs=attrs, template_name=template_name,
+            date_format=date_format, time_format=time_format)
         for widget in self.widgets:
             widget.input_type = 'hidden'
             widget.is_hidden = True
