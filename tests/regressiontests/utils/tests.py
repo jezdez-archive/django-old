@@ -20,4 +20,4 @@ from datetime_safe import *
 from baseconv import *
 from jslex import *
 from ipv6 import *
-from load import *
+from importlib import *
