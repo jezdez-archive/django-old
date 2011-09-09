@@ -171,6 +171,9 @@ Built-in widgets
 Django provides a representation of all the basic HTML widgets, plus some
 commonly used groups of widgets:
 
+``Widget``
+~~~~~~~~~~
+
 .. class:: Widget
 
     This abstract class cannot be rendered, but provides the basic attribute :attr:`~Widget.attrs`.
@@ -222,7 +225,6 @@ commonly used groups of widgets:
     .. attribute:: TextInput.template_name
 
        *Default:* ``forms/widgets/input.html``
-
 
 .. class:: PasswordInput
 
@@ -532,7 +534,6 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/multiwidget.html``
 
-
 .. class:: SplitHiddenDateTimeWidget
 
     Similar to :class:`SplitDateTimeWidget`, but uses :class:`HiddenInput` for
@@ -545,6 +546,9 @@ commonly used groups of widgets:
        *Default:* ``forms/widgets/multiwidget.html``
 
 .. currentmodule:: django.forms.extras.widgets
+
+``SelectDateWidget``
+~~~~~~~~~~~~~~~~~~~~
 
 .. class:: SelectDateWidget
 

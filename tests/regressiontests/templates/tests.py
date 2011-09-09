@@ -84,6 +84,9 @@ class SomeOtherException(Exception):
 class ContextStackException(Exception):
     pass
 
+class ShouldNotExecuteException(Exception):
+    pass
+
 class SomeClass:
     def __init__(self):
         self.otherclass = OtherClass()
@@ -127,8 +130,7 @@ class TestObj(object):
         return False
 
     def is_bad(self):
-        time.sleep(0.3)
-        return True
+        raise ShouldNotExecuteException()
 
 class SilentGetItemClass(object):
     def __getitem__(self, key):
@@ -456,24 +458,21 @@ class Templates(unittest.TestCase):
                 settings.TEMPLATE_DEBUG = template_debug
                 for is_cached in (False, True):
                     try:
-                        start = datetime.now()
-                        test_template = loader.get_template(name)
-                        end = datetime.now()
-                        if end-start > timedelta(seconds=0.2):
-                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Took too long to parse test" % (is_cached, invalid_str, template_debug, name))
+                        try:
+                            test_template = loader.get_template(name)
+                        except ShouldNotExecuteException:
+                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Template loading invoked method that shouldn't have been invoked." % (is_cached, invalid_str, template_debug, name))
 
-                        start = datetime.now()
-                        output = self.render(test_template, vals)
-                        end = datetime.now()
-                        if end-start > timedelta(seconds=0.2):
-                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Took too long to render test" % (is_cached, invalid_str, template_debug, name))
+                        try:
+                            output = self.render(test_template, vals)
+                        except ShouldNotExecuteException:
+                            failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Template rendering invoked method that shouldn't have been invoked." % (is_cached, invalid_str, template_debug, name))
                     except ContextStackException:
                         failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Context stack was left imbalanced" % (is_cached, invalid_str, template_debug, name))
                         continue
                     except Exception:
                         exc_type, exc_value, exc_tb = sys.exc_info()
                         if exc_type != result:
-                            print "CHECK", name, exc_type, result
                             tb = '\n'.join(traceback.format_exception(exc_type, exc_value, exc_tb))
                             failures.append("Template test (Cached='%s', TEMPLATE_STRING_IF_INVALID='%s', TEMPLATE_DEBUG=%s): %s -- FAILED. Got %s, exception: %s\n%s" % (is_cached, invalid_str, template_debug, name, exc_type, exc_value, tb))
                         continue
@@ -508,7 +507,8 @@ class Templates(unittest.TestCase):
     def get_template_tests(self):
         # SYNTAX --
         # 'template_name': ('template contents', 'context dict', 'expected string output' or Exception class)
-        return {
+        basedir = os.path.dirname(os.path.abspath(__file__))
+        tests = {
             ### BASIC SYNTAX ################################################
 
             # Plain text should go through the template parser untouched
@@ -920,9 +920,7 @@ class Templates(unittest.TestCase):
             'if-tag-error12': ("{% if a not b %}yes{% endif %}", {}, template.TemplateSyntaxError),
 
             # If evaluations are shortcircuited where possible
-            # These tests will fail by taking too long to run. When the if clause
-            # is shortcircuiting correctly, the is_bad() function shouldn't be
-            # evaluated, and the deliberate sleep won't happen.
+            # If is_bad is invoked, it will raise a ShouldNotExecuteException
             'if-tag-shortcircuit01': ('{% if x.is_true or x.is_bad %}yes{% else %}no{% endif %}', {'x': TestObj()}, "yes"),
             'if-tag-shortcircuit02': ('{% if x.is_false and x.is_bad %}yes{% else %}no{% endif %}', {'x': TestObj()}, "no"),
 
@@ -1293,6 +1291,12 @@ class Templates(unittest.TestCase):
             # blocktrans handling of variables which are not in the context.
             'i18n34': ('{% load i18n %}{% blocktrans %}{{ missing }}{% endblocktrans %}', {}, u''),
 
+            # trans tag with as var
+            'i18n35': ('{% load i18n %}{% trans "Page not found" as page_not_found %}{{ page_not_found }}', {'LANGUAGE_CODE': 'de'}, "Seite nicht gefunden"),
+            'i18n36': ('{% load i18n %}{% trans "Page not found" noop as page_not_found %}{{ page_not_found }}', {'LANGUAGE_CODE': 'de'}, "Page not found"),
+            'i18n36': ('{% load i18n %}{% trans "Page not found" as page_not_found noop %}{{ page_not_found }}', {'LANGUAGE_CODE': 'de'}, "Page not found"),
+            'i18n37': ('{% load i18n %}{% trans "Page not found" as page_not_found %}{% blocktrans %}Error: {{ page_not_found }}{% endblocktrans %}', {'LANGUAGE_CODE': 'de'}, "Error: Seite nicht gefunden"),
+
             ### HANDLING OF TEMPLATE_STRING_IF_INVALID ###################################
 
             'invalidstr01': ('{{ var|default:"Foo" }}', {}, ('Foo','INVALID')),
@@ -1350,27 +1354,34 @@ class Templates(unittest.TestCase):
             ### SSI TAG ########################################################
 
             # Test normal behavior
-            'old-ssi01': ('{%% ssi %s %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'ssi_include.html'), {}, 'This is for testing an ssi include. {{ test }}\n'),
-            'old-ssi02': ('{%% ssi %s %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'not_here'), {}, ''),
+            'old-ssi01': ('{%% ssi %s %%}' % os.path.join(basedir, 'templates', 'ssi_include.html'), {}, 'This is for testing an ssi include. {{ test }}\n'),
+            'old-ssi02': ('{%% ssi %s %%}' % os.path.join(basedir, 'not_here'), {}, ''),
 
             # Test parsed output
-            'old-ssi06': ('{%% ssi %s parsed %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'ssi_include.html'), {'test': 'Look ma! It parsed!'}, 'This is for testing an ssi include. Look ma! It parsed!\n'),
-            'old-ssi07': ('{%% ssi %s parsed %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'not_here'), {'test': 'Look ma! It parsed!'}, ''),
+            'old-ssi06': ('{%% ssi %s parsed %%}' % os.path.join(basedir, 'templates', 'ssi_include.html'), {'test': 'Look ma! It parsed!'}, 'This is for testing an ssi include. Look ma! It parsed!\n'),
+            'old-ssi07': ('{%% ssi %s parsed %%}' % os.path.join(basedir, 'not_here'), {'test': 'Look ma! It parsed!'}, ''),
+
+            # Test space in file name
+            'old-ssi08': ('{%% ssi %s %%}' % os.path.join(basedir, 'templates', 'ssi include with spaces.html'), {}, template.TemplateSyntaxError),
+            'old-ssi09': ('{%% ssi %s parsed %%}' % os.path.join(basedir, 'templates', 'ssi include with spaces.html'), {'test': 'Look ma! It parsed!'}, template.TemplateSyntaxError),
 
             # Future compatibility
             # Test normal behavior
-            'ssi01': ('{%% load ssi from future %%}{%% ssi "%s" %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'ssi_include.html'), {}, 'This is for testing an ssi include. {{ test }}\n'),
-            'ssi02': ('{%% load ssi from future %%}{%% ssi "%s" %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'not_here'), {}, ''),
-            'ssi03': ("{%% load ssi from future %%}{%% ssi '%s' %%}" % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'not_here'), {}, ''),
+            'ssi01': ('{%% load ssi from future %%}{%% ssi "%s" %%}' % os.path.join(basedir, 'templates', 'ssi_include.html'), {}, 'This is for testing an ssi include. {{ test }}\n'),
+            'ssi02': ('{%% load ssi from future %%}{%% ssi "%s" %%}' % os.path.join(basedir, 'not_here'), {}, ''),
+            'ssi03': ("{%% load ssi from future %%}{%% ssi '%s' %%}" % os.path.join(basedir, 'not_here'), {}, ''),
 
             # Test passing as a variable
-            'ssi04': ('{% load ssi from future %}{% ssi ssi_file %}', {'ssi_file': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'ssi_include.html')}, 'This is for testing an ssi include. {{ test }}\n'),
+            'ssi04': ('{% load ssi from future %}{% ssi ssi_file %}', {'ssi_file': os.path.join(basedir, 'templates', 'ssi_include.html')}, 'This is for testing an ssi include. {{ test }}\n'),
             'ssi05': ('{% load ssi from future %}{% ssi ssi_file %}', {'ssi_file': 'no_file'}, ''),
 
             # Test parsed output
-            'ssi06': ('{%% load ssi from future %%}{%% ssi "%s" parsed %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'ssi_include.html'), {'test': 'Look ma! It parsed!'}, 'This is for testing an ssi include. Look ma! It parsed!\n'),
-            'ssi07': ('{%% load ssi from future %%}{%% ssi "%s" parsed %%}' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'not_here'), {'test': 'Look ma! It parsed!'}, ''),
+            'ssi06': ('{%% load ssi from future %%}{%% ssi "%s" parsed %%}' % os.path.join(basedir, 'templates', 'ssi_include.html'), {'test': 'Look ma! It parsed!'}, 'This is for testing an ssi include. Look ma! It parsed!\n'),
+            'ssi07': ('{%% load ssi from future %%}{%% ssi "%s" parsed %%}' % os.path.join(basedir, 'not_here'), {'test': 'Look ma! It parsed!'}, ''),
 
+            # Test space in file name
+            'ssi08': ('{%% load ssi from future %%}{%% ssi "%s" %%}' % os.path.join(basedir, 'templates', 'ssi include with spaces.html'), {}, 'This is for testing an ssi include with spaces in its name. {{ test }}\n'),
+            'ssi09': ('{%% load ssi from future %%}{%% ssi "%s" parsed %%}' % os.path.join(basedir, 'templates', 'ssi include with spaces.html'), {'test': 'Look ma! It parsed!'}, 'This is for testing an ssi include with spaces in its name. Look ma! It parsed!\n'),
 
             ### TEMPLATETAG TAG #######################################################
             'templatetag01': ('{% templatetag openblock %}', {}, '{%'),
@@ -1612,6 +1623,16 @@ class Templates(unittest.TestCase):
             'static-statictag01': ('{% load static %}{% static "admin/base.css" %}', {}, urljoin(settings.STATIC_URL, 'admin/base.css')),
             'static-statictag02': ('{% load static %}{% static base_css %}', {'base_css': 'admin/base.css'}, urljoin(settings.STATIC_URL, 'admin/base.css')),
         }
+        # Until Django 1.5, the ssi tag takes an unquoted constant in argument,
+        # and there's no way to escape spaces. As a consequence it's impossible
+        # to include a file if its absolute path contains a space, as
+        # demonstrated by tests old-ssi08 and old-ssi09.
+        # If the patch to the Django chekout contains a space, the following
+        # tests will raise an exception too.
+        if ' ' in basedir:
+            for test_name in 'old-ssi01', 'old-ssi02', 'old-ssi06', 'old-ssi07':
+                tests[test_name] = tests[test_name][:-1] + (template.TemplateSyntaxError,)
+        return tests
 
 class TemplateTagLoading(unittest.TestCase):
 

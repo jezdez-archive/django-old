@@ -12,10 +12,6 @@ from django.contrib.admin import FieldListFilter
 from django.contrib.admin.options import IncorrectLookupParameters
 from django.contrib.admin.util import quote, get_fields_from_path
 
-# The system will display a "Show all" link on the change list only if the
-# total result count is less than or equal to this setting.
-MAX_SHOW_ALL_ALLOWED = 200
-
 # Changelist settings
 ALL_VAR = 'all'
 ORDER_VAR = 'o'
@@ -44,7 +40,7 @@ def field_needs_distinct(field):
 class ChangeList(object):
     def __init__(self, request, model, list_display, list_display_links,
             list_filter, date_hierarchy, search_fields, list_select_related,
-            list_per_page, list_editable, model_admin):
+            list_per_page, list_max_show_all, list_editable, model_admin):
         self.model = model
         self.opts = model._meta
         self.lookup_opts = self.opts
@@ -56,6 +52,7 @@ class ChangeList(object):
         self.search_fields = search_fields
         self.list_select_related = list_select_related
         self.list_per_page = list_per_page
+        self.list_max_show_all = list_max_show_all
         self.model_admin = model_admin
 
         # Get search parameters from the query string.
@@ -145,7 +142,7 @@ class ChangeList(object):
         else:
             full_result_count = self.root_query_set.count()
 
-        can_show_all = result_count <= MAX_SHOW_ALL_ALLOWED
+        can_show_all = result_count <= self.list_max_show_all
         multi_page = result_count > self.list_per_page
 
         # Get the list of objects to display on this page.
@@ -267,6 +264,7 @@ class ChangeList(object):
                 del lookup_params[key]
                 lookup_params[smart_str(key)] = value
 
+            field = None
             if not use_distinct:
                 # Check if it's a relationship that might return more than one
                 # instance
@@ -291,7 +289,7 @@ class ChangeList(object):
                     value = True
                 lookup_params[key] = value
 
-            if not self.model_admin.lookup_allowed(key, value):
+            if field and not self.model_admin.lookup_allowed(key, value):
                 raise SuspiciousOperation("Filtering by %s not allowed" % key)
 
         return lookup_params, use_distinct
@@ -300,28 +298,30 @@ class ChangeList(object):
         lookup_params, use_distinct = self.get_lookup_params(use_distinct=False)
         self.filter_specs, self.has_filters = self.get_filters(request, use_distinct)
 
-        # Let every list filter modify the qs and params to its liking
-        qs = self.root_query_set
-        for filter_spec in self.filter_specs:
-            new_qs = filter_spec.queryset(request, qs)
-            if new_qs is not None:
-                qs = new_qs
-                for param in filter_spec.used_params():
-                    try:
-                        del lookup_params[param]
-                    except KeyError:
-                        pass
-
-        # Apply the remaining lookup parameters from the query string (i.e.
-        # those that haven't already been processed by the filters).
         try:
+            # First, let every list filter modify the qs and params to its
+            # liking.
+            qs = self.root_query_set
+            for filter_spec in self.filter_specs:
+                new_qs = filter_spec.queryset(request, qs)
+                if new_qs is not None:
+                    qs = new_qs
+                    for param in filter_spec.used_params():
+                        try:
+                            del lookup_params[param]
+                        except KeyError:
+                            pass
+
+            # Then, apply the remaining lookup parameters from the query string
+            # (i.e. those that haven't already been processed by the filters).
             qs = qs.filter(**lookup_params)
-        # Naked except! Because we don't have any other way of validating "params".
-        # They might be invalid if the keyword arguments are incorrect, or if the
-        # values are not in the correct type, so we might get FieldError, ValueError,
-        # ValicationError, or ? from a custom field that raises yet something else
-        # when handed impossible data.
         except Exception, e:
+            # Naked except! Because we don't have any other way of validating
+            # "lookup_params". They might be invalid if the keyword arguments
+            # are incorrect, or if the values are not in the correct type, so
+            # we might get FieldError, ValueError, ValicationError, or ? from a
+            # custom field that raises yet something else when handed
+            # impossible data.
             raise IncorrectLookupParameters(e)
 
         # Use select_related() if one of the list_display options is a field

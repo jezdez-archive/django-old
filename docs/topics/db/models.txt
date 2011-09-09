@@ -363,9 +363,9 @@ It's suggested, but not required, that the name of a
 :class:`~django.db.models.ManyToManyField` (``toppings`` in the example above)
 be a plural describing the set of related model objects.
 
-It doesn't matter which model gets the
-:class:`~django.db.models.ManyToManyField`, but you only need it in one of the
-models -- not in both.
+It doesn't matter which model has the
+:class:`~django.db.models.ManyToManyField`, but you should only put it in one
+of the models -- not both.
 
 Generally, :class:`~django.db.models.ManyToManyField` instances should go in the
 object that's going to be edited in the admin interface, if you're using
@@ -676,10 +676,7 @@ For example, this model has a few custom methods::
             return '%s %s' % (self.first_name, self.last_name)
         full_name = property(_get_full_name)
 
-The last method in this example is a :term:`property`. `Read more about
-properties`_.
-
-.. _Read more about properties: http://www.python.org/download/releases/2.2/descrintro/#property
+The last method in this example is a :term:`property`.
 
 The :doc:`model instance reference </ref/models/instances>` has a complete list
 of :ref:`methods automatically given to each model <model-instance-methods>`.

@@ -156,13 +156,20 @@ class Query(object):
     def __str__(self):
         """
         Returns the query as a string of SQL with the parameter values
-        substituted in.
+        substituted in (use sql_with_params() to see the unsubstituted string).
 
         Parameter values won't necessarily be quoted correctly, since that is
         done by the database interface at execution time.
         """
-        sql, params = self.get_compiler(DEFAULT_DB_ALIAS).as_sql()
+        sql, params = self.sql_with_params()
         return sql % params
+
+    def sql_with_params(self):
+        """
+        Returns the query as an SQL string and the parameters that will be
+        subsituted into the query.
+        """
+        return self.get_compiler(DEFAULT_DB_ALIAS).as_sql()
 
     def __deepcopy__(self, memo):
         result = self.clone(memo=memo)
@@ -445,8 +452,6 @@ class Query(object):
             "Cannot combine a unique query with a non-unique query."
 
         self.remove_inherited_models()
-        l_tables = set([a for a in self.tables if self.alias_refcount[a]])
-        r_tables = set([a for a in rhs.tables if rhs.alias_refcount[a]])
         # Work out how to relabel the rhs aliases, if necessary.
         change_map = {}
         used = set()
@@ -471,16 +476,27 @@ class Query(object):
         # all joins exclusive to either the lhs or the rhs must be converted
         # to an outer join.
         if not conjunction:
+            l_tables = set(self.tables)
+            r_tables = set(rhs.tables)
             # Update r_tables aliases.
             for alias in change_map:
                 if alias in r_tables:
-                    r_tables.remove(alias)
-                    r_tables.add(change_map[alias])
+                    # r_tables may contain entries that have a refcount of 0
+                    # if the query has references to a table that can be
+                    # trimmed because only the foreign key is used.
+                    # We only need to fix the aliases for the tables that
+                    # actually have aliases.
+                    if rhs.alias_refcount[alias]:
+                        r_tables.remove(alias)
+                        r_tables.add(change_map[alias])
             # Find aliases that are exclusive to rhs or lhs.
             # These are promoted to outer joins.
-            outer_aliases = (l_tables | r_tables) - (l_tables & r_tables)
-            for alias in outer_aliases:
-                self.promote_alias(alias, True)
+            outer_tables = (l_tables | r_tables) - (l_tables & r_tables)
+            for alias in outer_tables:
+                # Again, some of the tables won't have aliases due to
+                # the trimming of unnecessary tables.
+                if self.alias_refcount.get(alias) or rhs.alias_refcount.get(alias):
+                    self.promote_alias(alias, True)
 
         # Now relabel a copy of the rhs where-clause and add it to the current
         # one.
@@ -668,7 +684,7 @@ class Query(object):
         False, the join is only promoted if it is nullable, otherwise it is
         always promoted.
 
-        Returns True if the join was promoted.
+        Returns True if the join was promoted by this call.
         """
         if ((unconditional or self.alias_map[alias][NULLABLE]) and
                 self.alias_map[alias][JOIN_TYPE] != self.LOUTER):
@@ -1076,16 +1092,22 @@ class Query(object):
                     can_reuse)
             return
 
+        table_promote = False
+        join_promote = False
+
         if (lookup_type == 'isnull' and value is True and not negate and
                 len(join_list) > 1):
             # If the comparison is against NULL, we may need to use some left
             # outer joins when creating the join chain. This is only done when
             # needed, as it's less efficient at the database level.
             self.promote_alias_chain(join_list)
+            join_promote = True
 
         # Process the join list to see if we can remove any inner joins from
         # the far end (fewer tables in a query is better).
-        col, alias, join_list = self.trim_joins(target, join_list, last, trim)
+        nonnull_comparison = (lookup_type == 'isnull' and value is False)
+        col, alias, join_list = self.trim_joins(target, join_list, last, trim,
+                nonnull_comparison)
 
         if connector == OR:
             # Some joins may need to be promoted when adding a new filter to a
@@ -1096,19 +1118,29 @@ class Query(object):
             join_it = iter(join_list)
             table_it = iter(self.tables)
             join_it.next(), table_it.next()
-            table_promote = False
-            join_promote = False
+            unconditional = False
             for join in join_it:
                 table = table_it.next()
+                # Once we hit an outer join, all subsequent joins must
+                # also be promoted, regardless of whether they have been
+                # promoted as a result of this pass through the tables.
+                unconditional = (unconditional or
+                    self.alias_map[join][JOIN_TYPE] == self.LOUTER)
                 if join == table and self.alias_refcount[join] > 1:
+                    # We have more than one reference to this join table.
+                    # This means that we are dealing with two different query
+                    # subtrees, so we don't need to do any join promotion.
                     continue
-                join_promote = self.promote_alias(join)
+                join_promote = join_promote or self.promote_alias(join, unconditional)
                 if table != join:
                     table_promote = self.promote_alias(table)
+                # We only get here if we have found a table that exists
+                # in the join list, but isn't on the original tables list.
+                # This means we've reached the point where we only have
+                # new tables, so we can break out of this promotion loop.
                 break
             self.promote_alias_chain(join_it, join_promote)
-            self.promote_alias_chain(table_it, table_promote)
-
+            self.promote_alias_chain(table_it, table_promote or join_promote)
 
         if having_clause or force_having:
             if (alias, col) not in self.group_by:
@@ -1413,7 +1445,7 @@ class Query(object):
 
         return field, target, opts, joins, last, extra_filters
 
-    def trim_joins(self, target, join_list, last, trim):
+    def trim_joins(self, target, join_list, last, trim, nonnull_check=False):
         """
         Sometimes joins at the end of a multi-table sequence can be trimmed. If
         the final join is against the same column as we are comparing against,
@@ -1434,6 +1466,11 @@ class Query(object):
         trimmed before anything. See the documentation of add_filter() for
         details about this.
 
+        The 'nonnull_check' parameter is True when we are using inner joins
+        between tables explicitly to exclude NULL entries. In that case, the
+        tables shouldn't be trimmed, because the very action of joining to them
+        alters the result set.
+
         Returns the final active column and table alias and the new active
         join_list.
         """
@@ -1441,7 +1478,7 @@ class Query(object):
         penultimate = last.pop()
         if penultimate == final:
             penultimate = last.pop()
-        if trim and len(join_list) > 1:
+        if trim and final > 1:
             extra = join_list[penultimate:]
             join_list = join_list[:penultimate]
             final = penultimate
@@ -1454,12 +1491,13 @@ class Query(object):
         alias = join_list[-1]
         while final > 1:
             join = self.alias_map[alias]
-            if col != join[RHS_JOIN_COL] or join[JOIN_TYPE] != self.INNER:
+            if (col != join[RHS_JOIN_COL] or join[JOIN_TYPE] != self.INNER or
+                    nonnull_check):
                 break
             self.unref_alias(alias)
             alias = join[LHS_ALIAS]
             col = join[LHS_JOIN_COL]
-            join_list = join_list[:-1]
+            join_list.pop()
             final -= 1
             if final == penultimate:
                 penultimate = last.pop()
@@ -1753,13 +1791,18 @@ class Query(object):
         existing immediate values, but respects existing deferrals.)
         """
         existing, defer = self.deferred_loading
+        field_names = set(field_names)
+        if 'pk' in field_names:
+            field_names.remove('pk')
+            field_names.add(self.model._meta.pk.name)
+
         if defer:
             # Remove any existing deferred names from the current set before
             # setting the new names.
-            self.deferred_loading = set(field_names).difference(existing), False
+            self.deferred_loading = field_names.difference(existing), False
         else:
             # Replace any existing "immediate load" field names.
-            self.deferred_loading = set(field_names), False
+            self.deferred_loading = field_names, False
 
     def get_loaded_field_names(self):
         """

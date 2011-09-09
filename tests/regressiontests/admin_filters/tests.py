@@ -1,13 +1,14 @@
 import datetime
 
+from django.contrib.admin.options import IncorrectLookupParameters
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, RequestFactory
 from django.utils.encoding import force_unicode
-
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.contrib.admin.views.main import ChangeList
-from django.contrib.admin import site, ModelAdmin, SimpleListFilter
+from django.contrib.admin import (site, ModelAdmin, SimpleListFilter,
+    BooleanFieldListFilter)
 
 from models import Book
 
@@ -49,6 +50,11 @@ class DecadeListFilterWithNoneReturningLookups(DecadeListFilterWithTitleAndParam
     def lookups(self, request, model_admin):
         pass
 
+class DecadeListFilterWithFailingQueryset(DecadeListFilterWithTitleAndParameter):
+
+    def queryset(self, request, queryset):
+        raise Exception
+
 class DecadeListFilterWithQuerysetBasedLookups(DecadeListFilterWithTitleAndParameter):
 
     def lookups(self, request, model_admin):
@@ -67,6 +73,9 @@ class BookAdmin(ModelAdmin):
     list_filter = ('year', 'author', 'contributors', 'is_best_seller', 'date_registered', 'no')
     ordering = ('-id',)
 
+class BookAdminWithTupleBooleanFilter(BookAdmin):
+    list_filter = ('year', 'author', 'contributors', ('is_best_seller', BooleanFieldListFilter), 'date_registered', 'no')
+
 class DecadeFilterBookAdmin(ModelAdmin):
     list_filter = ('author', DecadeListFilterWithTitleAndParameter)
     ordering = ('-id',)
@@ -79,6 +88,9 @@ class DecadeFilterBookAdminWithoutParameter(ModelAdmin):
 
 class DecadeFilterBookAdminWithNoneReturningLookups(ModelAdmin):
     list_filter = (DecadeListFilterWithNoneReturningLookups,)
+
+class DecadeFilterBookAdminWithFailingQueryset(ModelAdmin):
+    list_filter = (DecadeListFilterWithFailingQueryset,)
 
 class DecadeFilterBookAdminWithQuerysetBasedLookups(ModelAdmin):
     list_filter = (DecadeListFilterWithQuerysetBasedLookups,)
@@ -107,7 +119,7 @@ class ListFiltersTests(TestCase):
     def get_changelist(self, request, model, modeladmin):
         return ChangeList(request, model, modeladmin.list_display, modeladmin.list_display_links,
             modeladmin.list_filter, modeladmin.date_hierarchy, modeladmin.search_fields,
-            modeladmin.list_select_related, modeladmin.list_per_page, modeladmin.list_editable, modeladmin)
+            modeladmin.list_select_related, modeladmin.list_per_page, modeladmin.list_max_show_all, modeladmin.list_editable, modeladmin)
 
     def test_datefieldlistfilter(self):
         modeladmin = BookAdmin(Book, site)
@@ -331,7 +343,7 @@ class ListFiltersTests(TestCase):
         self.verify_booleanfieldlistfilter(modeladmin)
 
     def test_booleanfieldlistfilter_tuple(self):
-        modeladmin = BookAdmin(Book, site)
+        modeladmin = BookAdminWithTupleBooleanFilter(Book, site)
         self.verify_booleanfieldlistfilter(modeladmin)
 
     def verify_booleanfieldlistfilter(self, modeladmin):
@@ -504,6 +516,17 @@ class ListFiltersTests(TestCase):
         changelist = self.get_changelist(request, Book, modeladmin)
         filterspec = changelist.get_filters(request)[0]
         self.assertEqual(len(filterspec), 0)
+
+    def test_filter_with_failing_queryset(self):
+        """
+        Ensure that a filter's failing queryset is interpreted as if incorrect
+        lookup parameters were passed (therefore causing a 302 redirection to
+        the changelist).
+        Refs #16716, #16714.
+        """
+        modeladmin = DecadeFilterBookAdminWithFailingQueryset(Book, site)
+        request = self.request_factory.get('/', {})
+        self.assertRaises(IncorrectLookupParameters, self.get_changelist, request, Book, modeladmin)
 
     def test_simplelistfilter_with_queryset_based_lookups(self):
         modeladmin = DecadeFilterBookAdminWithQuerysetBasedLookups(Book, site)

@@ -25,6 +25,8 @@ The PRIMARY AUTHORS are (and/or have been):
     * Chris Beaven
     * Honza Král
     * Idan Gazit
+    * Paul McMillan
+    * Julien Phalip
 
 More information on the main contributors to Django can be found in
 docs/internals/committers.txt.
@@ -94,6 +96,7 @@ answer newbie questions, and generally made Django that much better:
     Sean Brant
     Andrew Brehaut <http://brehaut.net/blog>
     David Brenneman <http://davidbrenneman.com>
+    Anthony Briggs <anthony.briggs@gmail.com>
     Orne Brocaar <http://brocaar.com/>
     brut.alll@gmail.com
     bthomas
@@ -117,6 +120,7 @@ answer newbie questions, and generally made Django that much better:
     Sengtha Chay <sengtha@e-khmer.com>
     ivan.chelubeev@gmail.com
     Bryan Chow <bryan at verdjn dot com>
+    Tom Christie <tom@tomchristie.com>
     Antonis Christofides <anthony@itia.ntua.gr>
     Michal Chruszcz <troll@pld-linux.org>
     Can Burak Çilingir <canburak@cs.bilgi.edu.tr>
@@ -396,7 +400,6 @@ answer newbie questions, and generally made Django that much better:
     peter@mymart.com
     pgross@thoughtworks.com
     phaedo <http://phaedo.cx/>
-    Julien Phalip <http://www.julienphalip.com>
     phil@produxion.net
     phil.h.smith@gmail.com
     Gustavo Picon
@@ -447,6 +450,7 @@ answer newbie questions, and generally made Django that much better:
     schwank@gmail.com
     scott@staplefish.com
     Ilya Semenov <semenov@inetss.com>
+    Aleksandra Sendecka <asendecka@hauru.eu>
     serbaut@gmail.com
     John Shaffer <jshaffer2112@gmail.com>
     Pete Shinners <pete@shinners.org>
