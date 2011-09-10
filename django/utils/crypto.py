@@ -44,14 +44,14 @@ def constant_time_compare(val1, val2):
     return result == 0
 
 
-class Pbkdf2RandomSource(object):
+class PBKDF2RandomSource(object):
     """
     Underlying pseudorandom function (PRF) for pbkdf2()
 
     For example::
 
         import hashlib
-        prf = Pbkdf2RandomSource(hashlib.sha512)
+        prf = PBKDF2RandomSource(hashlib.sha512)
 
     """
 
@@ -77,7 +77,7 @@ def pbkdf2(password, salt, iterations=2000, dklen=0, prf=None):
 
     """
     if not prf:
-        prf = Pbkdf2RandomSource(hashlib.sha512)
+        prf = PBKDF2RandomSource(hashlib.sha512)
     hlen = prf.digest_size
     if not dklen:
         dklen = hlen

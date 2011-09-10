@@ -2,7 +2,7 @@
 import hashlib
 
 from django.utils import unittest
-from django.utils.crypto import pbkdf2, Pbkdf2RandomSource
+from django.utils.crypto import pbkdf2, PBKDF2RandomSource
 
 
 class TestUtilsCryptoPBKDF2(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "salt",
                 "iterations": 1,
                 "dklen": 20,
-                "prf": Pbkdf2RandomSource(hashlib.sha1),
+                "prf": PBKDF2RandomSource(hashlib.sha1),
             },
             "result": "0c60c80f961f0e71f3a9b524af6012062fe037a6",
         },
@@ -31,7 +31,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "salt",
                 "iterations": 2,
                 "dklen": 20,
-                "prf": Pbkdf2RandomSource(hashlib.sha1),
+                "prf": PBKDF2RandomSource(hashlib.sha1),
             },
             "result": "ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957",
         },
@@ -41,7 +41,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "salt",
                 "iterations": 4096,
                 "dklen": 20,
-                "prf": Pbkdf2RandomSource(hashlib.sha1),
+                "prf": PBKDF2RandomSource(hashlib.sha1),
             },
             "result": "4b007901b765489abead49d926f721d065a429c1",
         },
@@ -52,7 +52,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
         #         "salt": "salt",
         #         "iterations": 16777216,
         #         "dklen": 20,
-        #         "prf": Pbkdf2RandomSource(hashlib.sha1),
+        #         "prf": PBKDF2RandomSource(hashlib.sha1),
         #     },
         #     "result": "eefe3d61cd4da4e4e9945b3d6ba2158c2634e984",
         # },
@@ -62,7 +62,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "saltSALTsaltSALTsaltSALTsaltSALTsalt",
                 "iterations": 4096,
                 "dklen": 25,
-                "prf": Pbkdf2RandomSource(hashlib.sha1),
+                "prf": PBKDF2RandomSource(hashlib.sha1),
             },
             "result": "3d2eec4fe41c849b80c8d83662c0e44a8b291a964cf2f07038",
         },
@@ -72,7 +72,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "sa\0lt",
                 "iterations": 4096,
                 "dklen": 16,
-                "prf": Pbkdf2RandomSource(hashlib.sha1),
+                "prf": PBKDF2RandomSource(hashlib.sha1),
             },
             "result": "56fa6aa75548099dcc37d7f03425e0c3",
         },
@@ -85,7 +85,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "salt",
                 "iterations": 1,
                 "dklen": 20,
-                "prf": Pbkdf2RandomSource(hashlib.sha256),
+                "prf": PBKDF2RandomSource(hashlib.sha256),
             },
             "result": "120fb6cffcf8b32c43e7225256c4f837a86548c9",
         },
@@ -95,7 +95,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "salt",
                 "iterations": 1,
                 "dklen": 20,
-                "prf": Pbkdf2RandomSource(hashlib.sha512),
+                "prf": PBKDF2RandomSource(hashlib.sha512),
             },
             "result": "867f70cf1ade02cff3752599a3a53dc4af34c7a6",
         },
@@ -105,7 +105,7 @@ class TestUtilsCryptoPBKDF2(unittest.TestCase):
                 "salt": "salt",
                 "iterations": 1000,
                 "dklen": 0,
-                "prf": Pbkdf2RandomSource(hashlib.sha512),
+                "prf": PBKDF2RandomSource(hashlib.sha512),
             },
             "result": ("afe6c5530785b6cc6b1c6453384731bd5ee432ee"
                        "549fd42fb6695779ad8a1c5bf59de69c48f774ef"
