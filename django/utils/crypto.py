@@ -2,9 +2,11 @@
 Django's standard crypto functions and utilities.
 """
 
-import hashlib
 import hmac
+import struct
+import hashlib
 from django.conf import settings
+
 
 def salted_hmac(key_salt, value, secret=None):
     """
@@ -27,6 +29,7 @@ def salted_hmac(key_salt, value, secret=None):
     # However, we need to ensure that we *always* do this.
     return hmac.new(key, msg=value, digestmod=hashlib.sha1)
 
+
 def constant_time_compare(val1, val2):
     """
     Returns True if the two strings are equal, False otherwise.
@@ -39,3 +42,65 @@ def constant_time_compare(val1, val2):
     for x, y in zip(val1, val2):
         result |= ord(x) ^ ord(y)
     return result == 0
+
+
+class Pbkdf2RandomSource(object):
+    """
+    Underlying pseudorandom function (PRF) for pbkdf2()
+
+    For example::
+
+        import hashlib
+        prf = Pbkdf2RandomSource(hashlib.sha512)
+
+    """
+
+    def __init__(self, digest):
+        self.digest = digest
+        self.digest_size = digest().digest_size
+
+    def __call__(self, key, data):
+        return hmac.new(key, data, self.digest).digest()
+
+
+def pbkdf2(password, salt, iterations=2000, dklen=0, prf=None):
+    """
+    Implements PBKDF2 as defined in RFC 2898, section 5.2
+
+    This routine was originally written by Christian Aichinger:
+    http://stackoverflow.com/questions/5130513/pbkdf2-hmac-sha2-test-vectors
+
+    For example::
+
+        >>> pbkdf2("password", "salt", dklen=20).encode('hex')
+        'afe6c5530785b6cc6b1c6453384731bd5ee432ee'
+
+    """
+    if not prf:
+        prf = Pbkdf2RandomSource(hashlib.sha512)
+    hlen = prf.digest_size
+    if not dklen:
+        dklen = hlen
+    if dklen > (2 ** 32 - 1) * hlen:
+        raise ValueError('dklen too big')
+    l = -(-dklen // hlen)
+    r = dklen - (l - 1) * hlen
+
+    def int_to_32bit_be(i):
+        assert i > 0
+        return struct.pack('>I', i)
+
+    def xor_string(A, B):
+        return ''.join([chr(ord(a) ^ ord(b)) for a, b in zip(A, B)])
+
+    def F(i):
+        def U():
+            U = salt + int_to_32bit_be(i)
+            for j in range(iterations):
+                U = prf(password, U)
+                yield U
+        return reduce(xor_string, U())
+
+    T = [F(x) for x in range(1, l + 1)]
+    dk = ''.join(T[:-1]) + T[-1][:r]
+    return dk
