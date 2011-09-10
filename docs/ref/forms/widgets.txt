@@ -198,7 +198,7 @@ commonly used groups of widgets:
         attributes will be joined with the :attr:`~Widget.attrs` attribute given
         to the widget's constructor.
 
-        .. versionadded:: 1.5
+        .. versionadded:: 1.4
 
         You can also change some template settings with arguments to the
         ``render`` method, since all built-in widgets are rendered from
@@ -216,6 +216,9 @@ commonly used groups of widgets:
         render the widget. Its value is ``None`` and should be overriden in
         subclasses.
 
+``TextInput``
+~~~~~~~~~~~~~
+
 .. class:: TextInput
 
     Text input: ``<input type='text' ...>``
@@ -225,6 +228,9 @@ commonly used groups of widgets:
     .. attribute:: TextInput.template_name
 
        *Default:* ``forms/widgets/input.html``
+
+``PasswordInput``
+~~~~~~~~~~~~~~~~~
 
 .. class:: PasswordInput
 
@@ -248,6 +254,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/input.html``
 
+``HiddenInput``
+~~~~~~~~~~~~~~~
+
 .. class:: HiddenInput
 
     Hidden input: ``<input type='hidden' ...>``
@@ -257,6 +266,9 @@ commonly used groups of widgets:
     .. attribute:: HiddenInput.template_name
 
        *Default:* ``forms/widgets/input.html``
+
+``MultipleHiddenInput``
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: MultipleHiddenInput
 
@@ -277,6 +289,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/input.html``
 
+``FileInput``
+~~~~~~~~~~~~~
+
 .. class:: FileInput
 
     File upload input: ``<input type='file' ...>``
@@ -286,6 +301,9 @@ commonly used groups of widgets:
     .. attribute:: FileInput.template_name
 
        *Default:* ``forms/widgets/input.html``
+
+``ClearableFileInput``
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: ClearableFileInput
 
@@ -300,6 +318,9 @@ commonly used groups of widgets:
     .. attribute:: ClearableFileInput.template_name
 
        *Default:* ``forms/widgets/clearable_input.html``
+
+``DateInput``
+~~~~~~~~~~~~~
 
 .. class:: DateInput
 
@@ -321,6 +342,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/input.html``
 
+``DateTimeInput``
+~~~~~~~~~~~~~~~~~
+
 .. class:: DateTimeInput
 
     Date/time input as a simple text box: ``<input type='text' ...>``
@@ -340,6 +364,9 @@ commonly used groups of widgets:
     .. attribute:: DateTimeInput.template_name
 
        *Default:* ``forms/widgets/input.html``
+
+``TimeInput``
+~~~~~~~~~~~~~
 
 .. class:: TimeInput
 
@@ -361,6 +388,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/input.html``
 
+``Textarea``
+~~~~~~~~~~~~
+
 .. class:: Textarea
 
     Text area: ``<textarea>...</textarea>``
@@ -370,6 +400,9 @@ commonly used groups of widgets:
     .. attribute:: Textarea.template_name
 
        *Default:* ``forms/widgets/textarea.html``
+
+``CheckboxInput``
+~~~~~~~~~~~~~~~~~
 
 .. class:: CheckboxInput
 
@@ -388,6 +421,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/input.html``
 
+``Select``
+~~~~~~~~~~
+
 .. class:: Select
 
     Select widget: ``<select><option ...>...</select>``
@@ -404,6 +440,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/select.html``
 
+``NullBooleanSelect``
+~~~~~~~~~~~~~~~~~~~~~
+
 .. class:: NullBooleanSelect
 
     Select widget with options 'Unknown', 'Yes' and 'No'
@@ -413,6 +452,9 @@ commonly used groups of widgets:
     .. attribute:: NullBooleanSelect.template_name
 
        *Default:* ``forms/widgets/select.html``
+
+``SelectMultiple``
+~~~~~~~~~~~~~~~~~~
 
 .. class:: SelectMultiple
 
@@ -424,6 +466,9 @@ commonly used groups of widgets:
     .. attribute:: SelectMultiple.template_name
 
        *Default:* ``forms/widgets/select.html``
+
+``RadioSelect``
+~~~~~~~~~~~~~~~
 
 .. class:: RadioSelect
 
@@ -442,6 +487,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/radio.html``
 
+``CheckboxSelectMultiple``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. class:: CheckboxSelectMultiple
 
     Similar to :class:`SelectMultiple`, but rendered as a list of check
@@ -459,6 +507,9 @@ commonly used groups of widgets:
     .. attribute:: CheckboxSelectMultiple.template_name
 
        *Default:* ``forms/widgets/checkbox_select.html``
+
+``MultiWidget``
+~~~~~~~~~~~~~~~
 
 .. class:: MultiWidget
 
@@ -513,6 +564,9 @@ commonly used groups of widgets:
 
        *Default:* ``forms/widgets/multiwidget.html``
 
+``SplitDateTimeWidget``
+~~~~~~~~~~~~~~~~~~~~~~~
+
 .. class:: SplitDateTimeWidget
 
     Wrapper (using :class:`MultiWidget`) around two widgets: :class:`DateInput`
@@ -533,6 +587,9 @@ commonly used groups of widgets:
     .. attribute:: SplitDateTimeWidget.template_name
 
        *Default:* ``forms/widgets/multiwidget.html``
+
+``SplitHiddenDateTimeWidget``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. class:: SplitHiddenDateTimeWidget
 
