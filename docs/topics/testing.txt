@@ -1535,7 +1535,7 @@ your test suite.
     and that ``text`` appears in the content of the response. If ``count`` is
     provided, ``text`` must occur exactly ``count`` times in the response.
 
-    .. versionadded:: 1.5
+    .. versionadded:: 1.4
 
     Set ``html`` to ``True`` to handle ``text`` as HTML. The comparison with
     the response content will be based on HTML semantics instead of
@@ -1548,7 +1548,7 @@ your test suite.
     Asserts that a ``Response`` instance produced the given ``status_code`` and
     that ``text`` does not appears in the content of the response.
 
-    .. versionadded:: 1.5
+    .. versionadded:: 1.4
 
     Set ``html`` to ``True`` to handle ``text`` as HTML. The comparison with
     the response content will be based on HTML semantics instead of
@@ -1578,7 +1578,7 @@ your test suite.
 
     The name is a string such as ``'admin/index.html'``.
 
-    .. versionadded:: 1.5
+    .. versionadded:: 1.4
 
     You can also use this as a context manager. The code that is executed
     under the with statement is then observed instead of a response::
@@ -1597,7 +1597,7 @@ your test suite.
     Asserts that the template with the given name was *not* used in rendering
     the response.
 
-    .. versionadded:: 1.5
+    .. versionadded:: 1.4
 
     You can use this as a context manager in the same way as
     :func:`~TestCase.assertTemplateUsed`.
@@ -1661,7 +1661,7 @@ your test suite.
 
 .. method:: TestCase.assertHTMLEqual(html1, html2, msg=None)
 
-    .. versionadded:: 1.5
+    .. versionadded:: 1.4
 
     Asserts that the strings ``html1`` and ``html2`` are equal. The comparison
     is based on HTML semantics. The comparison takes following things into
@@ -1692,7 +1692,7 @@ your test suite.
 
 .. method:: TestCase.assertHTMLNotEqual(html1, html2, msg=None)
 
-    .. versionadded:: 1.5
+    .. versionadded:: 1.4
 
     Asserts that the strings ``html1`` and ``html2`` are *not* equal. The
     comparison is based on HTML semantics. See

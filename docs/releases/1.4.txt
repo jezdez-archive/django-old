@@ -40,6 +40,60 @@ before the release of Django 1.4.
 What's new in Django 1.4
 ========================
 
+Template based form rendering
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In previous versions of Django, HTML rendering of forms was hardcoded in the
+python source files and difficult to extend and override. Django 1.4 includes a
+new template-based rendering that makes it possible to customize all rendered
+markup from templates.
+
+A new template loader (``django.template.loaders.forms.Loader``) that loads the
+default form and widget templates is enabled automatically for
+backwards-compatibility. In Django 1.5 a ``DeprecationWarning`` will be raised
+if this loader is not explicitly included in the :setting:`TEMPLATE_LOADERS`
+setting, and in Django 1.6 the loader will no longer be automatically included.
+
+Read :doc:`/topics/forms/rendering` for more details on the new template based
+rendering.
+
+Widgets API
+~~~~~~~~~~~
+
+The form widgets now have a :doc:`public API<../ref/forms/widgets>` for easier
+custom rendering. Like the rest of the form library, widgets are now rendered
+to HTML using Django templates.
+
+HTML comparisons in tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :class:`~django.test.testcase.TestCase` base class now has some helpers to
+compare HTML roughly without tripping over trivial differences in whitespace,
+argument quoting and ordering, and closing of self-closing tags. HTML can
+either be compared directly with the new
+:meth:`~django.test.testcase.TestCase.assertHTMLEqual` and
+:meth:`~django.test.testcase.TestCase.assertHTMLNotEqual` assertions, or use
+the ``html=True`` flag with
+:meth:`~django.test.testcase.TestCase.assertContains` and
+:meth:`~django.test.testcase.TestCase.assertNotContains` to test if the test
+client's response contains a given HTML fragment. See the :ref:`assertion
+documentation<assertions>` for more information.
+
+``assertTemplateUsed`` as context manager
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is now possible to check whether a template was used or not in a block of
+code with the :meth:`~django.test.testcase.TestCase.assertTemplateUsed` and
+:meth:`~django.test.testcase.TestCase.assertTemplateNotUsed` assertions. They
+can be used as a context manager::
+
+    with self.assertTemplateUsed('index.html'):
+        render_to_string('index.html')
+    with self.assertTemplateNotUsed('base.html'):
+        render_to_string('index.html')
+
+See the :ref:`assertion documentation<assertions>` for more information.
+
 ``SELECT FOR UPDATE`` support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -338,6 +392,29 @@ In case your ``ADMIN_MEDIA_PREFIX`` is set to an own domain (e.g.
     your server's file system when you deploy your site, you have to update
     that path. The files were moved from :file:`django/contrib/admin/media/`
     to :file:`django/contrib/admin/static/admin/`.
+
+Private widgets API
+~~~~~~~~~~~~~~~~~~~
+
+With the addition of a template-based widgets API, parts of the widgets API
+have been deprecated. They weren't considered as public API and if you use
+standard widgets, backwards compatibility applies. However, if you have custom
+widgets defined using the mechanisms listed, you will need to update them to
+the new API:
+
+* ``MultiWidget``'s ``format_output`` method has been deprecated. Existing
+  implementations of ``format_output`` to add data between widgets won't have
+  any effect.
+
+* ``RadioSelect``'s ``renderer`` API has been deprecated. Direct call to
+  ``RadioSelect``'s ``get_renderer()`` method still works but assiging a custom
+  renderer to ``RadioSelect`` won't have any impact on the rendering.
+
+* Any widget's ``render`` method should now accept the optional
+  ``template_name``, ``extra_context`` and ``context_instance`` arguments.
+  Update your custom widgets to reflect that change. It is recommended that
+  your :class:`~django.forms.widgets.Widget` subclasses accept a ``**kwargs``
+  argument in the ``render`` method.
 
 Removed admin icons
 ~~~~~~~~~~~~~~~~~~~

@@ -1,11 +1,11 @@
 Display forms as HTML
 =====================
 
-.. versionchanged:: 1.5
+.. versionchanged:: 1.4
 
 .. highlightlang:: html+django
 
-Django provides helpers in the template language to make outputting a form as
+Django provides helpers in the template language to make rendering a form in
 HTML easy and reusable. In the example from :doc:`/topics/forms/index`, we
 passed our ``ContactForm`` instance to the template using the context variable
 ``myform``. Here's a simple example template::
@@ -43,12 +43,6 @@ for our example template::
    <input type="submit" value="Submit" />
    </form>
 
-The :ttag:`form` template tag is simply an instruction to the template language on
-which reusable template will be used to output ``myform`` as HTML. The
-``forms/layouts/p.html`` template will then take care of including a label for
-each field, displaying an input box and wrapping every field into it's own
-``<p>`` element.
-
 You can also use ``forms/layouts/table.html`` to output table rows (you'll
 need to provide your own ``<table>`` tags) and ``forms/layouts/ul.html`` to
 output list items. See the :doc:`list of built-in form layouts
@@ -57,9 +51,9 @@ output list items. See the :doc:`list of built-in form layouts
 Customizing the form template
 -----------------------------
 
-If the default generated HTML is not to your taste, you can completely customize
-the way a form is presented using the Django template language. Extending the
-above example::
+If the default generated HTML is not to your taste, you can completely
+customize the way a form is presented using the Django template
+language. Extending the above example::
 
     <form action="/contact/" method="post">
         {% form myform using "forms/layouts/my_layout.html" %}
@@ -79,8 +73,9 @@ modifying the parts you want to change::
 See the :doc:`form layout reference </ref/forms/layouts>` for a detailed
 description on how you can structure your custom layouts.
 
-An alternative to creating a complete template for the form you want to use,
-is to inline your form design. This is also done with the :ttag:`form` tag::
+You can also specify your form layout "inline" rather than in a separate
+template file, if you don't plan to reuse it. This is also done with the
+:ttag:`form` tag::
 
     <form action="/signup/" method="post">
         {% form signupform using %}
@@ -107,8 +102,8 @@ render the *widget* of a form field so that you don't have to type out all the
 But the example above is not all that you need to take into account when you
 are creating your own design. You also need to take care where to display
 errors if a field's validation fails, how to display the help text that might
-be defined for a field etc. Because of this it's in most cases easier to
-split out these *form rows* (containing one or more fields) into their own
+be defined for a field, etc. Because of this it's in most cases easier to split
+out these *form rows* (containing one or more fields) into their own
 templates. They are just like form layouts explained earlier but for a subset
 of fields. Here is how it might look like::
 
@@ -121,8 +116,8 @@ of fields. Here is how it might look like::
         <p><input type="submit" value="Send message" /></p>
     </form>
 
-Have a look at the :doc:`form layout reference </ref/forms/layouts>` to get an
-idea on how to create your own row templates.
+See the :doc:`form layout reference </ref/forms/layouts>` for help in creating
+your own form row templates.
 
 Looping over the form's fields
 ------------------------------
