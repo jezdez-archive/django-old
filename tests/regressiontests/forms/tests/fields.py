@@ -587,6 +587,8 @@ class FieldsTests(SimpleTestCase):
         self.assertEqual(u'http://valid-----hyphens.com/', f.clean('http://valid-----hyphens.com'))
         self.assertEqual(u'http://some.idn.xyz\xe4\xf6\xfc\xdfabc.domain.com:123/blah', f.clean('http://some.idn.xyzäöüßabc.domain.com:123/blah'))
         self.assertEqual(u'http://www.example.com/s/http://code.djangoproject.com/ticket/13804', f.clean('www.example.com/s/http://code.djangoproject.com/ticket/13804'))
+        self.assertRaisesMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, '[a')
+        self.assertRaisesMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 'http://[a')
 
     def test_url_regex_ticket11198(self):
         f = URLField()
@@ -686,6 +688,10 @@ class FieldsTests(SimpleTestCase):
         f = URLField(verify_exists=True)
         url = u'http://t\xfcr.djangoproject.com/'
         self.assertEqual(url, f.clean(url))
+
+    def test_urlfield_not_string(self):
+        f = URLField(required=False)
+        self.assertRaisesMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 23)
 
     # BooleanField ################################################################
 
