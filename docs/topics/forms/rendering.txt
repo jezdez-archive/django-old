@@ -48,6 +48,19 @@ need to provide your own ``<table>`` tags) and ``forms/layouts/ul.html`` to
 output list items. See the :doc:`list of built-in form layouts
 </ref/forms/layouts>` for more information.
 
+.. note:: Enabling the forms template loader
+
+   In order to make the default widget and form layout templates available, you
+   must have ``'django.template.loaders.forms.Loader'`` in your
+   :setting:`TEMPLATE_LOADERS` setting. To ease the transition for upgraded
+   projects, Django will automatically add this loader to your
+   :setting:`TEMPLATE_LOADERS` if it isn't there. This automatic assistance
+   will result in a deprecation warning in Django 1.5, and will be removed in
+   Django 1.6. Because form-rendering can involve loading the same templates
+   many times over, for performance reasons it is strongly recommended to use
+   the forms loader inside the :ref:`cached template
+   loader<cached-template-loader>` .
+
 Customizing the form template
 -----------------------------
 

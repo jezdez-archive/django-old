@@ -26,8 +26,8 @@ class ConfigFilter(object):
 
     def __call__(self, bound_field):
         # when var is a bound_field ...
-        # bound fields cannot be compared since form['field'] returns a new
-        # instance every time it's called
+        # bound fields cannot be compared directly since form['field'] returns
+        # a new instance every time it's called
         if hasattr(self.var, 'form') and hasattr(self.var, 'name'):
             if self.var.form is bound_field.form:
                 if self.var.name == bound_field.name:
@@ -68,6 +68,12 @@ class ConfigPopException(Exception):
 
 
 class FormConfig(object):
+    """
+    A stack of form-configuration dictionaries, where each configured value can
+    be associated with a filter function that determines whether that value
+    applies in specific situations.
+
+    """
     defaults = {
         'layout': lambda **kwargs: 'forms/layouts/default.html',
         'row_template': lambda **kwargs: 'forms/rows/default.html',
@@ -94,26 +100,24 @@ class FormConfig(object):
         return self.dicts.pop()
 
     def configure(self, key, value, filter=None):
-        '''
-        key: Key under which ``value`` can be retrieved.
-        value: value that is returned if retrieve is called with the same key
-        '''
+        """
+        Stores ``value`` under ``key``, optionally protected by given
+        ``filter``.
+
+        """
         if filter is None:
             filter = lambda **kwargs: True
         self.dicts[-1][key].append((value, filter))
 
     def retrieve(self, key, **kwargs):
-        '''
-        key: Key to lookup in key-value store
-        **kwargs: A dictionary of kwargs that will be passed into the filters
-        of all found values. So the latest added value for key will be
-        retrieved. If the value has a ``filter`` attached, then ``filter``
-        will be called with ``kwargs``. Value will be returned if ``filter``
-        returned ``True``. Otherwise the next available value will be looked
-        up.
+        """
+        Return most-recently-set value for ``key`` whose ``filter`` returns
+        ``True`` when passed the given ``kwargs``.
 
-        If no value is found: return ``self.defaults[key](**kwargs)``
-        '''
+        If no value is found and ``key`` has a default value: return
+        ``self.defaults[key](**kwargs)``
+
+        """
         for d in reversed(self.dicts):
             for value, filter in reversed(d[key]):
                 if filter(**kwargs):
@@ -124,10 +128,11 @@ class FormConfig(object):
         return self.defaults[key](**kwargs)
 
     def retrieve_all(self, key, **kwargs):
-        '''
-        Returns a list of found values for ``key``, ordered by
+        """
+        Returns a list of all applicable values for ``key``, ordered by
         most-recently-configured.
-        '''
+
+        """
         values = []
         for d in self.dicts:
             for value, filter in d[key]:
@@ -136,7 +141,11 @@ class FormConfig(object):
         return values
 
 
-class BaseNode(Node):
+class BaseFormNode(Node):
+    """
+    Common base node class for all form-rendering tags.
+
+    """
     CONFIG_CONTEXT_ATTR = '_form_config'
     IN_FORM_CONTEXT_VAR = '_form_render'
 
@@ -245,7 +254,7 @@ class BaseNode(Node):
         return cls(tagname, variables, options)
 
 
-class ModifierBase(BaseNode):
+class ModifierBase(BaseFormNode):
     accept_for_parameter = False
 
     template_config_name = None
@@ -333,7 +342,7 @@ class FieldModifier(ModifierBase):
     context_config_name = 'widget_context'
 
 
-class FormConfigNode(BaseNode):
+class FormConfigNode(BaseFormNode):
     MODIFIERS = {
         'row': RowModifier,
         'field': FieldModifier,
@@ -352,11 +361,12 @@ class FormConfigNode(BaseNode):
         return modifier_class.parse_bits(tagname, modifier, bits, parser, tokens)
 
 
-class BaseFormRenderNode(BaseNode):
-    '''
+class BaseFormRenderNode(BaseFormNode):
+    """
     Base class for ``form``, ``formrow`` and ``formfield`` -- tags that are
     responsible for actually rendering a form.
-    '''
+
+    """
     def is_list_variable(self, var):
         return False
 

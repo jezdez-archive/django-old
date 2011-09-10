@@ -1331,7 +1331,6 @@ class OldFormForXTests(TestCase):
         self.assertEqual(instance.height, 16)
 
         # Editing the instance without re-uploading the image should not affect the image or its width/height properties
-        f = OptionalImageFileForm(data={'description': u'New Description'}, instance=instance)
         f = OptionalImageFileForm(
                 data={'description': u'New Description'},
                 instance=instance)

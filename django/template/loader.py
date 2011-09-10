@@ -129,9 +129,13 @@ def find_template(name, dirs=None):
             if loader is not None:
                 loaders.append(loader)
 
-        # The forms loader needs to be present all the time to provide the
-        # default widgets templates. It's the last available loader to allow
-        # overrinding widgets' templates in TEMPLATE_DIRS or app_directories.
+        # The forms loader needs to be present to provide the default widget
+        # templates for backwards compatibility. It's the last available loader
+        # to allow overriding widgets' templates in TEMPLATE_DIRS or app
+        # template directories.  In Django 1.6 this automatic loader addition
+        # will be removed and users will be required to have the forms template
+        # loader listed explicitly in TEMPLATE_LOADERS if they want the default
+        # form and widget templates available.
         forms_loader = 'django.template.loaders.forms.Loader'
         if not forms_loader in settings.TEMPLATE_LOADERS:
             forms_ld = find_template_loader(forms_loader)
