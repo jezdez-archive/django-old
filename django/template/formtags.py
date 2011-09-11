@@ -137,6 +137,10 @@ class FormConfig(object):
 
 
 class BaseNode(Node):
+    '''
+    Base class for the form rendering tags. Holds methods to parse common
+    arguments like "using <template>" and "with <context>" in a standard way.
+    '''
     CONFIG_CONTEXT_ATTR = '_form_config'
     IN_FORM_CONTEXT_VAR = '_form_render'
 
@@ -246,6 +250,22 @@ class BaseNode(Node):
 
 
 class ModifierBase(BaseNode):
+    '''
+    Base class for the form modifiers that can be used in the {% formconfig
+    <modifier> ... %} tag.
+
+    A modifier is simply yet another template tag that just doesn't get
+    registered in a template tag lib. Instead it gets called by the
+    ``formconfig`` tag, based on the modifier keyword and gets all the
+    remaining arguments.
+
+    Example::
+
+        {% formconfig row using "row.html" %}
+
+    Will call the RowModifier class with the arguments ``using`` and
+    ``"row.html"``. See the ``FormConfigNode.parse`` method for more details.
+    '''
     accept_for_parameter = False
 
     template_config_name = None
@@ -313,6 +333,9 @@ class ModifierBase(BaseNode):
 
 
 class RowModifier(ModifierBase):
+    '''
+    {% formconfig row ... %}
+    '''
     optional_using_parameter = True
     optional_with_parameter = True
     accept_only_parameter = False
@@ -323,6 +346,9 @@ class RowModifier(ModifierBase):
 
 
 class FieldModifier(ModifierBase):
+    '''
+    {% formconfig field ... %}
+    '''
     optional_using_parameter = True
     optional_with_parameter = True
     accept_only_parameter = False
@@ -334,6 +360,10 @@ class FieldModifier(ModifierBase):
 
 
 class FormConfigNode(BaseNode):
+    '''
+    {% formconfig ... %}
+    '''
+
     MODIFIERS = {
         'row': RowModifier,
         'field': FieldModifier,
@@ -355,7 +385,7 @@ class FormConfigNode(BaseNode):
 class BaseFormRenderNode(BaseNode):
     '''
     Base class for ``form``, ``formrow`` and ``formfield`` -- tags that are
-    responsible for actually rendering a form.
+    responsible for actually rendering a form and outputting HTML.
     '''
     def is_list_variable(self, var):
         return False
@@ -420,6 +450,9 @@ class BaseFormRenderNode(BaseNode):
 
 
 class FormNode(BaseFormRenderNode):
+    '''
+    {% form ... %}
+    '''
     single_template_var = 'form'
     list_template_var = 'forms'
 
@@ -471,6 +504,9 @@ class FormNode(BaseFormRenderNode):
 
 
 class FormRowNode(BaseFormRenderNode):
+    '''
+    {% formrow <bounds fields> ... %}
+    '''
     single_template_var = 'field'
     list_template_var = 'fields'
 
@@ -497,6 +533,9 @@ class FormRowNode(BaseFormRenderNode):
 
 
 class FormFieldNode(BaseFormRenderNode):
+    '''
+    {% formfield <bound field> ... %}
+    '''
     single_template_var = 'field'
 
     optional_using_parameter = True
