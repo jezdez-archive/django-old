@@ -472,6 +472,27 @@ LOGIN_REDIRECT_URL = '/accounts/profile/'
 # The number of days a password reset link is valid for
 PASSWORD_RESET_TIMEOUT_DAYS = 3
 
+# the first hasher in this list is the preferred algorithm.  any
+# password using different algorithms will be converted automatically
+# upon login
+PASSWORD_HASHERS = (
+    {
+        'BACKEND': 'django.utils.passhash.PBKDF2PasswordHasher',
+        'OPTIONS': {
+            'iterations': 2000,  # may be omitted
+        },
+    },
+    {
+        'BACKEND': 'django.utils.passhash.BCryptPasswordHasher',
+        'OPTIONS': {
+            'rounds': 12,  # may be omitted
+        },
+    },
+    {'BACKEND': 'django.utils.passhash.SHA1PasswordHasher'},
+    {'BACKEND': 'django.utils.passhash.MD5PasswordHasher'},
+    {'BACKEND': 'django.utils.passhash.CryptPasswordHasher'},
+)
+
 ###########
 # SIGNING #
 ###########
