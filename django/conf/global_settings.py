@@ -479,7 +479,7 @@ PASSWORD_HASHERS = (
     {
         'BACKEND': 'django.utils.passhash.PBKDF2PasswordHasher',
         'OPTIONS': {
-            'iterations': 2000,  # may be omitted
+            'iterations': 10000,  # may be omitted
         },
     },
     {

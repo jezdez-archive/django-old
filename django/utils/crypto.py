@@ -100,17 +100,18 @@ def fast_hmac(key, msg, digest):
     return dig2
 
 
-def pbkdf2(password, salt, iterations=2000, dklen=0, digest=None):
+def pbkdf2(password, salt, iterations, dklen=0, digest=None):
     """
     Implements PBKDF2 as defined in RFC 2898, section 5.2
 
-    DO NOT change the default behavior of this function.  Ever.
+    HMAC+SHA256 is used as the pseudo random function.
 
-    For example::
-
-        >>> pbkdf2("password", "salt").encode('hex')
-        '9209a0c90243e88b89488f99cd7ea010c244cc7a9d4bf65c157f2d8f642eb952'
-
+    Right now 10,000 iterations is the recommended default which takes
+    160ms on a black MacBook.  This is what iOs uses and is probably
+    the bare minimum for security considering 1000 iterations was
+    recommended ten years ago.  This code is very well optimized for
+    CPython and is only four times slower than a C implementation I
+    hacked together.
     """
     assert iterations > 0
     if not digest:
