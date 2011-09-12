@@ -110,8 +110,7 @@ def load_hashers():
             mod = importlib.import_module(mod_path)
             hasher_cls = getattr(mod, cls_name)
         except (AttributeError, ImportError, ValueError):
-            raise ImproperlyConfigured(
-                "hasher not found: %s" % (backend))
+            raise ImproperlyConfigured("hasher not found: %s" % (backend))
         hasher = hasher_cls()
         if not getattr(hasher, 'algorithm'):
             raise ImproperlyConfigured(
