@@ -17,9 +17,9 @@ import hashlib
 from django.conf import settings
 from django.utils import importlib
 from django.utils.encoding import smart_str
-from django.utils.crypto import pbkdf2, constant_time_compare
-from django.contrib.auth.utils import get_random_string
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.crypto import \
+    pbkdf2, constant_time_compare, get_random_string
 
 
 UNUSABLE_PASSWORD = '!'  # This will never be a valid encoded hash
