@@ -105,9 +105,7 @@ def load_hashers():
     global HASHERS
     global PREFERRED_HASHER
     hashers = []
-    for spec in settings.PASSWORD_HASHERS:
-        backend = spec['BACKEND']
-        kwargs = spec.get('OPTIONS', {})
+    for backend in settings.PASSWORD_HASHERS:
         try:
             mod_path, cls_name = backend.rsplit('.', 1)
             mod = importlib.import_module(mod_path)
@@ -115,7 +113,7 @@ def load_hashers():
         except (AttributeError, ImportError, ValueError):
             raise InvalidPasswordHasherError(
                 "hasher not found: %s" % (backend))
-        hasher = hasher_cls(**kwargs)
+        hasher = hasher_cls()
         if not getattr(hasher, 'algorithm'):
             raise InvalidPasswordHasherError(
                 "hasher doesn't specify an algorithm name: %s" % (backend))
@@ -183,10 +181,7 @@ class PBKDF2PasswordHasher(BasePasswordHasher):
     change SHA256.
     """
     algorithm = "pbkdf2"
-
-    def __init__(self, iterations=10000):
-        BasePasswordHasher.__init__(self)
-        self.iterations = iterations
+    iterations = 10000
 
     def encode(self, password, salt, iterations=None):
         assert password
@@ -214,10 +209,7 @@ class BCryptPasswordHasher(BasePasswordHasher):
     issues.
     """
     algorithm = "bcrypt"
-
-    def __init__(self, rounds=12):
-        BasePasswordHasher.__init__(self)
-        self.rounds = rounds
+    rounds = 12
 
     def _import(self):
         try:

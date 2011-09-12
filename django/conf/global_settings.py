@@ -476,21 +476,11 @@ PASSWORD_RESET_TIMEOUT_DAYS = 3
 # password using different algorithms will be converted automatically
 # upon login
 PASSWORD_HASHERS = (
-    {
-        'BACKEND': 'django.utils.passhash.PBKDF2PasswordHasher',
-        'OPTIONS': {
-            'iterations': 10000,  # may be omitted
-        },
-    },
-    {
-        'BACKEND': 'django.utils.passhash.BCryptPasswordHasher',
-        'OPTIONS': {
-            'rounds': 12,  # may be omitted
-        },
-    },
-    {'BACKEND': 'django.utils.passhash.SHA1PasswordHasher'},
-    {'BACKEND': 'django.utils.passhash.MD5PasswordHasher'},
-    {'BACKEND': 'django.utils.passhash.CryptPasswordHasher'},
+    'django.utils.passhash.PBKDF2PasswordHasher',
+    'django.utils.passhash.BCryptPasswordHasher',
+    'django.utils.passhash.SHA1PasswordHasher',
+    'django.utils.passhash.MD5PasswordHasher',
+    'django.utils.passhash.CryptPasswordHasher',
 )
 
 ###########
