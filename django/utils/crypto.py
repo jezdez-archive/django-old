@@ -5,6 +5,8 @@ Django's standard crypto functions and utilities.
 import hmac
 import struct
 import hashlib
+import binascii
+import operator
 from django.conf import settings
 
 
@@ -44,66 +46,48 @@ def constant_time_compare(val1, val2):
     return result == 0
 
 
-class PBKDF2RandomSource(object):
-    """
-    Underlying pseudorandom function (PRF) for pbkdf2()
-
-    For example::
-
-        import hashlib
-        prf = PBKDF2RandomSource(hashlib.sha256)
-
-    """
-
-    def __init__(self, digest):
-        self.digest = digest
-        self.digest_size = digest().digest_size
-
-    def __call__(self, key, data):
-        return hmac.new(key, data, self.digest).digest()
+def bin_to_long(x):
+    return long(x.encode('hex'), 16)
 
 
-def pbkdf2(password, salt, iterations=2000, dklen=0, prf=None):
+def long_to_bin(x):
+    hex = "%x" % (x)
+    if len(hex) % 2 == 1:
+        hex = '0' + hex
+    return binascii.unhexlify(hex)
+
+
+def pbkdf2(password, salt, iterations=2000, dklen=0, digest=None):
     """
     Implements PBKDF2 as defined in RFC 2898, section 5.2
-
-    Based on a routine written by aaz:
-    http://stackoverflow.com/questions/5130513/pbkdf2-hmac-sha2-test-vectors
 
     DO NOT change the default behavior of this function.  Ever.
 
     For example::
 
-        >>> pbkdf2("password", "salt", dklen=20).encode('hex')
-        'afe6c5530785b6cc6b1c6453384731bd5ee432ee'
+        >>> pbkdf2("password", "salt").encode('hex')
+        '9209a0c90243e88b89488f99cd7ea010c244cc7a9d4bf65c157f2d8f642eb952'
 
     """
     assert iterations > 0
-    if not prf:
-        prf = PBKDF2RandomSource(hashlib.sha256)
-    hlen = prf.digest_size
+    if not digest:
+        digest = hashlib.sha256
+    hlen = digest().digest_size
     if not dklen:
         dklen = hlen
     if dklen > (2 ** 32 - 1) * hlen:
-        raise ValueError('dklen too big')
+        raise OverflowError('dklen too big')
     l = -(-dklen // hlen)
     r = dklen - (l - 1) * hlen
 
-    def int_to_32bit_be(i):
-        assert i > 0
-        return struct.pack('>I', i)
-
-    def xor_string(A, B):
-        return ''.join([chr(ord(a) ^ ord(b)) for a, b in zip(A, B)])
-
     def F(i):
         def U():
-            U = salt + int_to_32bit_be(i)
-            for j in range(iterations):
-                U = prf(password, U)
-                yield U
-        return reduce(xor_string, U())
+            pw = password
+            u = salt + struct.pack('>I', i)
+            for j in xrange(int(iterations)):
+                u = hmac.new(pw, u, digest).digest()
+                yield bin_to_long(u)
+        return long_to_bin(reduce(operator.xor, U()))
 
     T = [F(x) for x in range(1, l + 1)]
-    dk = ''.join(T[:-1]) + T[-1][:r]
-    return dk
+    return ''.join(T[:-1]) + T[-1][:r]
