@@ -110,19 +110,15 @@ def load_hashers():
             mod = importlib.import_module(mod_path)
             hasher_cls = getattr(mod, cls_name)
         except (AttributeError, ImportError, ValueError):
-            raise InvalidPasswordHasherError(
+            raise ImproperlyConfigured(
                 "hasher not found: %s" % (backend))
         hasher = hasher_cls()
         if not getattr(hasher, 'algorithm'):
-            raise InvalidPasswordHasherError(
+            raise ImproperlyConfigured(
                 "hasher doesn't specify an algorithm name: %s" % (backend))
         hashers.append(hasher)
     HASHERS = dict([(hasher.algorithm, hasher) for hasher in hashers])
     PREFERRED_HASHER = hashers[0]
-
-
-class InvalidPasswordHasherError(ImproperlyConfigured):
-    pass
 
 
 class BasePasswordHasher(object):
