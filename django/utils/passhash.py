@@ -46,13 +46,12 @@ def check_password(password, encoded, setter=None, preferred='default'):
     preferred = get_hasher(preferred)
     password = smart_str(password)
     encoded = smart_str(encoded)
-    must_update = False
-    if encoded.startswith('$2a$'):
-        # migration for people who used django-bcrypt
-        encoded = 'bcrypt$' + encoded
-        must_update = True
-    hasher = determine_hasher(encoded)
-    must_update = must_update or (hasher.algorithm != preferred.algorithm)
+    if len(encoded) == 32 and '$' not in encoded:
+        hasher = get_hasher('md5')
+    else:
+        algorithm = encoded.split('$', 1)[0]
+        hasher = get_hasher(algorithm)
+    must_update = (hasher.algorithm != preferred.algorithm)
     is_correct = hasher.verify(password, encoded)
     if setter and is_correct and must_update:
         setter()
@@ -120,18 +119,6 @@ def load_hashers():
         hashers.append(hasher)
     HASHERS = dict([(hasher.algorithm, hasher) for hasher in hashers])
     PREFERRED_HASHER = hashers[0]
-
-
-def determine_hasher(encoded):
-    """
-    Which hasher is being used for this encoded password?
-    """
-    if len(encoded) == 32 and '$' not in encoded:
-        # migration for legacy unsalted md5 passwords
-        return get_hasher('md5')
-    else:
-        algorithm = encoded.split('$', 1)[0]
-        return get_hasher(algorithm)
 
 
 class InvalidPasswordHasherError(ImproperlyConfigured):
