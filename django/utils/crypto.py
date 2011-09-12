@@ -10,6 +10,10 @@ import operator
 from django.conf import settings
 
 
+trans_5c = "".join([chr(x ^ 0x5C) for x in xrange(256)])
+trans_36 = "".join([chr(x ^ 0x36) for x in xrange(256)])
+
+
 def salted_hmac(key_salt, value, secret=None):
     """
     Returns the HMAC-SHA1 of 'value', using a key generated from key_salt and a
@@ -63,14 +67,37 @@ def constant_time_compare(val1, val2):
 
 
 def bin_to_long(x):
+    """
+    Convert a binary string into a long integer
+
+    This is a clever optimization for fast xor vector math
+    """
     return long(x.encode('hex'), 16)
 
 
 def long_to_bin(x):
+    """
+    Convert a long integer into a binary string
+    """
     hex = "%x" % (x)
     if len(hex) % 2 == 1:
         hex = '0' + hex
     return binascii.unhexlify(hex)
+
+
+def fast_hmac(key, msg, digest):
+    """
+    A trimmed down version of Python's HMAC implementation
+    """
+    dig1, dig2 = digest(), digest()
+    if len(key) > dig1.block_size:
+        key = digest(key).digest()
+    key += chr(0) * (dig1.block_size - len(key))
+    dig1.update(key.translate(trans_36))
+    dig1.update(msg)
+    dig2.update(key.translate(trans_5c))
+    dig2.update(dig1.digest())
+    return dig2
 
 
 def pbkdf2(password, salt, iterations=2000, dklen=0, digest=None):
@@ -98,10 +125,9 @@ def pbkdf2(password, salt, iterations=2000, dklen=0, digest=None):
 
     def F(i):
         def U():
-            pw = password
             u = salt + struct.pack('>I', i)
             for j in xrange(int(iterations)):
-                u = hmac.new(pw, u, digest).digest()
+                u = fast_hmac(password, u, digest).digest()
                 yield bin_to_long(u)
         return long_to_bin(reduce(operator.xor, U()))
 
