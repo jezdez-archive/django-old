@@ -1,6 +1,17 @@
 
 from django.utils import unittest
+from django.utils.unittest import skipUnless
 from django.utils.passhash import *
+
+try:
+    import crypt
+except ImportError:
+    crypt = None
+
+try:
+    import bcrypt
+except ImportError:
+    bcrypt = None
 
 
 class TestUtilsHashPass(unittest.TestCase):
@@ -8,43 +19,43 @@ class TestUtilsHashPass(unittest.TestCase):
     def test_simple(self):
         encoded = make_password('letmein')
         self.assertTrue(encoded.startswith('pbkdf2$'))
+        self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
 
     def test_pkbdf2(self):
         encoded = make_password('letmein', 'seasalt', 'pbkdf2')
         self.assertEqual(encoded, 'pbkdf2$2000$seasalt$BmIZnhZ3zVdDpviQIvlBPZUHRP/UnT5uEqiSr17zLg4=')
+        self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
 
     def test_sha1(self):
         encoded = make_password('letmein', 'seasalt', 'sha1')
         self.assertEqual(encoded, 'sha1$seasalt$fec3530984afba6bade3347b7140d1a7da7da8c7')
+        self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
 
     def test_md5(self):
         encoded = make_password('letmein', 'seasalt', 'md5')
         self.assertEqual(encoded, '0d107d09f5bbe40cade3de5c71e9e9b7')
+        self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
 
+    @skipUnless(crypt, "no crypt module to generate password.")
     def test_crypt(self):
-        try:
-            import crypt
-        except ImportError:
-            return
         encoded = make_password('letmein', 'ab', 'crypt')
         self.assertEqual(encoded, 'crypt$$abN/qM.L/H8EQ')
+        self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
 
+    @skipUnless(bcrypt, "py-bcrypt not installed")
     def test_bcrypt(self):
-        try:
-            import bcrypt
-        except ImportError:
-            return
         encoded = make_password('letmein', hasher='bcrypt')
+        self.assertTrue(is_password_usable(encoded))
         self.assertTrue(encoded.startswith('bcrypt$'))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
