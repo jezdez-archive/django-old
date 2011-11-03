@@ -758,7 +758,7 @@ class RadioSelect(Select):
         import warnings
         warnings.warn(("get_renderer is deprecated: use a custom template to "
                        "alter the widget rendering"),
-                      DeprecationWarning)
+                      PendingDeprecationWarning)
         if value is None: value = ''
         str_value = force_unicode(value) # Normalize to string.
         final_attrs = self.build_attrs(attrs)

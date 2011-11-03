@@ -40,6 +40,60 @@ before the release of Django 1.4.
 What's new in Django 1.4
 ========================
 
+Template based form rendering
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In previous versions of Django, HTML rendering of forms was hardcoded in the
+python source files and difficult to extend and override. Django 1.4 includes a
+new template-based rendering that makes it possible to customize all rendered
+markup from templates.
+
+A new template loader (``django.template.loaders.forms.Loader``) that loads the
+default form and widget templates is enabled automatically for
+backwards-compatibility. In Django 1.5 a ``DeprecationWarning`` will be raised
+if this loader is not explicitly included in the :setting:`TEMPLATE_LOADERS`
+setting, and in Django 1.6 the loader will no longer be automatically included.
+
+Read :doc:`/topics/forms/rendering` for more details on the new template based
+rendering.
+
+Widgets API
+~~~~~~~~~~~
+
+The form widgets now have a :doc:`public API<../ref/forms/widgets>` for easier
+custom rendering. Like the rest of the form library, widgets are now rendered
+to HTML using Django templates.
+
+HTML comparisons in tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :class:`~django.test.testcase.TestCase` base class now has some helpers to
+compare HTML roughly without tripping over trivial differences in whitespace,
+argument quoting and ordering, and closing of self-closing tags. HTML can
+either be compared directly with the new
+:meth:`~django.test.testcase.TestCase.assertHTMLEqual` and
+:meth:`~django.test.testcase.TestCase.assertHTMLNotEqual` assertions, or use
+the ``html=True`` flag with
+:meth:`~django.test.testcase.TestCase.assertContains` and
+:meth:`~django.test.testcase.TestCase.assertNotContains` to test if the test
+client's response contains a given HTML fragment. See the :ref:`assertion
+documentation<assertions>` for more information.
+
+``assertTemplateUsed`` as context manager
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is now possible to check whether a template was used or not in a block of
+code with the :meth:`~django.test.testcase.TestCase.assertTemplateUsed` and
+:meth:`~django.test.testcase.TestCase.assertTemplateNotUsed` assertions. They
+can be used as a context manager::
+
+    with self.assertTemplateUsed('index.html'):
+        render_to_string('index.html')
+    with self.assertTemplateNotUsed('base.html'):
+        render_to_string('index.html')
+
+See the :ref:`assertion documentation<assertions>` for more information.
+
 ``SELECT FOR UPDATE`` support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -57,9 +111,26 @@ HTML5
 
 We've switched the admin and other bundled templates to use the HTML5
 doctype. While Django will be careful in its use of HTML5 features, to maintain
-compatibility with old browsers, this change means that you can use any HTML5
+compatibility with older browsers, this change means that you can use any HTML5
 features you need in admin pages without having to lose HTML validity or
 override the provided templates to change the doctype.
+
+Supported browsers for the admin
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Django hasn't had a clear policy on which browsers are supported for using the
+admin app. Django's new policy formalizes existing practices: `YUI's A-grade`_
+browsers should provide a fully-functional admin experience, with the notable
+exception of IE6, which is no longer supported.
+
+Released over ten years ago, IE6 imposes many limitations on modern web
+development. The practical implications of this policy are that contributors
+are free to improve the admin without consideration for these limitations.
+
+This new policy **has no impact** on development outside of the admin. Users of
+Django are free to develop webapps compatible with any range of browsers.
+
+.. _YUI's A-grade: http://yuilibrary.com/yui/docs/tutorials/gbs/
 
 List filters in admin interface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -235,6 +306,17 @@ filename. For example, the file ``css/styles.css`` would also be saved as
 See the :class:`~django.contrib.staticfiles.storage.CachedStaticFilesStorage`
 docs for more information.
 
+``Model.objects.bulk_create`` in the ORM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This method allows for more efficient creation of multiple objects in the ORM.
+It can provide significant performance increases if you have many objects,
+Django makes use of this internally, meaning some operations (such as database
+setup for test suites) has seen a performance benefit as a result.
+
+See the :meth:`~django.db.models.query.QuerySet.bulk_create` docs for more
+information.
+
 Minor features
 ~~~~~~~~~~~~~~
 
@@ -265,6 +347,10 @@ Django 1.4 also includes several smaller improvements worth noting:
   ``'django.views.defaults.permission_denied'``. See the documentation
   about :ref:`the 403 (HTTP Forbidden) view<http_forbidden_view>` for more
   information.
+
+* The :ttag:`trans` template tag now takes an optional ``as`` argument to
+  be able to retrieve a translation string without displaying it but setting
+  a template context variable instead.
 
 .. _backwards-incompatible-changes-1.4:
 
@@ -306,6 +392,41 @@ In case your ``ADMIN_MEDIA_PREFIX`` is set to an own domain (e.g.
     your server's file system when you deploy your site, you have to update
     that path. The files were moved from :file:`django/contrib/admin/media/`
     to :file:`django/contrib/admin/static/admin/`.
+
+Private widgets API
+~~~~~~~~~~~~~~~~~~~
+
+With the addition of a template-based widgets API, parts of the widgets API
+have been deprecated. They weren't considered as public API and if you use
+standard widgets, backwards compatibility applies. However, if you have custom
+widgets defined using the mechanisms listed, you will need to update them to
+the new API:
+
+* ``MultiWidget``'s ``format_output`` method has been deprecated. Existing
+  implementations of ``format_output`` to add data between widgets won't have
+  any effect.
+
+* ``RadioSelect``'s ``renderer`` API has been deprecated. Direct call to
+  ``RadioSelect``'s ``get_renderer()`` method still works but assiging a custom
+  renderer to ``RadioSelect`` won't have any impact on the rendering.
+
+* Any widget's ``render`` method should now accept the optional
+  ``template_name``, ``extra_context`` and ``context_instance`` arguments.
+  Update your custom widgets to reflect that change. It is recommended that
+  your :class:`~django.forms.widgets.Widget` subclasses accept a ``**kwargs``
+  argument in the ``render`` method.
+
+Removed admin icons
+~~~~~~~~~~~~~~~~~~~
+
+As part of an effort to improve the performance and usability of the admin's
+vertical and horizontal "filter" widgets, some icon files were removed and
+grouped into a single sprite file (``selector-icons.gif``):
+``selector-add.gif``, ``selector-addall.gif``, ``selector-remove.gif``,
+``selector-removeall.gif``, ``selector_stacked-add.gif`` and
+``selector_stacked-remove.gif``. If you used those icons to customize the
+admin then you will want to replace them with your own icons or retrieve them
+from a previous release.
 
 Compatibility with old signed data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -462,7 +583,7 @@ CSRF protection extended to PUT and DELETE
 Previously, Django's :doc:`CSRF protection </ref/contrib/csrf/>` provided
 protection against only POST requests. Since use of PUT and DELETE methods in
 AJAX applications is becoming more common, we now protect all methods not
-defined as safe by RFC 2616 i.e. we exempt GET, HEAD, OPTIONS and TRACE, and
+defined as safe by :rfc:`2616` i.e. we exempt GET, HEAD, OPTIONS and TRACE, and
 enforce protection on everything else.
 
 If you using PUT or DELETE methods in AJAX applications, please see the
@@ -474,6 +595,14 @@ If you using PUT or DELETE methods in AJAX applications, please see the
 This was an alias to ``django.template.loader`` since 2005, it has been removed
 without emitting a warning due to the length of the deprecation. If your code
 still referenced this please use ``django.template.loader`` instead.
+
+``django.db.models.fields.URLField.verify_exists``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This functionality has been removed due to intractable performance and
+security issues. Any existing usage of ``verify_exists`` should be
+removed.
+
 
 .. _deprecated-features-1.4:
 

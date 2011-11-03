@@ -682,6 +682,8 @@ class. Here are the template loaders that come with Django:
 
     This loader is disabled by default.
 
+.. _cached-template-loader:
+
 ``django.template.loaders.cached.Loader``
     By default, the templating system will read and compile your templates every
     time they need to be rendered. While the Django templating system is quite
@@ -693,13 +695,15 @@ class. Here are the template loaders that come with Django:
     then stores the compiled ``Template`` in memory. The cached ``Template``
     instance is returned for subsequent requests to load the same template.
 
-    For example, to enable template caching with the ``filesystem`` and
-    ``app_directories`` template loaders you might use the following settings::
+    For example, to enable template caching with the ``filesystem``,
+    ``app_directories``, and ``forms`` template loaders you might use the
+    following settings::
 
         TEMPLATE_LOADERS = (
             ('django.template.loaders.cached.Loader', (
                 'django.template.loaders.filesystem.Loader',
                 'django.template.loaders.app_directories.Loader',
+                'django.template.loaders.forms.Loader'
             )),
         )
 
