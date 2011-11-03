@@ -8,7 +8,7 @@ import os
 from django import forms
 from django.conf import settings
 from django.template.base import TemplateDoesNotExist
-from django.template.base import BaseLoader
+from django.template.loader import BaseLoader
 from django.template.loaders.cached import Loader as CachedLoader
 from django.utils._os import safe_join
 
