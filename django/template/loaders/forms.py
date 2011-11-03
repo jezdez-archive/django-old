@@ -8,11 +8,12 @@ import os
 from django import forms
 from django.conf import settings
 from django.template.base import TemplateDoesNotExist
-from django.template.loader import BaseLoader
+from django.template.base import BaseLoader
+from django.template.loaders.cached import Loader as CachedLoader
 from django.utils._os import safe_join
 
 
-class Loader(BaseLoader):
+class FormsLoader(BaseLoader):
     is_usable = True
     _auto_added = False  # whether the loader has been automatically enabled
 
@@ -37,3 +38,10 @@ class Loader(BaseLoader):
         except IOError:
             pass
         raise TemplateDoesNotExist(template_name)
+
+
+class Loader(CachedLoader):
+
+    def __init__(self):
+        real_loader = 'django.template.loaders.forms.FormsLoader'
+        super(Loader, self).__init__([real_loader])
