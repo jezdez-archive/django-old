@@ -17,14 +17,14 @@ class TestUtilsHashPass(unittest.TestCase):
 
     def test_simple(self):
         encoded = make_password('letmein')
-        self.assertTrue(encoded.startswith('pbkdf2$'))
+        self.assertTrue(encoded.startswith('pbkdf2_sha256$'))
         self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
 
     def test_pkbdf2(self):
-        encoded = make_password('letmein', 'seasalt', 'pbkdf2')
-        self.assertEqual(encoded, 'pbkdf2$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
+        encoded = make_password('letmein', 'seasalt', 'pbkdf2_sha256')
+        self.assertEqual(encoded, 'pbkdf2_sha256$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
         self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
@@ -76,11 +76,11 @@ class TestUtilsHashPass(unittest.TestCase):
     def test_low_level_pkbdf2(self):
         hasher = PBKDF2PasswordHasher()
         encoded = hasher.encode('letmein', 'seasalt')
-        self.assertEqual(encoded, 'pbkdf2$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
+        self.assertEqual(encoded, 'pbkdf2_sha256$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
         self.assertTrue(hasher.verify('letmein', encoded))
 
     def test_upgrade(self):
-        self.assertEqual('pbkdf2', get_hasher('default').algorithm)
+        self.assertEqual('pbkdf2_sha256', get_hasher('default').algorithm)
         for algo in ('sha1', 'md5'):
             encoded = make_password('letmein', hasher=algo)
             state = {'upgraded': False}
@@ -98,7 +98,7 @@ class TestUtilsHashPass(unittest.TestCase):
         self.assertFalse(state['upgraded'])
 
     def test_no_upgrade_on_incorrect_pass(self):
-        self.assertEqual('pbkdf2', get_hasher('default').algorithm)
+        self.assertEqual('pbkdf2_sha256', get_hasher('default').algorithm)
         for algo in ('sha1', 'md5'):
             encoded = make_password('letmein', hasher=algo)
             state = {'upgraded': False}

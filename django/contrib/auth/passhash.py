@@ -162,7 +162,7 @@ class PBKDF2PasswordHasher(BasePasswordHasher):
     may be changed safely but you must rename the algorithm if you
     change SHA256.
     """
-    algorithm = "pbkdf2"
+    algorithm = "pbkdf2_sha256"
     iterations = 10000
 
     def encode(self, password, salt, iterations=None):
