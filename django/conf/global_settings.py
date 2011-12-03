@@ -477,6 +477,7 @@ PASSWORD_RESET_TIMEOUT_DAYS = 3
 # upon login
 PASSWORD_HASHERS = (
     'django.contrib.auth.passhash.PBKDF2PasswordHasher',
+    'django.contrib.auth.passhash.PBKDF2SHA1PasswordHasher',
     'django.contrib.auth.passhash.BCryptPasswordHasher',
     'django.contrib.auth.passhash.SHA1PasswordHasher',
     'django.contrib.auth.passhash.MD5PasswordHasher',
