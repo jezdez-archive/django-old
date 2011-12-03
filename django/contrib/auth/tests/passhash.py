@@ -1,7 +1,6 @@
-
+from django.contrib.auth.passhash import *
 from django.utils import unittest
 from django.utils.unittest import skipUnless
-from django.utils.passhash import *
 
 try:
     import crypt

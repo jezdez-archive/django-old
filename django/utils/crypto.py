@@ -104,7 +104,7 @@ def pbkdf2(password, salt, iterations, dklen=0, digest=None):
     """
     Implements PBKDF2 as defined in RFC 2898, section 5.2
 
-    HMAC+SHA256 is used as the pseudo random function.
+    HMAC+SHA256 is used as the default pseudo random function.
 
     Right now 10,000 iterations is the recommended default which takes
     160ms on a black MacBook.  This is what iOs uses and is probably

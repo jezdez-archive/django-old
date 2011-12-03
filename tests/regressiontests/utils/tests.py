@@ -21,4 +21,3 @@ from baseconv import *
 from jslex import *
 from ipv6 import *
 from crypto import *
-from passhash import *
