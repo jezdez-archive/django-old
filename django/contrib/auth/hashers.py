@@ -56,7 +56,7 @@ def make_password(password, salt=None, hasher='default'):
         return UNUSABLE_PASSWORD
     hasher = get_hasher(hasher)
     if not salt:
-        salt = hasher.gensalt()
+        salt = hasher.salt()
     password = smart_str(password)
     salt = smart_str(salt)
     return hasher.encode(password, salt)
@@ -117,7 +117,7 @@ class BasePasswordHasher(object):
     """
     algorithm = None
 
-    def gensalt(self):
+    def salt(self):
         """
         I should generate cryptographically secure nonce salt in ascii
         """
@@ -198,7 +198,7 @@ class BCryptPasswordHasher(BasePasswordHasher):
             raise ValueError('py-bcrypt library not installed')
         return bcrypt
 
-    def gensalt(self):
+    def salt(self):
         bcrypt = self._import()
         return bcrypt.gensalt(self.rounds)
 
@@ -245,7 +245,7 @@ class MD5PasswordHasher(BasePasswordHasher):
     """
     algorithm = "md5"
 
-    def gensalt(self):
+    def salt(self):
         return ''
 
     def encode(self, password, salt):
@@ -272,7 +272,7 @@ class CryptPasswordHasher(BasePasswordHasher):
                              'this environment')
         return crypt
 
-    def gensalt(self):
+    def salt(self):
         return get_random_string(2)
 
     def encode(self, password, salt):
