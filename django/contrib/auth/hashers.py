@@ -86,9 +86,9 @@ def get_hasher(algorithm='default'):
         if HASHERS is None:
             load_hashers()
         if algorithm not in HASHERS:
-            raise ValueError(
-                ('Unknown password hashing algorithm "%s".  Did you specify '
-                 'it in PASSWORD_HASHERS?') % (algorithm))
+            raise ValueError("Unknown password hashing algorithm '%s'. "
+                             "Did you specify it in the PASSWORD_HASHERS "
+                             "setting?" % algorithm)
         return HASHERS[algorithm]
 
 
@@ -102,11 +102,11 @@ def load_hashers():
             mod = importlib.import_module(mod_path)
             hasher_cls = getattr(mod, cls_name)
         except (AttributeError, ImportError, ValueError):
-            raise ImproperlyConfigured("hasher not found: %s" % (backend))
+            raise ImproperlyConfigured("hasher not found: %s" % backend)
         hasher = hasher_cls()
         if not getattr(hasher, 'algorithm'):
-            raise ImproperlyConfigured(
-                "hasher doesn't specify an algorithm name: %s" % (backend))
+            raise ImproperlyConfigured("hasher doesn't specify an "
+                                       "algorithm name: %s" % backend)
         hashers.append(hasher)
     HASHERS = dict([(hasher.algorithm, hasher) for hasher in hashers])
     PREFERRED_HASHER = hashers[0]
@@ -125,19 +125,19 @@ class BasePasswordHasher(object):
 
     def salt(self):
         """
-        I should generate cryptographically secure nonce salt in ascii
+        Generates a cryptographically secure nonce salt in ascii
         """
         return get_random_string()
 
     def verify(self, password, encoded):
         """
-        Abstract method to check if password is correct
+        Checks if the given password is correct
         """
         raise NotImplementedError()
 
     def encode(self, password, salt):
         """
-        Abstract method for creating encoded database values
+        Creates an encoded database value
 
         The result is normally formatted as "algorithm$salt$hash" and
         must be fewer than 128 characters.
@@ -149,10 +149,9 @@ class PBKDF2PasswordHasher(BasePasswordHasher):
     """
     Secure password hashing using the PBKDF2 algorithm (recommended)
 
-    I'm configured to use PBKDF2 + HMAC + SHA256 with 10000
-    iterations.  The result is a 64 byte binary string.  Iterations
-    may be changed safely but you must rename the algorithm if you
-    change SHA256.
+    Configured to use PBKDF2 + HMAC + SHA256 with 10000 iterations.
+    The result is a 64 byte binary string.  Iterations may be changed
+    safely but you must rename the algorithm if you change SHA256.
     """
     algorithm = "pbkdf2_sha256"
     iterations = 10000
@@ -241,12 +240,11 @@ class SHA1PasswordHasher(BasePasswordHasher):
 
 class MD5PasswordHasher(BasePasswordHasher):
     """
-    I am an incredibly insecure algorithm you should *never* use
-
-    I store unsalted MD5 hashes without the algorithm prefix.
+    I am an incredibly insecure algorithm you should *never* use;
+    stores unsalted MD5 hashes without the algorithm prefix.
 
     This class is implemented because Django used to store passwords
-    this way.  Some older Django installs still have these values
+    this way. Some older Django installs still have these values
     lingering around so we need to handle and upgrade them properly.
     """
     algorithm = "md5"
