@@ -25,22 +25,24 @@ def check_password(password, encoded, setter=None, preferred='default'):
     If setter is specified, it'll be called when you need to
     regenerate the password.
     """
-    if not password:
+    if not password or not is_password_usable(encoded):
         return False
-    if not is_password_usable(encoded):
-        return False
+
     preferred = get_hasher(preferred)
+    raw_password = password
     password = smart_str(password)
     encoded = smart_str(encoded)
+
     if len(encoded) == 32 and '$' not in encoded:
         hasher = get_hasher('md5')
     else:
         algorithm = encoded.split('$', 1)[0]
         hasher = get_hasher(algorithm)
-    must_update = (hasher.algorithm != preferred.algorithm)
+
+    must_update = hasher.algorithm != preferred.algorithm
     is_correct = hasher.verify(password, encoded)
     if setter and is_correct and must_update:
-        setter()
+        setter(raw_password)
     return is_correct
 
 
@@ -54,11 +56,14 @@ def make_password(password, salt=None, hasher='default'):
     """
     if not password:
         return UNUSABLE_PASSWORD
+
     hasher = get_hasher(hasher)
+    password = smart_str(password)
+
     if not salt:
         salt = hasher.salt()
-    password = smart_str(password)
     salt = smart_str(salt)
+
     return hasher.encode(password, salt)
 
 
@@ -72,6 +77,7 @@ def get_hasher(algorithm='default'):
     """
     if hasattr(algorithm, 'algorithm'):
         return algorithm
+
     elif algorithm == 'default':
         if PREFERRED_HASHER is None:
             load_hashers()

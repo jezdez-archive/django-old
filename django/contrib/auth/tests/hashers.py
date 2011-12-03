@@ -96,7 +96,7 @@ class TestUtilsHashPass(unittest.TestCase):
         for algo in ('sha1', 'md5'):
             encoded = make_password('letmein', hasher=algo)
             state = {'upgraded': False}
-            def setter():
+            def setter(password):
                 state['upgraded'] = True
             self.assertTrue(check_password('letmein', encoded, setter))
             self.assertTrue(state['upgraded'])

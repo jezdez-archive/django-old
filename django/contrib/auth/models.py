@@ -226,7 +226,7 @@ class User(models.Model):
         Returns a boolean of whether the raw_password was correct. Handles
         hashing formats behind the scenes.
         """
-        def setter():
+        def setter(raw_password):
             self.set_password(raw_password)
             self.save()
         return check_password(raw_password, self.password, setter)
