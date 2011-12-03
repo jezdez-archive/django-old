@@ -107,11 +107,10 @@ def pbkdf2(password, salt, iterations, dklen=0, digest=None):
     HMAC+SHA256 is used as the default pseudo random function.
 
     Right now 10,000 iterations is the recommended default which takes
-    160ms on a black MacBook.  This is what iOs uses and is probably
-    the bare minimum for security considering 1000 iterations was
-    recommended ten years ago.  This code is very well optimized for
-    CPython and is only four times slower than a C implementation I
-    hacked together.
+    100ms on a 2.2Ghz Core 2 Duo.  This is probably the bare minimum
+    for security given 1000 iterations was recommended in 2001. This
+    code is very well optimized for CPython and is only four times
+    slower than openssl's implementation.
     """
     assert iterations > 0
     if not digest:

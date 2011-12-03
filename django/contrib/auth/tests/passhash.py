@@ -1,4 +1,6 @@
-from django.contrib.auth.passhash import *
+from django.contrib.auth.passhash import (is_password_usable, 
+    check_password, make_password, PBKDF2PasswordHasher, 
+    PBKDF2SHA1PasswordHasher, get_hasher, UNUSABLE_PASSWORD)
 from django.utils import unittest
 from django.utils.unittest import skipUnless
 
@@ -24,14 +26,16 @@ class TestUtilsHashPass(unittest.TestCase):
 
     def test_pkbdf2(self):
         encoded = make_password('letmein', 'seasalt', 'pbkdf2_sha256')
-        self.assertEqual(encoded, 'pbkdf2_sha256$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
+        self.assertEqual(encoded, 
+'pbkdf2_sha256$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
         self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
 
     def test_sha1(self):
         encoded = make_password('letmein', 'seasalt', 'sha1')
-        self.assertEqual(encoded, 'sha1$seasalt$fec3530984afba6bade3347b7140d1a7da7da8c7')
+        self.assertEqual(encoded, 
+'sha1$seasalt$fec3530984afba6bade3347b7140d1a7da7da8c7')
         self.assertTrue(is_password_usable(encoded))
         self.assertTrue(check_password(u'letmein', encoded))
         self.assertFalse(check_password('letmeinz', encoded))
@@ -76,13 +80,15 @@ class TestUtilsHashPass(unittest.TestCase):
     def test_low_level_pkbdf2(self):
         hasher = PBKDF2PasswordHasher()
         encoded = hasher.encode('letmein', 'seasalt')
-        self.assertEqual(encoded, 'pbkdf2_sha256$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
+        self.assertEqual(encoded, 
+'pbkdf2_sha256$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
         self.assertTrue(hasher.verify('letmein', encoded))
 
     def test_low_level_pbkdf2_sha1(self):
         hasher = PBKDF2SHA1PasswordHasher()
         encoded = hasher.encode('letmein', 'seasalt')
-        self.assertEqual(encoded, 'pbkdf2_sha1$10000$seasalt$91JiNKgwADC8j2j86Ije/cc4vfQ=')
+        self.assertEqual(encoded, 
+'pbkdf2_sha1$10000$seasalt$91JiNKgwADC8j2j86Ije/cc4vfQ=')
         self.assertTrue(hasher.verify('letmein', encoded))
 
     def test_upgrade(self):
