@@ -164,13 +164,14 @@ class PBKDF2PasswordHasher(BasePasswordHasher):
     """
     algorithm = "pbkdf2_sha256"
     iterations = 10000
+    digest = hashlib.sha256
 
     def encode(self, password, salt, iterations=None):
         assert password
         assert salt and '$' not in salt
         if not iterations:
             iterations = self.iterations
-        hash = pbkdf2(password, salt, iterations)
+        hash = pbkdf2(password, salt, iterations, digest=self.digest)
         hash = hash.encode('base64').strip()
         return "%s$%d$%s$%s" % (self.algorithm, iterations, salt, hash)
 
@@ -180,6 +181,13 @@ class PBKDF2PasswordHasher(BasePasswordHasher):
         encoded_2 = self.encode(password, salt, int(iterations))
         return constant_time_compare(encoded, encoded_2)
 
+class PBKDF2SHA1PasswordHasher(PBKDF2PasswordHasher):
+    """
+    Alternate PBKDF2 hasher which uses SHA1, the default PRF 
+    recommended by PKCS #5.
+    """
+    algorithm = "pbkdf2_sha1"
+    digest = hashlib.sha1
 
 class BCryptPasswordHasher(BasePasswordHasher):
     """

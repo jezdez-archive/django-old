@@ -79,6 +79,12 @@ class TestUtilsHashPass(unittest.TestCase):
         self.assertEqual(encoded, 'pbkdf2_sha256$10000$seasalt$FQCNpiZpTb0zub+HBsH6TOwyRxJ19FwvjbweatNmK/Y=')
         self.assertTrue(hasher.verify('letmein', encoded))
 
+    def test_low_level_pbkdf2_sha1(self):
+        hasher = PBKDF2SHA1PasswordHasher()
+        encoded = hasher.encode('letmein', 'seasalt')
+        self.assertEqual(encoded, 'pbkdf2_sha1$10000$seasalt$91JiNKgwADC8j2j86Ije/cc4vfQ=')
+        self.assertTrue(hasher.verify('letmein', encoded))
+
     def test_upgrade(self):
         self.assertEqual('pbkdf2_sha256', get_hasher('default').algorithm)
         for algo in ('sha1', 'md5'):
