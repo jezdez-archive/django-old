@@ -1,11 +1,11 @@
 # This is necessary in Python 2.5 to enable the with statement, in 2.6
 # and up it is no longer necessary.
-from __future__ import with_statement
+from __future__ import with_statement, absolute_import
 
 # -*- coding: utf-8 -*-
 from datetime import datetime
-from StringIO import StringIO
 from xml.dom import minidom
+from StringIO import StringIO
 
 from django.conf import settings
 from django.core import serializers
@@ -13,8 +13,9 @@ from django.db import transaction, connection
 from django.test import TestCase, TransactionTestCase, Approximate
 from django.utils import simplejson, unittest
 
-from models import (Category, Author, Article, AuthorProfile,
-                    Actor, Movie, Score, Player, Team)
+from .models import (Category, Author, Article, AuthorProfile, Actor, Movie,
+    Score, Player, Team)
+
 
 class SerializerRegistrationTests(unittest.TestCase):
     def setUp(self):
@@ -229,7 +230,7 @@ class SerializersTestBase(object):
 
         serial_str = serializers.serialize(self.serializer_name, [a])
         date_values = self._get_field_values(serial_str, "pub_date")
-        self.assertEqual(date_values[0], "0001-02-03 04:05:06")
+        self.assertEqual(date_values[0].replace('T', ' '), "0001-02-03 04:05:06")
 
     def test_pkless_serialized_strings(self):
         """
@@ -322,7 +323,7 @@ class XmlSerializerTransactionTestCase(SerializersTransactionTestBase, Transacti
     <object pk="1" model="serializers.article">
         <field to="serializers.author" name="author" rel="ManyToOneRel">1</field>
         <field type="CharField" name="headline">Forward references pose no problem</field>
-        <field type="DateTimeField" name="pub_date">2006-06-16 15:00:00</field>
+        <field type="DateTimeField" name="pub_date">2006-06-16T15:00:00</field>
         <field to="serializers.category" name="categories" rel="ManyToManyRel">
             <object pk="1"></object>
         </field>
@@ -373,7 +374,7 @@ class JsonSerializerTransactionTestCase(SerializersTransactionTestBase, Transact
         "model": "serializers.article",
         "fields": {
             "headline": "Forward references pose no problem",
-            "pub_date": "2006-06-16 15:00:00",
+            "pub_date": "2006-06-16T15:00:00",
             "categories": [1],
             "author": 1
         }
@@ -424,7 +425,7 @@ else:
         @staticmethod
         def _validate_output(serial_str):
             try:
-                yaml.load(StringIO(serial_str))
+                yaml.safe_load(StringIO(serial_str))
             except Exception:
                 return False
             else:
@@ -434,7 +435,7 @@ else:
         def _get_pk_values(serial_str):
             ret_list = []
             stream = StringIO(serial_str)
-            for obj_dict in yaml.load(stream):
+            for obj_dict in yaml.safe_load(stream):
                 ret_list.append(obj_dict["pk"])
             return ret_list
 
@@ -442,10 +443,10 @@ else:
         def _get_field_values(serial_str, field_name):
             ret_list = []
             stream = StringIO(serial_str)
-            for obj_dict in yaml.load(stream):
+            for obj_dict in yaml.safe_load(stream):
                 if "fields" in obj_dict and field_name in obj_dict["fields"]:
                     field_value = obj_dict["fields"][field_name]
-                    # yaml.load will return non-string objects for some
+                    # yaml.safe_load will return non-string objects for some
                     # of the fields we are interested in, this ensures that
                     # everything comes back as a string
                     if isinstance(field_value, basestring):

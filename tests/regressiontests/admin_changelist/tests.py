@@ -1,21 +1,35 @@
-from __future__ import with_statement
+from __future__ import with_statement, absolute_import
 
 from django.contrib import admin
 from django.contrib.admin.options import IncorrectLookupParameters
 from django.contrib.admin.views.main import ChangeList, SEARCH_VAR, ALL_VAR
-from django.core.paginator import Paginator
+from django.contrib.auth.models import User
 from django.template import Context, Template
 from django.test import TestCase
 from django.test.client import RequestFactory
-from django.contrib.auth.models import User
 
-from models import (Child, Parent, Genre, Band, Musician, Group, Quartet,
-    Membership, ChordsMusician, ChordsBand, Invitation)
+from .admin import (ChildAdmin, QuartetAdmin, BandAdmin, ChordsBandAdmin,
+    GroupAdmin, ParentAdmin, DynamicListDisplayChildAdmin,
+    DynamicListDisplayLinksChildAdmin, CustomPaginationAdmin,
+    FilteredChildAdmin, CustomPaginator, site as custom_site,
+    SwallowAdmin)
+from .models import (Child, Parent, Genre, Band, Musician, Group, Quartet,
+    Membership, ChordsMusician, ChordsBand, Invitation, Swallow)
 
 
 class ChangeListTests(TestCase):
+    urls = "regressiontests.admin_changelist.urls"
+
     def setUp(self):
         self.factory = RequestFactory()
+
+    def _create_superuser(self, username):
+        return User.objects.create(username=username, is_superuser=True)
+
+    def _mocked_authenticated_request(self, url, user):
+        request = self.factory.get(url)
+        request.user = user
+        return request
 
     def test_select_related_preserved(self):
         """
@@ -37,14 +51,16 @@ class ChangeListTests(TestCase):
         new_child = Child.objects.create(name='name', parent=None)
         request = self.factory.get('/child/')
         m = ChildAdmin(Child, admin.site)
-        cl = ChangeList(request, Child, m.list_display, m.list_display_links,
+        list_display = m.get_list_display(request)
+        list_display_links = m.get_list_display_links(request, list_display)
+        cl = ChangeList(request, Child, list_display, list_display_links,
                 m.list_filter, m.date_hierarchy, m.search_fields,
                 m.list_select_related, m.list_per_page, m.list_max_show_all, m.list_editable, m)
         cl.formset = None
         template = Template('{% load admin_list %}{% spaceless %}{% result_list cl %}{% endspaceless %}')
         context = Context({'cl': cl})
         table_output = template.render(context)
-        row_html = '<tbody><tr class="row1"><td class="action-checkbox"><input type="checkbox" class="action-select" value="%d" name="_selected_action" /></td><th><a href="%d/">name</a></th><td class="nowrap">(None)</td></tr></tbody>' % (new_child.id, new_child.id)
+        row_html = '<tbody><tr class="row1"><th><a href="%d/">name</a></th><td class="nowrap">(None)</td></tr></tbody>' % new_child.id
         self.assertFalse(table_output.find(row_html) == -1,
             'Failed to find expected row element: %s' % table_output)
 
@@ -57,14 +73,16 @@ class ChangeListTests(TestCase):
         new_child = Child.objects.create(name='name', parent=new_parent)
         request = self.factory.get('/child/')
         m = ChildAdmin(Child, admin.site)
-        cl = ChangeList(request, Child, m.list_display, m.list_display_links,
+        list_display = m.get_list_display(request)
+        list_display_links = m.get_list_display_links(request, list_display)
+        cl = ChangeList(request, Child, list_display, list_display_links,
                 m.list_filter, m.date_hierarchy, m.search_fields,
                 m.list_select_related, m.list_per_page, m.list_max_show_all, m.list_editable, m)
         cl.formset = None
         template = Template('{% load admin_list %}{% spaceless %}{% result_list cl %}{% endspaceless %}')
         context = Context({'cl': cl})
         table_output = template.render(context)
-        row_html = '<tbody><tr class="row1"><td class="action-checkbox"><input type="checkbox" class="action-select" value="%d" name="_selected_action" /></td><th><a href="%d/">name</a></th><td class="nowrap">Parent object</td></tr></tbody>' % (new_child.id, new_child.id)
+        row_html = '<tbody><tr class="row1"><th><a href="%d/">name</a></th><td class="nowrap">Parent object</td></tr></tbody>' % new_child.id
         self.assertFalse(table_output.find(row_html) == -1,
             'Failed to find expected row element: %s' % table_output)
 
@@ -129,11 +147,7 @@ class ChangeListTests(TestCase):
             new_child = Child.objects.create(name='name %s' % i, parent=new_parent)
 
         request = self.factory.get('/child/')
-        m = ChildAdmin(Child, admin.site)
-        m.list_display = ['id', 'name', 'parent']
-        m.list_display_links = ['id']
-        m.list_editable = ['name']
-        m.paginator = CustomPaginator
+        m = CustomPaginationAdmin(Child, admin.site)
 
         cl = ChangeList(request, Child, m.list_display, m.list_display_links,
                 m.list_filter, m.date_hierarchy, m.search_fields,
@@ -318,41 +332,38 @@ class ChangeListTests(TestCase):
         for i in range(10):
             Child.objects.create(name='child %s' % i, parent=parent)
 
-        user_noparents = User.objects.create(
-            username='noparents',
-            is_superuser=True)
-        user_parents = User.objects.create(
-            username='parents',
-            is_superuser=True)
-
-        def _mocked_authenticated_request(user):
-            request = self.factory.get('/child/')
-            request.user = user
-            return request
+        user_noparents = self._create_superuser('noparents')
+        user_parents = self._create_superuser('parents')
 
         # Test with user 'noparents'
-        m = DynamicListDisplayChildAdmin(Child, admin.site)
-        request = _mocked_authenticated_request(user_noparents)
+        m = custom_site._registry[Child]
+        request = self._mocked_authenticated_request('/child/', user_noparents)
         response = m.changelist_view(request)
-        # XXX - Calling render here to avoid ContentNotRenderedError to be
-        # raised. Ticket #15826 should fix this but it's not yet integrated.
-        response.render()
         self.assertNotContains(response, 'Parent object')
+
+        list_display = m.get_list_display(request)
+        list_display_links = m.get_list_display_links(request, list_display)
+        self.assertEqual(list_display, ['name', 'age'])
+        self.assertEqual(list_display_links, ['name'])
 
         # Test with user 'parents'
         m = DynamicListDisplayChildAdmin(Child, admin.site)
-        request = _mocked_authenticated_request(user_parents)
+        request = self._mocked_authenticated_request('/child/', user_parents)
         response = m.changelist_view(request)
-        # XXX - #15826
-        response.render()
         self.assertContains(response, 'Parent object')
 
+        custom_site.unregister(Child)
+
+        list_display = m.get_list_display(request)
+        list_display_links = m.get_list_display_links(request, list_display)
+        self.assertEqual(list_display, ('parent', 'name', 'age'))
+        self.assertEqual(list_display_links, ['parent'])
+
         # Test default implementation
-        m = ChildAdmin(Child, admin.site)
-        request = _mocked_authenticated_request(user_noparents)
+        custom_site.register(Child, ChildAdmin)
+        m = custom_site._registry[Child]
+        request = self._mocked_authenticated_request('/child/', user_noparents)
         response = m.changelist_view(request)
-        # XXX - #15826
-        response.render()
         self.assertContains(response, 'Parent object')
 
     def test_show_all(self):
@@ -383,57 +394,39 @@ class ChangeListTests(TestCase):
         cl.get_results(request)
         self.assertEqual(len(cl.result_list), 10)
 
+    def test_dynamic_list_display_links(self):
+        """
+        Regression tests for #16257: dynamic list_display_links support.
+        """
+        parent = Parent.objects.create(name='parent')
+        for i in range(1, 10):
+            Child.objects.create(id=i, name='child %s' % i, parent=parent, age=i)
 
-class ParentAdmin(admin.ModelAdmin):
-    list_filter = ['child__name']
-    search_fields = ['child__name']
+        m = DynamicListDisplayLinksChildAdmin(Child, admin.site)
+        superuser = self._create_superuser('superuser')
+        request = self._mocked_authenticated_request('/child/', superuser)
+        response = m.changelist_view(request)
+        for i in range(1, 10):
+            self.assertContains(response, '<a href="%s/">%s</a>' % (i, i))
 
+        list_display = m.get_list_display(request)
+        list_display_links = m.get_list_display_links(request, list_display)
+        self.assertEqual(list_display, ('parent', 'name', 'age'))
+        self.assertEqual(list_display_links, ['age'])
 
-class ChildAdmin(admin.ModelAdmin):
-    list_display = ['name', 'parent']
-    list_per_page = 10
+    def test_tuple_list_display(self):
+        """
+        Regression test for #17128
+        (ChangeList failing under Python 2.5 after r16319)
+        """
+        swallow = Swallow.objects.create(
+            origin='Africa', load='12.34', speed='22.2')
+        model_admin = SwallowAdmin(Swallow, admin.site)
+        superuser = self._create_superuser('superuser')
+        request = self._mocked_authenticated_request('/swallow/', superuser)
+        response = model_admin.changelist_view(request)
+        # just want to ensure it doesn't blow up during rendering
+        self.assertContains(response, unicode(swallow.origin))
+        self.assertContains(response, unicode(swallow.load))
+        self.assertContains(response, unicode(swallow.speed))
 
-    def queryset(self, request):
-        return super(ChildAdmin, self).queryset(request).select_related("parent__name")
-
-
-class FilteredChildAdmin(admin.ModelAdmin):
-    list_display = ['name', 'parent']
-    list_per_page = 10
-
-    def queryset(self, request):
-        return super(FilteredChildAdmin, self).queryset(request).filter(
-            name__contains='filtered')
-
-
-class CustomPaginator(Paginator):
-    def __init__(self, queryset, page_size, orphans=0, allow_empty_first_page=True):
-        super(CustomPaginator, self).__init__(queryset, 5, orphans=2,
-            allow_empty_first_page=allow_empty_first_page)
-
-
-class BandAdmin(admin.ModelAdmin):
-    list_filter = ['genres']
-
-
-class GroupAdmin(admin.ModelAdmin):
-    list_filter = ['members']
-
-
-class QuartetAdmin(admin.ModelAdmin):
-    list_filter = ['members']
-
-
-class ChordsBandAdmin(admin.ModelAdmin):
-    list_filter = ['members']
-
-
-class DynamicListDisplayChildAdmin(admin.ModelAdmin):
-    list_display = ('name', 'parent')
-
-    def get_list_display(self, request):
-        my_list_display = list(self.list_display)
-        if request.user.username == 'noparents':
-            my_list_display.remove('parent')
-
-        return my_list_display

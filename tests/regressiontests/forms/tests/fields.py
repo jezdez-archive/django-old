@@ -28,6 +28,7 @@ import datetime
 import re
 import os
 import urllib2
+import warnings
 from decimal import Decimal
 from functools import wraps
 
@@ -48,28 +49,40 @@ def fix_os_paths(x):
 
 
 def verify_exists_urls(existing_urls=()):
+    """
+    Patches urllib to simulate the availability of some urls even when there
+    is no Internet connection. This hack should be removed alongside with
+    `URLField.verify_exists` in Django 1.5.
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             from django.core import validators
-            # patch urllib2
-            original_urlopen = validators.urllib2.urlopen
-            def urlopen(req):
-                url = req.get_full_url()
-                if url in existing_urls:
+            # patch urllib2.OpenerDirector
+            original_open = validators.urllib2.OpenerDirector.open
+            def custom_open(self, req, data=None, timeout=None):
+                if req.get_full_url() in existing_urls:
                     return True
                 raise Exception()
             try:
-                urllib2.urlopen = urlopen
+                urllib2.OpenerDirector.open = custom_open
                 func(*args, **kwargs)
             finally:
-                # unpatch urllib2
-                validators.urllib2.urlopen = original_urlopen
+                # unpatch urllib2.OpenerDirector
+                validators.urllib2.OpenerDirector.open = original_open
         return wrapper
     return decorator
 
 
 class FieldsTests(SimpleTestCase):
+
+    def setUp(self):
+        self.save_warnings_state()
+        warnings.filterwarnings('ignore', category=DeprecationWarning,
+                                module='django.core.validators')
+
+    def tearDown(self):
+        self.restore_warnings_state()
 
     def test_field_sets_widget_is_required(self):
         self.assertTrue(Field(required=True).widget.is_required)
@@ -122,6 +135,23 @@ class FieldsTests(SimpleTestCase):
         self.assertEqual(u'1234567890a', f.clean('1234567890a'))
         self.assertEqual(f.max_length, None)
         self.assertEqual(f.min_length, 10)
+
+    def test_charfield_widget_attrs(self):
+        """
+        Ensure that CharField.widget_attrs() always returns a dictionary.
+        Refs #15912
+        """
+        # Return an empty dictionary if max_length is None
+        f = CharField()
+        self.assertEqual(f.widget_attrs(TextInput()), {})
+
+        # Or if the widget is not TextInput or PasswordInput
+        f = CharField(max_length=10)
+        self.assertEqual(f.widget_attrs(HiddenInput()), {})
+
+        # Otherwise, return a maxlength attribute equal to max_length
+        self.assertEqual(f.widget_attrs(TextInput()), {'maxlength': '10'})
+        self.assertEqual(f.widget_attrs(PasswordInput()), {'maxlength': '10'})
 
     # IntegerField ################################################################
 
@@ -394,6 +424,7 @@ class FieldsTests(SimpleTestCase):
         self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30, 59), f.clean(datetime.datetime(2006, 10, 25, 14, 30, 59)))
         self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30, 59, 200), f.clean(datetime.datetime(2006, 10, 25, 14, 30, 59, 200)))
         self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30, 45, 200), f.clean('2006-10-25 14:30:45.000200'))
+        self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30, 45, 200), f.clean('2006-10-25 14:30:45.0002'))
         self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30, 45), f.clean('2006-10-25 14:30:45'))
         self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30), f.clean('2006-10-25 14:30:00'))
         self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30), f.clean('2006-10-25 14:30'))
@@ -439,6 +470,9 @@ class FieldsTests(SimpleTestCase):
         self.assertEqual(datetime.datetime(2006, 10, 25, 0, 0), f.clean(' 10/25/06 '))
         self.assertRaisesMessage(ValidationError, "[u'Enter a valid date/time.']", f.clean, '   ')
 
+    def test_datetimefield_5(self):
+        f = DateTimeField(input_formats=[u'%Y.%m.%d %H:%M:%S.%f'])
+        self.assertEqual(datetime.datetime(2006, 10, 25, 14, 30, 45, 200), f.clean('2006.10.25 14:30:45.0002'))
     # RegexField ##################################################################
 
     def test_regexfield_1(self):
@@ -479,6 +513,12 @@ class FieldsTests(SimpleTestCase):
         self.assertEqual(u'1234567890', f.clean('1234567890'))
         self.assertRaisesMessage(ValidationError, "[u'Ensure this value has at most 10 characters (it has 11).']", f.clean, '12345678901')
         self.assertRaisesMessage(ValidationError, "[u'Enter a valid value.']", f.clean, '12345a')
+
+    def test_change_regex_after_init(self):
+        f = RegexField('^[a-z]+$')
+        f.regex = '^\d+$'
+        self.assertEqual(u'1234', f.clean('1234'))
+        self.assertRaisesMessage(ValidationError, "[u'Enter a valid value.']", f.clean, 'abcd')
 
     # EmailField ##################################################################
 
@@ -587,6 +627,8 @@ class FieldsTests(SimpleTestCase):
         self.assertEqual(u'http://valid-----hyphens.com/', f.clean('http://valid-----hyphens.com'))
         self.assertEqual(u'http://some.idn.xyz\xe4\xf6\xfc\xdfabc.domain.com:123/blah', f.clean('http://some.idn.xyzäöüßabc.domain.com:123/blah'))
         self.assertEqual(u'http://www.example.com/s/http://code.djangoproject.com/ticket/13804', f.clean('www.example.com/s/http://code.djangoproject.com/ticket/13804'))
+        self.assertRaisesMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, '[a')
+        self.assertRaisesMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 'http://[a')
 
     def test_url_regex_ticket11198(self):
         f = URLField()
@@ -620,7 +662,7 @@ class FieldsTests(SimpleTestCase):
             f.clean('http://www.broken.djangoproject.com') # bad domain
         except ValidationError, e:
             self.assertEqual("[u'This URL appears to be a broken link.']", str(e))
-        self.assertRaises(ValidationError, f.clean, 'http://google.com/we-love-microsoft.html') # good domain, bad page
+        self.assertRaises(ValidationError, f.clean, 'http://qa-dev.w3.org/link-testsuite/http.php?code=400') # good domain, bad page
         try:
             f.clean('http://google.com/we-love-microsoft.html') # good domain, bad page
         except ValidationError, e:
@@ -679,12 +721,16 @@ class FieldsTests(SimpleTestCase):
         except ValidationError, e:
             self.assertEqual("[u'This URL appears to be a broken link.']", str(e))
 
-    @verify_exists_urls(('http://xn--tr-xka.djangoproject.com/',))
+    @verify_exists_urls((u'http://xn--hxargifdar.idn.icann.org/%CE%91%CF%81%CF%87%CE%B9%CE%BA%CE%AE_%CF%83%CE%B5%CE%BB%CE%AF%CE%B4%CE%B1',))
     def test_urlfield_10(self):
-        # UTF-8 char in path
+        # UTF-8 in the domain.
         f = URLField(verify_exists=True)
-        url = u'http://t\xfcr.djangoproject.com/'
+        url = u'http://\u03b5\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac.idn.icann.org/\u0391\u03c1\u03c7\u03b9\u03ba\u03ae_\u03c3\u03b5\u03bb\u03af\u03b4\u03b1'
         self.assertEqual(url, f.clean(url))
+
+    def test_urlfield_not_string(self):
+        f = URLField(required=False)
+        self.assertRaisesMessage(ValidationError, "[u'Enter a valid URL.']", f.clean, 23)
 
     # BooleanField ################################################################
 

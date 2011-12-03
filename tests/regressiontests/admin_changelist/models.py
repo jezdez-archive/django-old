@@ -1,11 +1,13 @@
 from django.db import models
 
+
 class Parent(models.Model):
     name = models.CharField(max_length=128)
 
 class Child(models.Model):
     parent = models.ForeignKey(Parent, editable=False, null=True)
     name = models.CharField(max_length=30, blank=True)
+    age = models.IntegerField(null=True, blank=True)
 
 class Genre(models.Model):
     name = models.CharField(max_length=20)
@@ -47,3 +49,11 @@ class Invitation(models.Model):
     player = models.ForeignKey(ChordsMusician)
     band = models.ForeignKey(ChordsBand)
     instrument = models.CharField(max_length=15)
+
+class Swallow(models.Model):
+    origin = models.CharField(max_length=255)
+    load = models.FloatField()
+    speed = models.FloatField()
+
+    class Meta:
+        ordering = ('speed', 'load')

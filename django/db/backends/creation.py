@@ -57,11 +57,13 @@ class BaseDatabaseCreation(object):
             if tablespace and f.unique:
                 # We must specify the index tablespace inline, because we
                 # won't be generating a CREATE INDEX statement for this field.
-                field_output.append(self.connection.ops.tablespace_sql(tablespace, inline=True))
+                tablespace_sql = self.connection.ops.tablespace_sql(tablespace, inline=True)
+                if tablespace_sql:
+                    field_output.append(tablespace_sql)
             if f.rel:
                 ref_output, pending = self.sql_for_inline_foreign_key_references(f, known_models, style)
                 if pending:
-                    pr = pending_references.setdefault(f.rel.to, []).append((model, f))
+                    pending_references.setdefault(f.rel.to, []).append((model, f))
                 else:
                     field_output.extend(ref_output)
             table_output.append(' '.join(field_output))
@@ -74,7 +76,9 @@ class BaseDatabaseCreation(object):
             full_statement.append('    %s%s' % (line, i < len(table_output)-1 and ',' or ''))
         full_statement.append(')')
         if opts.db_tablespace:
-            full_statement.append(self.connection.ops.tablespace_sql(opts.db_tablespace))
+            tablespace_sql = self.connection.ops.tablespace_sql(opts.db_tablespace)
+            if tablespace_sql:
+                full_statement.append(tablespace_sql)
         full_statement.append(';')
         final_output.append('\n'.join(full_statement))
 
@@ -149,11 +153,9 @@ class BaseDatabaseCreation(object):
             qn = self.connection.ops.quote_name
             tablespace = f.db_tablespace or model._meta.db_tablespace
             if tablespace:
-                sql = self.connection.ops.tablespace_sql(tablespace)
-                if sql:
-                    tablespace_sql = ' ' + sql
-                else:
-                    tablespace_sql = ''
+                tablespace_sql = self.connection.ops.tablespace_sql(tablespace)
+                if tablespace_sql:
+                    tablespace_sql = ' ' + tablespace_sql
             else:
                 tablespace_sql = ''
             i_name = '%s_%s' % (model._meta.db_table, self._digest(f.column))
@@ -248,26 +250,16 @@ class BaseDatabaseCreation(object):
             interactive=False,
             database=self.connection.alias)
 
-        # One effect of calling syncdb followed by flush is that the id of the
-        # default site may or may not be 1, depending on how the sequence was
-        # reset.  If the sites app is loaded, then we coerce it.
-        from django.db.models import get_model
-        Site = get_model('sites', 'Site')
-        if Site is not None and Site.objects.using(self.connection.alias).count() == 1:
-            Site.objects.using(self.connection.alias).update(id=settings.SITE_ID)
-
         from django.core.cache import get_cache
         from django.core.cache.backends.db import BaseDatabaseCache
         for cache_alias in settings.CACHES:
             cache = get_cache(cache_alias)
             if isinstance(cache, BaseDatabaseCache):
-                from django.db import router
-                if router.allow_syncdb(self.connection.alias, cache.cache_model_class):
-                    call_command('createcachetable', cache._table, database=self.connection.alias)
+                call_command('createcachetable', cache._table, database=self.connection.alias)
 
         # Get a cursor (even though we don't need one yet). This has
         # the side effect of initializing the test database.
-        cursor = self.connection.cursor()
+        self.connection.cursor()
 
         return test_database_name
 

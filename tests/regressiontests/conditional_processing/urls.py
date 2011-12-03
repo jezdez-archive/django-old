@@ -1,5 +1,7 @@
-from django.conf.urls.defaults import *
-import views
+from django.conf.urls import patterns
+
+from . import views
+
 
 urlpatterns = patterns('',
     ('^condition/$', views.index),

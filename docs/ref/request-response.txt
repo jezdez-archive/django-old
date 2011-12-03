@@ -125,20 +125,20 @@ All attributes except ``session`` should be considered read-only.
     Available headers depend on the client and server, but here are some
     examples:
 
-        * ``CONTENT_LENGTH`` -- the length of the request body (as a string).
-        * ``CONTENT_TYPE`` -- the MIME type of the request body.
-        * ``HTTP_ACCEPT_ENCODING`` -- Acceptable encodings for the response.
-        * ``HTTP_ACCEPT_LANGUAGE`` -- Acceptable languages for the response.
-        * ``HTTP_HOST`` -- The HTTP Host header sent by the client.
-        * ``HTTP_REFERER`` -- The referring page, if any.
-        * ``HTTP_USER_AGENT`` -- The client's user-agent string.
-        * ``QUERY_STRING`` -- The query string, as a single (unparsed) string.
-        * ``REMOTE_ADDR`` -- The IP address of the client.
-        * ``REMOTE_HOST`` -- The hostname of the client.
-        * ``REMOTE_USER`` -- The user authenticated by the Web server, if any.
-        * ``REQUEST_METHOD`` -- A string such as ``"GET"`` or ``"POST"``.
-        * ``SERVER_NAME`` -- The hostname of the server.
-        * ``SERVER_PORT`` -- The port of the server (as a string).
+    * ``CONTENT_LENGTH`` -- the length of the request body (as a string).
+    * ``CONTENT_TYPE`` -- the MIME type of the request body.
+    * ``HTTP_ACCEPT_ENCODING`` -- Acceptable encodings for the response.
+    * ``HTTP_ACCEPT_LANGUAGE`` -- Acceptable languages for the response.
+    * ``HTTP_HOST`` -- The HTTP Host header sent by the client.
+    * ``HTTP_REFERER`` -- The referring page, if any.
+    * ``HTTP_USER_AGENT`` -- The client's user-agent string.
+    * ``QUERY_STRING`` -- The query string, as a single (unparsed) string.
+    * ``REMOTE_ADDR`` -- The IP address of the client.
+    * ``REMOTE_HOST`` -- The hostname of the client.
+    * ``REMOTE_USER`` -- The user authenticated by the Web server, if any.
+    * ``REQUEST_METHOD`` -- A string such as ``"GET"`` or ``"POST"``.
+    * ``SERVER_NAME`` -- The hostname of the server.
+    * ``SERVER_PORT`` -- The port of the server (as a string).
 
     With the exception of ``CONTENT_LENGTH`` and ``CONTENT_TYPE``, as given
     above, any HTTP headers in the request are converted to ``META`` keys by
@@ -193,10 +193,11 @@ Methods
 
 .. method:: HttpRequest.get_host()
 
-    Returns the originating host of the request using information from the
-    ``HTTP_X_FORWARDED_HOST`` and ``HTTP_HOST`` headers (in that order). If
-    they don't provide a value, the method uses a combination of
-    ``SERVER_NAME`` and ``SERVER_PORT`` as detailed in :pep:`3333`.
+    Returns the originating host of the request using information from
+    the ``HTTP_X_FORWARDED_HOST`` (if enabled in the settings) and ``HTTP_HOST``
+    headers (in that order). If they don't provide a value, the method
+    uses a combination of ``SERVER_NAME`` and ``SERVER_PORT`` as
+    detailed in :pep:`3333`.
 
     Example: ``"127.0.0.1:8000"``
 
@@ -548,10 +549,10 @@ Passing iterators
 Finally, you can pass ``HttpResponse`` an iterator rather than passing it
 hard-coded strings. If you use this technique, follow these guidelines:
 
-    * The iterator should return strings.
-    * If an :class:`HttpResponse` has been initialized with an iterator as its
-      content, you can't use the :class:`HttpResponse` instance as a file-like
-      object. Doing so will raise ``Exception``.
+* The iterator should return strings.
+* If an :class:`HttpResponse` has been initialized with an iterator as its
+  content, you can't use the :class:`HttpResponse` instance as a file-like
+  object. Doing so will raise ``Exception``.
 
 Setting headers
 ~~~~~~~~~~~~~~~
@@ -586,7 +587,7 @@ Attributes
 
 .. attribute:: HttpResponse.content
 
-    A normal Python string representing the content, encoded from a Unicode
+    A string representing the content, encoded from a Unicode
     object if necessary.
 
 .. attribute:: HttpResponse.status_code
@@ -602,9 +603,11 @@ Methods
     string) and MIME type. The :setting:`DEFAULT_CONTENT_TYPE` is
     ``'text/html'``.
 
-    ``content`` can be an iterator or a string. If it's an iterator, it should
-    return strings, and those strings will be joined together to form the
-    content of the response.
+    ``content`` should be an iterator or a string. If it's an
+    iterator, it should return strings, and those strings will be
+    joined together to form the content of the response. If it is not
+    an iterator or a string, it will be converted to a string when
+    accessed.
 
     ``status`` is the `HTTP Status code`_ for the response.
 
@@ -635,7 +638,7 @@ Methods
     Returns ``True`` or ``False`` based on a case-insensitive check for a
     header with the given name.
 
-.. method:: HttpResponse.set_cookie(key, value='', max_age=None, expires=None, path='/', domain=None, secure=None, httponly=False)
+.. method:: HttpResponse.set_cookie(key, value='', max_age=None, expires=None, path='/', domain=None, secure=None, httponly=True)
 
     .. versionchanged:: 1.3
 
@@ -643,34 +646,38 @@ Methods
     ``expires``, and the auto-calculation of ``max_age`` in such case
     was added. The ``httponly`` argument was also added.
 
+    .. versionchanged:: 1.4
+
+    The default value for httponly was changed from ``False`` to ``True``.
+
     Sets a cookie. The parameters are the same as in the :class:`Cookie.Morsel`
     object in the Python standard library.
 
-        * ``max_age`` should be a number of seconds, or ``None`` (default) if
-          the cookie should last only as long as the client's browser session.
-          If ``expires`` is not specified, it will be calculated.
-        * ``expires`` should either be a string in the format
-          ``"Wdy, DD-Mon-YY HH:MM:SS GMT"`` or a ``datetime.datetime`` object
-          in UTC. If ``expires`` is a ``datetime`` object, the ``max_age``
-          will be calculated.
-        * Use ``domain`` if you want to set a cross-domain cookie. For example,
-          ``domain=".lawrence.com"`` will set a cookie that is readable by
-          the domains www.lawrence.com, blogs.lawrence.com and
-          calendars.lawrence.com. Otherwise, a cookie will only be readable by
-          the domain that set it.
-        * Use ``httponly=True`` if you want to prevent client-side
-          JavaScript from having access to the cookie.
+    * ``max_age`` should be a number of seconds, or ``None`` (default) if
+      the cookie should last only as long as the client's browser session.
+      If ``expires`` is not specified, it will be calculated.
+    * ``expires`` should either be a string in the format
+      ``"Wdy, DD-Mon-YY HH:MM:SS GMT"`` or a ``datetime.datetime`` object
+      in UTC. If ``expires`` is a ``datetime`` object, the ``max_age``
+      will be calculated.
+    * Use ``domain`` if you want to set a cross-domain cookie. For example,
+      ``domain=".lawrence.com"`` will set a cookie that is readable by
+      the domains www.lawrence.com, blogs.lawrence.com and
+      calendars.lawrence.com. Otherwise, a cookie will only be readable by
+      the domain that set it.
+    * Use ``httponly=True`` if you want to prevent client-side
+      JavaScript from having access to the cookie.
 
-          HTTPOnly_ is a flag included in a Set-Cookie HTTP response
-          header. It is not part of the :rfc:`2109` standard for cookies,
-          and it isn't honored consistently by all browsers. However,
-          when it is honored, it can be a useful way to mitigate the
-          risk of client side script accessing the protected cookie
-          data.
+      HTTPOnly_ is a flag included in a Set-Cookie HTTP response
+      header. It is not part of the :rfc:`2109` standard for cookies,
+      and it isn't honored consistently by all browsers. However,
+      when it is honored, it can be a useful way to mitigate the
+      risk of client side script accessing the protected cookie
+      data.
 
     .. _HTTPOnly: http://www.owasp.org/index.php/HTTPOnly
 
-.. method:: HttpResponse.set_signed_cookie(key, value='', salt='', max_age=None, expires=None, path='/', domain=None, secure=None, httponly=False)
+.. method:: HttpResponse.set_signed_cookie(key, value='', salt='', max_age=None, expires=None, path='/', domain=None, secure=None, httponly=True)
 
     .. versionadded:: 1.4
 
@@ -755,3 +762,10 @@ types of HTTP responses. Like ``HttpResponse``, these subclasses live in
 .. class:: HttpResponseServerError
 
     Acts just like :class:`HttpResponse` but uses a 500 status code.
+
+.. note::
+
+    If a custom subclass of :class:`HttpResponse` implements a ``render``
+    method, Django will treat it as emulating a
+    :class:`~django.template.response.SimpleTemplateResponse`, and the
+    ``render`` method must itself return a valid response object.

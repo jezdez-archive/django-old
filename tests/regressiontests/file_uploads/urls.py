@@ -1,5 +1,9 @@
-from django.conf.urls.defaults import *
-import views
+from __future__ import absolute_import
+
+from django.conf.urls import patterns
+
+from . import views
+
 
 urlpatterns = patterns('',
     (r'^upload/$',          views.file_upload_view),

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
 from django.http import QueryDict
@@ -787,6 +788,19 @@ class FormsTestCase(TestCase):
         self.assertEqual(f['gender'].field.choices, [('f', 'Female'), ('m', 'Male'), ('u', 'Unspecified')])
         f = Person()
         self.assertEqual(f['gender'].field.choices, [('f', 'Female'), ('m', 'Male')])
+
+    def test_validators_independence(self):
+        """ Test that we are able to modify a form field validators list without polluting
+            other forms """
+        from django.core.validators import MaxValueValidator
+        class MyForm(Form):
+            myfield = CharField(max_length=25)
+
+        f1 = MyForm()
+        f2 = MyForm()
+
+        f1.fields['myfield'].validators[0] = MaxValueValidator(12)
+        self.assertFalse(f1.fields['myfield'].validators[0] == f2.fields['myfield'].validators[0])
 
     def test_hidden_widget(self):
         # HiddenInput widgets are displayed differently in the as_table(), as_ul())

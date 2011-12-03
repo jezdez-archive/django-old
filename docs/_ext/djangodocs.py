@@ -16,7 +16,7 @@ except ImportError:
         except ImportError:
             json = None
 
-from sphinx import addnodes, roles
+from sphinx import addnodes, roles, __version__ as sphinx_ver
 from sphinx.builders.html import StandaloneHTMLBuilder
 from sphinx.writers.html import SmartyPantsHTMLTranslator
 from sphinx.util.console import bold
@@ -62,7 +62,6 @@ def setup(app):
     app.add_config_value('django_next_version', '0.0', True)
     app.add_directive('versionadded', VersionDirective)
     app.add_directive('versionchanged', VersionDirective)
-    app.add_transform(SuppressBlockquotes)
     app.add_builder(DjangoStandaloneHTMLBuilder)
 
 
@@ -99,27 +98,6 @@ class VersionDirective(Directive):
         return ret
 
 
-class SuppressBlockquotes(transforms.Transform):
-    """
-    Remove the default blockquotes that encase indented list, tables, etc.
-    """
-    default_priority = 300
-
-    suppress_blockquote_child_nodes = (
-        nodes.bullet_list,
-        nodes.enumerated_list,
-        nodes.definition_list,
-        nodes.literal_block,
-        nodes.doctest_block,
-        nodes.line_block,
-        nodes.table
-    )
-
-    def apply(self):
-        for node in self.document.traverse(nodes.block_quote):
-            if len(node.children) == 1 and isinstance(node.children[0], self.suppress_blockquote_child_nodes):
-                node.replace_self(node.children[0])
-
 class DjangoHTMLTranslator(SmartyPantsHTMLTranslator):
     """
     Django-specific reST to HTML tweaks.
@@ -139,16 +117,17 @@ class DjangoHTMLTranslator(SmartyPantsHTMLTranslator):
     def depart_desc_parameterlist(self, node):
         self.body.append(')')
 
-    #
-    # Don't apply smartypants to literal blocks
-    #
-    def visit_literal_block(self, node):
-        self.no_smarty += 1
-        SmartyPantsHTMLTranslator.visit_literal_block(self, node)
+    if sphinx_ver < '1.0.8':
+        #
+        # Don't apply smartypants to literal blocks
+        #
+        def visit_literal_block(self, node):
+            self.no_smarty += 1
+            SmartyPantsHTMLTranslator.visit_literal_block(self, node)
 
-    def depart_literal_block(self, node):
-        SmartyPantsHTMLTranslator.depart_literal_block(self, node)
-        self.no_smarty -= 1
+        def depart_literal_block(self, node):
+            SmartyPantsHTMLTranslator.depart_literal_block(self, node)
+            self.no_smarty -= 1
 
     #
     # Turn the "new in version" stuff (versionadded/versionchanged) into a

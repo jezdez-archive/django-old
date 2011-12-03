@@ -1,14 +1,13 @@
 from itertools import izip
 
 from django.core.exceptions import FieldError
-from django.db import connections
 from django.db import transaction
 from django.db.backends.util import truncate_name
+from django.db.models.query_utils import select_related_descend
 from django.db.models.sql.constants import *
 from django.db.models.sql.datastructures import EmptyResultSet
 from django.db.models.sql.expressions import SQLEvaluator
-from django.db.models.sql.query import (get_proxied_model, get_order_dir,
-     select_related_descend, Query)
+from django.db.models.sql.query import get_proxied_model, get_order_dir, Query
 from django.db.utils import DatabaseError
 
 
@@ -814,7 +813,8 @@ class SQLInsertCompiler(SQLCompiler):
             values = [[self.connection.ops.pk_default_value()] for obj in self.query.objs]
             params = [[]]
             fields = [None]
-        can_bulk = not any(hasattr(field, "get_placeholder") for field in fields) and not self.return_id
+        can_bulk = (not any(hasattr(field, "get_placeholder") for field in fields) and
+            not self.return_id and self.connection.features.has_bulk_insert)
 
         if can_bulk:
             placeholders = [["%s"] * len(fields)]
@@ -824,14 +824,14 @@ class SQLInsertCompiler(SQLCompiler):
                 for val in values
             ]
         if self.return_id and self.connection.features.can_return_id_from_insert:
-            params = values[0]
+            params = params[0]
             col = "%s.%s" % (qn(opts.db_table), qn(opts.pk.column))
             result.append("VALUES (%s)" % ", ".join(placeholders[0]))
             r_fmt, r_params = self.connection.ops.return_insert_id()
             result.append(r_fmt % col)
             params += r_params
             return [(" ".join(result), tuple(params))]
-        if can_bulk and self.connection.features.has_bulk_insert:
+        if can_bulk:
             result.append(self.connection.ops.bulk_insert_sql(fields, len(values)))
             return [(" ".join(result), tuple([v for val in values for v in val]))]
         else:
@@ -874,8 +874,6 @@ class SQLUpdateCompiler(SQLCompiler):
         Creates the SQL for this query. Returns the SQL string and list of
         parameters.
         """
-        from django.db.models.base import Model
-
         self.pre_sql_setup()
         if not self.query.values:
             return '', ()

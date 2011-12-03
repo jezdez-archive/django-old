@@ -1,4 +1,3 @@
-import datetime
 import urllib
 
 from django.core.exceptions import ImproperlyConfigured
@@ -7,6 +6,7 @@ from django.db import models
 from django.db.models.manager import EmptyManager
 from django.utils.encoding import smart_str
 from django.utils.translation import ugettext_lazy as _
+from django.utils import timezone
 
 from django.contrib import auth
 # UNUSABLE_PASSWORD is still imported here for backwards compatibility
@@ -20,7 +20,7 @@ def update_last_login(sender, user, **kwargs):
     A signal receiver which updates the last_login date for
     the user logging in.
     """
-    user.last_login = datetime.datetime.now()
+    user.last_login = timezone.now()
     user.save()
 user_logged_in.connect(update_last_login)
 
@@ -90,7 +90,7 @@ class UserManager(models.Manager):
         """
         Creates and saves a User with the given username, email and password.
         """
-        now = datetime.datetime.now()
+        now = timezone.now()
 
         # Normalize the address by lowercasing the domain part of the email
         # address.
@@ -131,17 +131,12 @@ class UserManager(models.Manager):
 # A few helper functions for common logic between User and AnonymousUser.
 def _user_get_all_permissions(user, obj):
     permissions = set()
-    anon = user.is_anonymous()
     for backend in auth.get_backends():
-        if not anon or backend.supports_anonymous_user:
-            if hasattr(backend, "get_all_permissions"):
-                if obj is not None:
-                    if backend.supports_object_permissions:
-                        permissions.update(
-                            backend.get_all_permissions(user, obj)
-                        )
-                else:
-                    permissions.update(backend.get_all_permissions(user))
+        if hasattr(backend, "get_all_permissions"):
+            if obj is not None:
+                permissions.update(backend.get_all_permissions(user, obj))
+            else:
+                permissions.update(backend.get_all_permissions(user))
     return permissions
 
 
@@ -149,12 +144,10 @@ def _user_has_perm(user, perm, obj):
     anon = user.is_anonymous()
     active = user.is_active
     for backend in auth.get_backends():
-        if (not active and not anon and backend.supports_inactive_user) or \
-                    (not anon or backend.supports_anonymous_user):
+        if anon or active or backend.supports_inactive_user:
             if hasattr(backend, "has_perm"):
                 if obj is not None:
-                    if (backend.supports_object_permissions and
-                        backend.has_perm(user, perm, obj)):
+                    if backend.has_perm(user, perm, obj):
                             return True
                 else:
                     if backend.has_perm(user, perm):
@@ -166,8 +159,7 @@ def _user_has_module_perms(user, app_label):
     anon = user.is_anonymous()
     active = user.is_active
     for backend in auth.get_backends():
-        if (not active and not anon and backend.supports_inactive_user) or \
-                    (not anon or backend.supports_anonymous_user):
+        if anon or active or backend.supports_inactive_user:
             if hasattr(backend, "has_module_perms"):
                 if backend.has_module_perms(user, app_label):
                     return True
@@ -188,8 +180,8 @@ class User(models.Model):
     is_staff = models.BooleanField(_('staff status'), default=False, help_text=_("Designates whether the user can log into this admin site."))
     is_active = models.BooleanField(_('active'), default=True, help_text=_("Designates whether this user should be treated as active. Unselect this instead of deleting accounts."))
     is_superuser = models.BooleanField(_('superuser status'), default=False, help_text=_("Designates that this user has all permissions without explicitly assigning them."))
-    last_login = models.DateTimeField(_('last login'), default=datetime.datetime.now)
-    date_joined = models.DateTimeField(_('date joined'), default=datetime.datetime.now)
+    last_login = models.DateTimeField(_('last login'), default=timezone.now)
+    date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
     groups = models.ManyToManyField(Group, verbose_name=_('groups'), blank=True,
         help_text=_("In addition to the permissions manually assigned, this user will also get all permissions granted to each group he/she is in."))
     user_permissions = models.ManyToManyField(Permission, verbose_name=_('user permissions'), blank=True)
@@ -232,7 +224,7 @@ class User(models.Model):
     def check_password(self, raw_password):
         """
         Returns a boolean of whether the raw_password was correct. Handles
-        encryption formats behind the scenes.
+        hashing formats behind the scenes.
         """
         def setter():
             self.set_password(raw_password)
@@ -257,10 +249,7 @@ class User(models.Model):
         for backend in auth.get_backends():
             if hasattr(backend, "get_group_permissions"):
                 if obj is not None:
-                    if backend.supports_object_permissions:
-                        permissions.update(
-                            backend.get_group_permissions(self, obj)
-                        )
+                    permissions.update(backend.get_group_permissions(self, obj))
                 else:
                     permissions.update(backend.get_group_permissions(self))
         return permissions

@@ -13,31 +13,31 @@ A view is a "type" of Web page in your Django application that generally serves
 a specific function and has a specific template. For example, in a Weblog
 application, you might have the following views:
 
-    * Blog homepage -- displays the latest few entries.
+* Blog homepage -- displays the latest few entries.
 
-    * Entry "detail" page -- permalink page for a single entry.
+* Entry "detail" page -- permalink page for a single entry.
 
-    * Year-based archive page -- displays all months with entries in the
-      given year.
+* Year-based archive page -- displays all months with entries in the
+  given year.
 
-    * Month-based archive page -- displays all days with entries in the
-      given month.
+* Month-based archive page -- displays all days with entries in the
+  given month.
 
-    * Day-based archive page -- displays all entries in the given day.
+* Day-based archive page -- displays all entries in the given day.
 
-    * Comment action -- handles posting comments to a given entry.
+* Comment action -- handles posting comments to a given entry.
 
 In our poll application, we'll have the following four views:
 
-    * Poll "index" page -- displays the latest few polls.
+* Poll "index" page -- displays the latest few polls.
 
-    * Poll "detail" page -- displays a poll question, with no results but
-      with a form to vote.
+* Poll "detail" page -- displays a poll question, with no results but
+  with a form to vote.
 
-    * Poll "results" page -- displays results for a particular poll.
+* Poll "results" page -- displays results for a particular poll.
 
-    * Vote action -- handles voting for a particular choice in a particular
-      poll.
+* Vote action -- handles voting for a particular choice in a particular
+  poll.
 
 In Django, each view is represented by a simple Python function.
 
@@ -78,16 +78,16 @@ point at that file::
 
 Time for an example. Edit ``mysite/urls.py`` so it looks like this::
 
-    from django.conf.urls.defaults import patterns, include, url
+    from django.conf.urls import patterns, include, url
 
     from django.contrib import admin
     admin.autodiscover()
 
     urlpatterns = patterns('',
-        (r'^polls/$', 'polls.views.index'),
-        (r'^polls/(?P<poll_id>\d+)/$', 'polls.views.detail'),
-        (r'^polls/(?P<poll_id>\d+)/results/$', 'polls.views.results'),
-        (r'^polls/(?P<poll_id>\d+)/vote/$', 'polls.views.vote'),
+        url(r'^polls/$', 'polls.views.index'),
+        url(r'^polls/(?P<poll_id>\d+)/$', 'polls.views.detail'),
+        url(r'^polls/(?P<poll_id>\d+)/results/$', 'polls.views.results'),
+        url(r'^polls/(?P<poll_id>\d+)/vote/$', 'polls.views.vote'),
         url(r'^admin/', include(admin.site.urls)),
     )
 
@@ -147,8 +147,7 @@ You should get a pleasantly-colored error page with the following message::
 
     ViewDoesNotExist at /polls/
 
-    Tried index in module polls.views. Error was: 'module'
-    object has no attribute 'index'
+    Could not import polls.views.index. View does not exist in module polls.views.
 
 This error happened because you haven't written a function ``index()`` in the
 module ``polls/views.py``.
@@ -321,9 +320,9 @@ will get you started for now.
 A shortcut: get_object_or_404()
 -------------------------------
 
-It's a very common idiom to use :meth:`~django.db.models.QuerySet.get` and raise
-:exc:`~django.http.Http404` if the object doesn't exist. Django provides a
-shortcut. Here's the ``detail()`` view, rewritten::
+It's a very common idiom to use :meth:`~django.db.models.query.QuerySet.get`
+and raise :exc:`~django.http.Http404` if the object doesn't exist. Django
+provides a shortcut. Here's the ``detail()`` view, rewritten::
 
     from django.shortcuts import render_to_response, get_object_or_404
     # ...
@@ -333,8 +332,8 @@ shortcut. Here's the ``detail()`` view, rewritten::
 
 The :func:`~django.shortcuts.get_object_or_404` function takes a Django model
 as its first argument and an arbitrary number of keyword arguments, which it
-passes to the module's :meth:`~django.db.models.QuerySet.get` function. It
-raises :exc:`~django.http.Http404` if the object doesn't exist.
+passes to the module's :meth:`~django.db.models.query.QuerySet.get` function.
+It raises :exc:`~django.http.Http404` if the object doesn't exist.
 
 .. admonition:: Philosophy
 
@@ -349,23 +348,25 @@ raises :exc:`~django.http.Http404` if the object doesn't exist.
 
 There's also a :func:`~django.shortcuts.get_list_or_404` function, which works
 just as :func:`~django.shortcuts.get_object_or_404` -- except using
-:meth:`~django.db.models.QuerySet.filter` instead of
-:meth:`~django.db.models.QuerySet.get`. It raises :exc:`~django.http.Http404` if
-the list is empty.
+:meth:`~django.db.models.query.QuerySet.filter` instead of
+:meth:`~django.db.models.query.QuerySet.get`. It raises
+:exc:`~django.http.Http404` if the list is empty.
 
 Write a 404 (page not found) view
 =================================
 
-When you raise :exc:`~django.http.Http404` from within a view, Django will load
-a special view devoted to handling 404 errors. It finds it by looking for the
-variable ``handler404``, which is a string in Python dotted syntax -- the same
-format the normal URLconf callbacks use. A 404 view itself has nothing special:
-It's just a normal view.
+When you raise :exc:`~django.http.Http404` from within a view, Django
+will load a special view devoted to handling 404 errors. It finds it
+by looking for the variable ``handler404`` in your root URLconf (and
+only in your root URLconf; setting ``handler404`` anywhere else will
+have no effect), which is a string in Python dotted syntax -- the same
+format the normal URLconf callbacks use. A 404 view itself has nothing
+special: It's just a normal view.
 
 You normally won't have to bother with writing 404 views. By default, URLconfs
 have the following line up top::
 
-    from django.conf.urls.defaults import patterns, include, url
+    from django.conf.urls import patterns, include, url
 
 That takes care of setting ``handler404`` in the current module. As you can see
 in ``django/conf/urls/defaults.py``, ``handler404`` is set to
@@ -373,28 +374,28 @@ in ``django/conf/urls/defaults.py``, ``handler404`` is set to
 
 Four more things to note about 404 views:
 
-    * If :setting:`DEBUG` is set to ``True`` (in your settings module) then your
-      404 view will never be used (and thus the ``404.html`` template will never
-      be rendered) because the traceback will be displayed instead.
+* If :setting:`DEBUG` is set to ``True`` (in your settings module) then your
+  404 view will never be used (and thus the ``404.html`` template will never
+  be rendered) because the traceback will be displayed instead.
 
-    * The 404 view is also called if Django doesn't find a match after checking
-      every regular expression in the URLconf.
+* The 404 view is also called if Django doesn't find a match after checking
+  every regular expression in the URLconf.
 
-    * If you don't define your own 404 view -- and simply use the default, which
-      is recommended -- you still have one obligation: To create a ``404.html``
-      template in the root of your template directory. The default 404 view will
-      use that template for all 404 errors.
+* If you don't define your own 404 view -- and simply use the default, which
+  is recommended -- you still have one obligation: To create a ``404.html``
+  template in the root of your template directory. The default 404 view will
+  use that template for all 404 errors.
 
-    * If :setting:`DEBUG` is set to ``False`` (in your settings module) and if
-      you didn't create a ``404.html`` file, an ``Http500`` is raised instead.
-      So remember to create a ``404.html``.
+* If :setting:`DEBUG` is set to ``False`` (in your settings module) and if
+  you didn't create a ``404.html`` file, an ``Http500`` is raised instead.
+  So remember to create a ``404.html``.
 
 Write a 500 (server error) view
 ===============================
 
-Similarly, URLconfs may define a ``handler500``, which points to a view to call
-in case of server errors. Server errors happen when you have runtime errors in
-view code.
+Similarly, your root URLconf may define a ``handler500``, which points
+to a view to call in case of server errors. Server errors happen when
+you have runtime errors in view code.
 
 Use the template system
 =======================
@@ -418,9 +419,10 @@ on the object ``poll``. Failing that, it tries an attribute lookup -- which
 works, in this case. If attribute lookup had failed, it would've tried a
 list-index lookup.
 
-Method-calling happens in the ``{% for %}`` loop: ``poll.choice_set.all`` is
-interpreted as the Python code ``poll.choice_set.all()``, which returns an
-iterable of Choice objects and is suitable for use in the ``{% for %}`` tag.
+Method-calling happens in the :ttag:`{% for %}<for>` loop:
+``poll.choice_set.all`` is interpreted as the Python code
+``poll.choice_set.all()``, which returns an iterable of Choice objects and is
+suitable for use in the :ttag:`{% for %}<for>` tag.
 
 See the :doc:`template guide </topics/templates>` for more about templates.
 
@@ -431,23 +433,23 @@ Take some time to play around with the views and template system. As you edit
 the URLconf, you may notice there's a fair bit of redundancy in it::
 
     urlpatterns = patterns('',
-        (r'^polls/$', 'polls.views.index'),
-        (r'^polls/(?P<poll_id>\d+)/$', 'polls.views.detail'),
-        (r'^polls/(?P<poll_id>\d+)/results/$', 'polls.views.results'),
-        (r'^polls/(?P<poll_id>\d+)/vote/$', 'polls.views.vote'),
+        url(r'^polls/$', 'polls.views.index'),
+        url(r'^polls/(?P<poll_id>\d+)/$', 'polls.views.detail'),
+        url(r'^polls/(?P<poll_id>\d+)/results/$', 'polls.views.results'),
+        url(r'^polls/(?P<poll_id>\d+)/vote/$', 'polls.views.vote'),
     )
 
 Namely, ``polls.views`` is in every callback.
 
 Because this is a common case, the URLconf framework provides a shortcut for
 common prefixes. You can factor out the common prefixes and add them as the
-first argument to :func:`~django.conf.urls.defaults.patterns`, like so::
+first argument to :func:`~django.conf.urls.patterns`, like so::
 
     urlpatterns = patterns('polls.views',
-        (r'^polls/$', 'index'),
-        (r'^polls/(?P<poll_id>\d+)/$', 'detail'),
-        (r'^polls/(?P<poll_id>\d+)/results/$', 'results'),
-        (r'^polls/(?P<poll_id>\d+)/vote/$', 'vote'),
+        url(r'^polls/$', 'index'),
+        url(r'^polls/(?P<poll_id>\d+)/$', 'detail'),
+        url(r'^polls/(?P<poll_id>\d+)/results/$', 'results'),
+        url(r'^polls/(?P<poll_id>\d+)/vote/$', 'vote'),
     )
 
 This is functionally identical to the previous formatting. It's just a bit
@@ -455,21 +457,21 @@ tidier.
 
 Since you generally don't want the prefix for one app to be applied to every
 callback in your URLconf, you can concatenate multiple
-:func:`~django.conf.urls.defaults.patterns`. Your full ``mysite/urls.py`` might
+:func:`~django.conf.urls.patterns`. Your full ``mysite/urls.py`` might
 now look like this::
 
-    from django.conf.urls.defaults import patterns, include, url
+    from django.conf.urls import patterns, include, url
 
     from django.contrib import admin
     admin.autodiscover()
-    
+
     urlpatterns = patterns('polls.views',
-        (r'^polls/$', 'index'),
-        (r'^polls/(?P<poll_id>\d+)/$', 'detail'),
-        (r'^polls/(?P<poll_id>\d+)/results/$', 'results'),
-        (r'^polls/(?P<poll_id>\d+)/vote/$', 'vote'),
+        url(r'^polls/$', 'index'),
+        url(r'^polls/(?P<poll_id>\d+)/$', 'detail'),
+        url(r'^polls/(?P<poll_id>\d+)/results/$', 'results'),
+        url(r'^polls/(?P<poll_id>\d+)/vote/$', 'vote'),
     )
-    
+
     urlpatterns += patterns('',
         url(r'^admin/', include(admin.site.urls)),
     )
@@ -492,49 +494,48 @@ URLs within the app directory.
 
 Copy the file ``mysite/urls.py`` to ``polls/urls.py``. Then, change
 ``mysite/urls.py`` to remove the poll-specific URLs and insert an
-:func:`~django.conf.urls.defaults.include`, leaving you with::
+:func:`~django.conf.urls.include`, leaving you with::
 
-    # This also imports the include function
-    from django.conf.urls.defaults import patterns, include, url
-    
+    from django.conf.urls import patterns, include, url
+
     from django.contrib import admin
     admin.autodiscover()
-    
+
     urlpatterns = patterns('',
-        (r'^polls/', include('polls.urls')),
+        url(r'^polls/', include('polls.urls')),
         url(r'^admin/', include(admin.site.urls)),
     )
 
-:func:`~django.conf.urls.defaults.include` simply references another URLconf.
+:func:`~django.conf.urls.include` simply references another URLconf.
 Note that the regular expression doesn't have a ``$`` (end-of-string match
 character) but has the trailing slash. Whenever Django encounters
-:func:`~django.conf.urls.defaults.include`, it chops off whatever part of the
+:func:`~django.conf.urls.include`, it chops off whatever part of the
 URL matched up to that point and sends the remaining string to the included
 URLconf for further processing.
 
 Here's what happens if a user goes to "/polls/34/" in this system:
 
-    * Django will find the match at ``'^polls/'``
+* Django will find the match at ``'^polls/'``
 
-    * Then, Django will strip off the matching text (``"polls/"``) and send the
-      remaining text -- ``"34/"`` -- to the 'polls.urls' URLconf for
-      further processing.
+* Then, Django will strip off the matching text (``"polls/"``) and send the
+  remaining text -- ``"34/"`` -- to the 'polls.urls' URLconf for
+  further processing.
 
 Now that we've decoupled that, we need to decouple the ``polls.urls``
 URLconf by removing the leading "polls/" from each line, and removing the
 lines registering the admin site. Your ``polls/urls.py`` file should now look like
 this::
 
-    from django.conf.urls.defaults import patterns, include, url
+    from django.conf.urls import patterns, include, url
 
     urlpatterns = patterns('polls.views',
-        (r'^$', 'index'),
-        (r'^(?P<poll_id>\d+)/$', 'detail'),
-        (r'^(?P<poll_id>\d+)/results/$', 'results'),
-        (r'^(?P<poll_id>\d+)/vote/$', 'vote'),
+        url(r'^$', 'index'),
+        url(r'^(?P<poll_id>\d+)/$', 'detail'),
+        url(r'^(?P<poll_id>\d+)/results/$', 'results'),
+        url(r'^(?P<poll_id>\d+)/vote/$', 'vote'),
     )
 
-The idea behind :func:`~django.conf.urls.defaults.include` and URLconf
+The idea behind :func:`~django.conf.urls.include` and URLconf
 decoupling is to make it easy to plug-and-play URLs. Now that polls are in their
 own URLconf, they can be placed under "/polls/", or under "/fun_polls/", or
 under "/content/polls/", or any other path root, and the app will still work.

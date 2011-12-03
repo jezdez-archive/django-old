@@ -45,11 +45,12 @@ def iter_format_modules(lang):
                 except ImportError:
                     pass
 
-def get_format_modules(reverse=False):
+def get_format_modules(lang=None, reverse=False):
     """
     Returns a list of the format modules found
     """
-    lang = get_language()
+    if lang is None:
+        lang = get_language()
     modules = _format_modules_cache.setdefault(lang, list(iter_format_modules(lang)))
     if reverse:
         return list(reversed(modules))
@@ -70,9 +71,14 @@ def get_format(format_type, lang=None, use_l10n=None):
             lang = get_language()
         cache_key = (format_type, lang)
         try:
-            return _format_cache[cache_key] or getattr(settings, format_type)
+            cached = _format_cache[cache_key]
+            if cached is not None:
+                return cached
+            else:
+                # Return the general setting by default
+                return getattr(settings, format_type)
         except KeyError:
-            for module in get_format_modules():
+            for module in get_format_modules(lang):
                 try:
                     val = getattr(module, format_type)
                     _format_cache[cache_key] = val

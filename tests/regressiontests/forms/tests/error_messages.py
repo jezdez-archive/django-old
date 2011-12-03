@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
 from django.test import TestCase
-from django.utils.safestring import mark_safe
 from django.utils import unittest
-from regressiontests.forms.tests.fields import verify_exists_urls
+from django.utils.safestring import mark_safe
+
+from .fields import verify_exists_urls
+
 
 class AssertFormErrorsMixin(object):
     def assertFormErrors(self, expected, the_callable, *args, **kwargs):
@@ -13,7 +18,6 @@ class AssertFormErrorsMixin(object):
             self.fail("Testing the 'clean' method on %s failed to raise a ValidationError.")
         except ValidationError, e:
             self.assertEqual(e.messages, expected)
-
 
 class FormsErrorMessagesTestCase(unittest.TestCase, AssertFormErrorsMixin):
     def test_charfield(self):

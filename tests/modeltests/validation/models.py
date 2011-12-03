@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -14,6 +15,7 @@ class ModelToValidate(models.Model):
     parent = models.ForeignKey('self', blank=True, null=True, limit_choices_to={'number': 10})
     email = models.EmailField(blank=True)
     url = models.URLField(blank=True)
+    url_verify = models.URLField(blank=True, verify_exists=True)
     f_with_custom_validator = models.IntegerField(blank=True, null=True, validators=[validate_answer_to_universe])
 
     def clean(self):
@@ -89,3 +91,15 @@ class GenericIPAddressTestModel(models.Model):
 
 class GenericIPAddrUnpackUniqueTest(models.Model):
     generic_v4unpack_ip = models.GenericIPAddressField(blank=True, unique=True, unpack_ipv4=True)
+
+
+# A model can't have multiple AutoFields
+# Refs #12467.
+assertion_error = None
+try:
+    class MultipleAutoFields(models.Model):
+        auto1 = models.AutoField(primary_key=True)
+        auto2 = models.AutoField(primary_key=True)
+except AssertionError, assertion_error:
+    pass # Fail silently
+assert str(assertion_error) == u"A model can't have more than one AutoField."

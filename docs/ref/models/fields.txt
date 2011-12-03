@@ -178,10 +178,11 @@ If ``True``, djadmin:`django-admin.py sqlindexes <sqlindexes>` will output a
 
 .. attribute:: Field.db_tablespace
 
-The name of the database tablespace to use for this field's index, if this field
-is indexed. The default is the project's :setting:`DEFAULT_INDEX_TABLESPACE`
-setting, if set, or the :attr:`~Field.db_tablespace` of the model, if any. If
-the backend doesn't support tablespaces, this option is ignored.
+The name of the :doc:`database tablespace </topics/db/tablespaces>` to use for
+this field's index, if this field is indexed. The default is the project's
+:setting:`DEFAULT_INDEX_TABLESPACE` setting, if set, or the
+:attr:`~Options.db_tablespace` of the model, if any. If the backend doesn't
+support tablespaces for indexes, this option is ignored.
 
 ``default``
 -----------
@@ -352,7 +353,6 @@ If you need to accept :attr:`~Field.null` values then use
 :class:`NullBooleanField` instead.
 
 .. versionchanged:: 1.2
-
     In previous versions of Django when running under MySQL ``BooleanFields``
     would return their data as ``ints``, instead of true ``bools``.  See the
     release notes for a complete description of the change.
@@ -450,7 +450,7 @@ A fixed-precision decimal number, represented in Python by a
 .. attribute:: DecimalField.max_digits
 
     The maximum number of digits allowed in the number. Note that this number
-    must be greater than ``decimal_places``, if it exists.
+    must be greater than or equal to ``decimal_places``, if it exists.
 
 .. attribute:: DecimalField.decimal_places
 
@@ -510,23 +510,23 @@ Has one **required** argument:
     to be passed along to the storage system. The two arguments that will be
     passed are:
 
-        ======================  ===============================================
-        Argument                Description
-        ======================  ===============================================
-        ``instance``            An instance of the model where the
-                                ``FileField`` is defined. More specifically,
-                                this is the particular instance where the
-                                current file is being attached.
+    ======================  ===============================================
+    Argument                Description
+    ======================  ===============================================
+    ``instance``            An instance of the model where the
+                            ``FileField`` is defined. More specifically,
+                            this is the particular instance where the
+                            current file is being attached.
 
-                                In most cases, this object will not have been
-                                saved to the database yet, so if it uses the
-                                default ``AutoField``, *it might not yet have a
-                                value for its primary key field*.
+                            In most cases, this object will not have been
+                            saved to the database yet, so if it uses the
+                            default ``AutoField``, *it might not yet have a
+                            value for its primary key field*.
 
-        ``filename``            The filename that was originally given to the
-                                file. This may or may not be taken into account
-                                when determining the final destination path.
-        ======================  ===============================================
+    ``filename``            The filename that was originally given to the
+                            file. This may or may not be taken into account
+                            when determining the final destination path.
+    ======================  ===============================================
 
 Also has one optional argument:
 
@@ -541,22 +541,22 @@ widget).
 Using a :class:`FileField` or an :class:`ImageField` (see below) in a model
 takes a few steps:
 
-    1. In your settings file, you'll need to define :setting:`MEDIA_ROOT` as the
-       full path to a directory where you'd like Django to store uploaded files.
-       (For performance, these files are not stored in the database.) Define
-       :setting:`MEDIA_URL` as the base public URL of that directory. Make sure
-       that this directory is writable by the Web server's user account.
+1. In your settings file, you'll need to define :setting:`MEDIA_ROOT` as the
+   full path to a directory where you'd like Django to store uploaded files.
+   (For performance, these files are not stored in the database.) Define
+   :setting:`MEDIA_URL` as the base public URL of that directory. Make sure
+   that this directory is writable by the Web server's user account.
 
-    2. Add the :class:`FileField` or :class:`ImageField` to your model, making
-       sure to define the :attr:`~FileField.upload_to` option to tell Django
-       to which subdirectory of :setting:`MEDIA_ROOT` it should upload files.
+2. Add the :class:`FileField` or :class:`ImageField` to your model, making
+   sure to define the :attr:`~FileField.upload_to` option to tell Django
+   to which subdirectory of :setting:`MEDIA_ROOT` it should upload files.
 
-    3. All that will be stored in your database is a path to the file
-       (relative to :setting:`MEDIA_ROOT`). You'll most likely want to use the
-       convenience :attr:`~django.core.files.File.url` function provided by
-       Django. For example, if your :class:`ImageField` is called ``mug_shot``,
-       you can get the absolute path to your image in a template with
-       ``{{ object.mug_shot.url }}``.
+3. All that will be stored in your database is a path to the file
+   (relative to :setting:`MEDIA_ROOT`). You'll most likely want to use the
+   convenience :attr:`~django.core.files.File.url` function provided by
+   Django. For example, if your :class:`ImageField` is called ``mug_shot``,
+   you can get the absolute path to your image in a template with
+   ``{{ object.mug_shot.url }}``.
 
 For example, say your :setting:`MEDIA_ROOT` is set to ``'/home/media'``, and
 :attr:`~FileField.upload_to` is set to ``'photos/%Y/%m/%d'``. The ``'%Y/%m/%d'``
@@ -571,6 +571,11 @@ size, you could use the :attr:`~django.core.files.File.name` and
 information on the available attributes and methods, see the
 :class:`~django.core.files.File` class reference and the :doc:`/topics/files`
 topic guide.
+
+.. note::
+    The file is saved as part of saving the model in the database, so the actual
+    file name used on disk cannot be relied on until after the model has been
+    saved.
 
 The uploaded file's relative URL can be obtained using the
 :attr:`~django.db.models.fields.FileField.url` attribute. Internally,
@@ -805,7 +810,8 @@ this as a ``<select>`` box with "Unknown", "Yes" and "No" choices.
 
 .. class:: PositiveIntegerField([**options])
 
-Like an :class:`IntegerField`, but must be positive.
+Like an :class:`IntegerField`, but must be either positive or zero (`0`).
+The value `0` is accepted for backward compatibility reasons.
 
 ``PositiveSmallIntegerField``
 -----------------------------
@@ -872,14 +878,19 @@ shortcuts.
 ``URLField``
 ------------
 
-.. class:: URLField([verify_exists=True, max_length=200, **options])
+.. class:: URLField([verify_exists=False, max_length=200, **options])
 
 A :class:`CharField` for a URL. Has one extra optional argument:
 
+.. deprecated:: 1.4
+   ``verify_exists`` is deprecated for security reasons as of 1.4 and will be
+   removed in Django 1.5. Prior to 1.3.1, the default value was ``True``.
+
 .. attribute:: URLField.verify_exists
 
-    If ``True`` (the default), the URL given will be checked for existence
-    (i.e., the URL actually loads and doesn't give a 404 response).
+    If ``True``, the URL given will be checked for existence (i.e.,
+    the URL actually loads and doesn't give a 404 response) using a
+    ``HEAD`` request. Redirects are allowed, but will not be followed.
 
     Note that when you're using the single-threaded development server,
     validating a URL being served by the same server will hang. This should not

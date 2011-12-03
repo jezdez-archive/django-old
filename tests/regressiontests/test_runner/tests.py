@@ -1,6 +1,8 @@
 """
 Tests for django test runner
 """
+from __future__ import absolute_import
+
 import StringIO
 from optparse import make_option
 import warnings
@@ -13,7 +15,7 @@ from django.test.utils import get_warnings_state, restore_warnings_state
 from django.utils import unittest
 from django.utils.importlib import import_module
 
-from regressiontests.admin_scripts.tests import AdminScriptTestCase
+from ..admin_scripts.tests import AdminScriptTestCase
 
 
 TEST_APP_OK = 'regressiontests.test_runner.valid_app.models'
@@ -188,25 +190,25 @@ class CustomTestRunnerOptionsTests(AdminScriptTestCase):
         self.remove_settings('settings.py')
 
     def test_default_options(self):
-        args = ['test', '--settings=settings']
+        args = ['test', '--settings=regressiontests.settings']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, '1:2:3')
 
     def test_default_and_given_options(self):
-        args = ['test', '--settings=settings', '--option_b=foo']
+        args = ['test', '--settings=regressiontests.settings', '--option_b=foo']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, '1:foo:3')
 
     def test_option_name_and_value_separated(self):
-        args = ['test', '--settings=settings', '--option_b', 'foo']
+        args = ['test', '--settings=regressiontests.settings', '--option_b', 'foo']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, '1:foo:3')
 
     def test_all_options_given(self):
-        args = ['test', '--settings=settings', '--option_a=bar', '--option_b=foo', '--option_c=31337']
+        args = ['test', '--settings=regressiontests.settings', '--option_a=bar', '--option_b=foo', '--option_c=31337']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, 'bar:foo:31337')

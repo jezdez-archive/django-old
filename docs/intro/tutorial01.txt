@@ -9,8 +9,8 @@ poll application.
 
 It'll consist of two parts:
 
-    * A public site that lets people view polls and vote in them.
-    * An admin site that lets you add, change and delete polls.
+* A public site that lets people view polls and vote in them.
+* An admin site that lets you add, change and delete polls.
 
 We'll assume you have :doc:`Django installed </intro/install>` already. You can
 tell Django is installed by running the Python interactive interpreter and
@@ -41,7 +41,7 @@ code, then run the following command:
 .. code-block:: bash
 
    django-admin.py startproject mysite
-   
+
 This will create a ``mysite`` directory in your current directory.
 
 .. admonition:: Script name may differ in distribution packages
@@ -90,41 +90,62 @@ within your Python installation. Consider symlinking to :doc:`django-admin.py
 Let's look at what :djadmin:`startproject` created::
 
     mysite/
-        __init__.py
         manage.py
-        settings.py
-        urls.py
+        mysite/
+            __init__.py
+            settings.py
+            urls.py
+            wsgi.py
+
+.. admonition:: Doesn't match what you see?
+
+    The default project layout recently changed. If you're seeing a "flat"
+    layout (with no inner :file:`mysite/` directory), you're probably using
+    a version of Django that doesn't match this tutorial version.  You'll
+    want to either switch to the older tutorial or the newer Django version.
 
 These files are:
 
-    * :file:`__init__.py`: An empty file that tells Python that this directory
-      should be considered a Python package. (Read `more about packages`_ in the
-      official Python docs if you're a Python beginner.)
+* The outer :file:`mysite/` directory is just a container for your
+  project. Its name doesn't matter to Django; you can rename it to anything
+  you like.
 
-    * :file:`manage.py`: A command-line utility that lets you interact with this
-      Django project in various ways. You can read all the details about
-      :file:`manage.py` in :doc:`/ref/django-admin`.
+* :file:`manage.py`: A command-line utility that lets you interact with this
+  Django project in various ways. You can read all the details about
+  :file:`manage.py` in :doc:`/ref/django-admin`.
 
-    * :file:`settings.py`: Settings/configuration for this Django project.
-      :doc:`/topics/settings` will tell you all about how settings work.
+* The inner :file:`mysite/` directory is the actual Python package for your
+  project. Its name is the Python package name you'll need to use to import
+  anything inside it (e.g. ``import mysite.settings``).
 
-    * :file:`urls.py`: The URL declarations for this Django project; a "table of
-      contents" of your Django-powered site. You can read more about URLs in
-      :doc:`/topics/http/urls`.
+* :file:`mysite/__init__.py`: An empty file that tells Python that this
+  directory should be considered a Python package. (Read `more about
+  packages`_ in the official Python docs if you're a Python beginner.)
+
+* :file:`mysite/settings.py`: Settings/configuration for this Django
+  project.  :doc:`/topics/settings` will tell you all about how settings
+  work.
+
+* :file:`mysite/urls.py`: The URL declarations for this Django project; a
+  "table of contents" of your Django-powered site. You can read more about
+  URLs in :doc:`/topics/http/urls`.
+
+* :file:`mysite/wsgi.py`: An entry-point for WSGI-compatible webservers to
+  serve your project. See :doc:`/howto/deployment/wsgi/index` for more details.
 
 .. _more about packages: http://docs.python.org/tutorial/modules.html#packages
 
 The development server
 ----------------------
 
-Let's verify this worked. Change into the :file:`mysite` directory, if you
-haven't already, and run the command ``python manage.py runserver``. You'll see
-the following output on the command line::
+Let's verify this worked. Change into the outer :file:`mysite` directory, if
+you haven't already, and run the command ``python manage.py runserver``. You'll
+see the following output on the command line::
 
     Validating models...
     0 errors found.
 
-    Django version 1.0, using settings 'mysite.settings'
+    Django version 1.4, using settings 'mysite.settings'
     Development server is running at http://127.0.0.1:8000/
     Quit the server with CONTROL-C.
 
@@ -168,35 +189,35 @@ It worked!
 Database setup
 --------------
 
-Now, edit :file:`settings.py`. It's a normal Python module with
+Now, edit :file:`mysite/settings.py`. It's a normal Python module with
 module-level variables representing Django settings. Change the
 following keys in the :setting:`DATABASES` ``'default'`` item to match
 your databases connection settings.
 
-    * :setting:`ENGINE` -- Either
-      ``'django.db.backends.postgresql_psycopg2'``,
-      ``'django.db.backends.mysql'`` or
-      ``'django.db.backends.sqlite3'``. Other backends are
-      :setting:`also available <ENGINE>`.
+* :setting:`ENGINE <DATABASE-ENGINE>` -- Either
+  ``'django.db.backends.postgresql_psycopg2'``,
+  ``'django.db.backends.mysql'`` or
+  ``'django.db.backends.sqlite3'``. Other backends are
+  :setting:`also available <DATABASE-ENGINE>`.
 
-    * :setting:`NAME` -- The name of your database. If you're using
-      SQLite, the database will be a file on your computer; in that
-      case, :setting:`NAME` should be the full absolute path,
-      including filename, of that file. If the file doesn't exist, it
-      will automatically be created when you synchronize the database
-      for the first time (see below).
+* :setting:`NAME` -- The name of your database. If you're using
+  SQLite, the database will be a file on your computer; in that
+  case, :setting:`NAME` should be the full absolute path,
+  including filename, of that file. If the file doesn't exist, it
+  will automatically be created when you synchronize the database
+  for the first time (see below).
 
-      When specifying the path, always use forward slashes, even on
-      Windows (e.g. ``C:/homes/user/mysite/sqlite3.db``).
+  When specifying the path, always use forward slashes, even on
+  Windows (e.g. ``C:/homes/user/mysite/sqlite3.db``).
 
-    * :setting:`USER` -- Your database username (not used for SQLite).
+* :setting:`USER` -- Your database username (not used for SQLite).
 
-    * :setting:`PASSWORD` -- Your database password (not used for
-      SQLite).
+* :setting:`PASSWORD` -- Your database password (not used for
+  SQLite).
 
-    * :setting:`HOST` -- The host your database is on. Leave this as
-      an empty string if your database server is on the same physical
-      machine (not used for SQLite).
+* :setting:`HOST` -- The host your database is on. Leave this as
+  an empty string if your database server is on the same physical
+  machine (not used for SQLite).
 
 If you're new to databases, we recommend simply using SQLite (by
 setting :setting:`ENGINE` to ``'django.db.backends.sqlite3'``). SQLite
@@ -221,19 +242,19 @@ distribute them for use by others in their projects.
 By default, :setting:`INSTALLED_APPS` contains the following apps, all of which
 come with Django:
 
-    * :mod:`django.contrib.auth` -- An authentication system.
+* :mod:`django.contrib.auth` -- An authentication system.
 
-    * :mod:`django.contrib.contenttypes` -- A framework for content types.
+* :mod:`django.contrib.contenttypes` -- A framework for content types.
 
-    * :mod:`django.contrib.sessions` -- A session framework.
+* :mod:`django.contrib.sessions` -- A session framework.
 
-    * :mod:`django.contrib.sites` -- A framework for managing multiple sites
-      with one Django installation.
+* :mod:`django.contrib.sites` -- A framework for managing multiple sites
+  with one Django installation.
 
-    * :mod:`django.contrib.messages` -- A messaging framework.
+* :mod:`django.contrib.messages` -- A messaging framework.
 
-    * :mod:`django.contrib.staticfiles` -- A framework for managing
-      static files.
+* :mod:`django.contrib.staticfiles` -- A framework for managing
+  static files.
 
 These applications are included by default as a convenience for the common case.
 
@@ -286,10 +307,11 @@ so you can focus on writing code rather than creating directories.
     multiple apps. An app can be in multiple projects.
 
 Your apps can live anywhere on your `Python path`_. In this tutorial, we'll
-create our poll app in the :file:`mysite` directory for simplicity.
+create our poll app right next to your :file:`manage.py` file so that it can be
+imported as its own top-level module, rather than a submodule of ``mysite``.
 
-To create your app, make sure you're in the :file:`mysite` directory and type
-this command:
+To create your app, make sure you're in the same directory as :file:`manage.py`
+and type this command:
 
 .. code-block:: bash
 
@@ -372,8 +394,8 @@ Activating models
 That small bit of model code gives Django a lot of information. With it, Django
 is able to:
 
-    * Create a database schema (``CREATE TABLE`` statements) for this app.
-    * Create a Python database-access API for accessing Poll and Choice objects.
+* Create a database schema (``CREATE TABLE`` statements) for this app.
+* Create a Python database-access API for accessing Poll and Choice objects.
 
 But first we need to tell our project that the ``polls`` app is installed.
 
@@ -423,52 +445,52 @@ statements for the polls app):
 
 Note the following:
 
-    * The exact output will vary depending on the database you are using.
+* The exact output will vary depending on the database you are using.
 
-    * Table names are automatically generated by combining the name of the app
-      (``polls``) and the lowercase name of the model -- ``poll`` and
-      ``choice``. (You can override this behavior.)
+* Table names are automatically generated by combining the name of the app
+  (``polls``) and the lowercase name of the model -- ``poll`` and
+  ``choice``. (You can override this behavior.)
 
-    * Primary keys (IDs) are added automatically. (You can override this, too.)
+* Primary keys (IDs) are added automatically. (You can override this, too.)
 
-    * By convention, Django appends ``"_id"`` to the foreign key field name.
-      Yes, you can override this, as well.
+* By convention, Django appends ``"_id"`` to the foreign key field name.
+  Yes, you can override this, as well.
 
-    * The foreign key relationship is made explicit by a ``REFERENCES``
-      statement.
+* The foreign key relationship is made explicit by a ``REFERENCES``
+  statement.
 
-    * It's tailored to the database you're using, so database-specific field
-      types such as ``auto_increment`` (MySQL), ``serial`` (PostgreSQL), or
-      ``integer primary key`` (SQLite) are handled for you automatically. Same
-      goes for quoting of field names -- e.g., using double quotes or single
-      quotes. The author of this tutorial runs PostgreSQL, so the example
-      output is in PostgreSQL syntax.
+* It's tailored to the database you're using, so database-specific field
+  types such as ``auto_increment`` (MySQL), ``serial`` (PostgreSQL), or
+  ``integer primary key`` (SQLite) are handled for you automatically. Same
+  goes for quoting of field names -- e.g., using double quotes or single
+  quotes. The author of this tutorial runs PostgreSQL, so the example
+  output is in PostgreSQL syntax.
 
-    * The :djadmin:`sql` command doesn't actually run the SQL in your database -
-      it just prints it to the screen so that you can see what SQL Django thinks
-      is required. If you wanted to, you could copy and paste this SQL into your
-      database prompt. However, as we will see shortly, Django provides an
-      easier way of committing the SQL to the database.
+* The :djadmin:`sql` command doesn't actually run the SQL in your database -
+  it just prints it to the screen so that you can see what SQL Django thinks
+  is required. If you wanted to, you could copy and paste this SQL into your
+  database prompt. However, as we will see shortly, Django provides an
+  easier way of committing the SQL to the database.
 
 If you're interested, also run the following commands:
 
-    * :djadmin:`python manage.py validate <validate>` -- Checks for any errors
-      in the construction of your models.
+* :djadmin:`python manage.py validate <validate>` -- Checks for any errors
+  in the construction of your models.
 
-    * :djadmin:`python manage.py sqlcustom polls <sqlcustom>` -- Outputs any
-      :ref:`custom SQL statements <initial-sql>` (such as table modifications or
-      constraints) that are defined for the application.
+* :djadmin:`python manage.py sqlcustom polls <sqlcustom>` -- Outputs any
+  :ref:`custom SQL statements <initial-sql>` (such as table modifications or
+  constraints) that are defined for the application.
 
-    * :djadmin:`python manage.py sqlclear polls <sqlclear>` -- Outputs the
-      necessary ``DROP TABLE`` statements for this app, according to which
-      tables already exist in your database (if any).
+* :djadmin:`python manage.py sqlclear polls <sqlclear>` -- Outputs the
+  necessary ``DROP TABLE`` statements for this app, according to which
+  tables already exist in your database (if any).
 
-    * :djadmin:`python manage.py sqlindexes polls <sqlindexes>` -- Outputs the
-      ``CREATE INDEX`` statements for this app.
+* :djadmin:`python manage.py sqlindexes polls <sqlindexes>` -- Outputs the
+  ``CREATE INDEX`` statements for this app.
 
-    * :djadmin:`python manage.py sqlall polls <sqlall>` -- A combination of all
-      the SQL from the :djadmin:`sql`, :djadmin:`sqlcustom`, and
-      :djadmin:`sqlindexes` commands.
+* :djadmin:`python manage.py sqlall polls <sqlall>` -- A combination of all
+  the SQL from the :djadmin:`sql`, :djadmin:`sqlcustom`, and
+  :djadmin:`sqlindexes` commands.
 
 Looking at the output of those commands can help you understand what's actually
 happening under the hood.
@@ -499,27 +521,16 @@ API Django gives you. To invoke the Python shell, use this command:
 
     python manage.py shell
 
-We're using this instead of simply typing "python", because ``manage.py`` sets
-up the project's environment for you. "Setting up the environment" involves two
-things:
-
-    * Putting ``polls`` on ``sys.path``. For flexibility, several pieces of
-      Django refer to projects in Python dotted-path notation (e.g.
-      ``'polls.models'``). In order for this to work, the ``polls``
-      package has to be on ``sys.path``.
-
-      We've already seen one example of this: the :setting:`INSTALLED_APPS`
-      setting is a list of packages in dotted-path notation.
-
-    * Setting the ``DJANGO_SETTINGS_MODULE`` environment variable, which gives
-      Django the path to your ``settings.py`` file.
+We're using this instead of simply typing "python", because :file:`manage.py`
+sets the ``DJANGO_SETTINGS_MODULE`` environment variable, which gives Django
+the Python import path to your :file:`settings.py` file.
 
 .. admonition:: Bypassing manage.py
 
-    If you'd rather not use ``manage.py``, no problem. Just make sure ``mysite``
-    and ``polls`` are at the root level on the Python path (i.e., ``import mysite``
-    and ``import polls`` work) and set the ``DJANGO_SETTINGS_MODULE`` environment
-    variable to ``mysite.settings``.
+    If you'd rather not use :file:`manage.py`, no problem. Just set the
+    ``DJANGO_SETTINGS_MODULE`` environment variable to ``mysite.settings`` and
+    run ``python`` from the same directory :file:`manage.py` is in (or ensure
+    that directory is on the Python path, so that ``import mysite`` works).
 
     For more information on all of this, see the :doc:`django-admin.py
     documentation </ref/django-admin>`.
@@ -692,10 +703,9 @@ Save these changes and start a new Python interactive shell by running
 
 For more information on model relations, see :doc:`Accessing related objects
 </ref/models/relations>`. For more on how to use double underscores to perform
-field lookups via the API, see `Field lookups`__. For full details on the 
-database API, see our :doc:`Database API reference </topics/db/queries>`.
-
-__ http://docs.djangoproject.com/en/1.2/topics/db/queries/#field-lookups
+field lookups via the API, see :ref:`Field lookups <field-lookups-intro>`. For
+full details on the database API, see our :doc:`Database API reference
+</topics/db/queries>`.
 
 When you're comfortable with the API, read :doc:`part 2 of this tutorial
 </intro/tutorial02>` to get Django's automatic admin working.

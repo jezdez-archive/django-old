@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
+from __future__ import with_statement, absolute_import
+
 import datetime
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
 from django.forms import Form, ModelForm, FileField, ModelChoiceField
 from django.forms.models import ModelFormMetaclass
 from django.test import TestCase
-from regressiontests.forms.models import (ChoiceOptionModel, ChoiceFieldModel,
-    FileModel, Group, BoundaryModel, Defaults)
+
+from ..models import (ChoiceOptionModel, ChoiceFieldModel, FileModel, Group,
+    BoundaryModel, Defaults)
 
 
 class ChoiceFieldForm(ModelForm):
@@ -24,11 +28,10 @@ class TestTicket12510(TestCase):
         self.groups = [Group.objects.create(name=name) for name in 'abc']
 
     def test_choices_not_fetched_when_not_rendering(self):
-        def test():
+        # only one query is required to pull the model from DB
+        with self.assertNumQueries(1):
             field = ModelChoiceField(Group.objects.order_by('-name'))
             self.assertEqual('a', field.clean(self.groups[0].pk).name)
-        # only one query is required to pull the model from DB
-        self.assertNumQueries(1, test)
 
 class ModelFormCallableModelDefault(TestCase):
     def test_no_empty_option(self):

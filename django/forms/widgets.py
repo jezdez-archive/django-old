@@ -2,13 +2,15 @@
 HTML Widget classes
 """
 
+from __future__ import absolute_import
+
 import copy
 import datetime
 from itertools import chain
 from urlparse import urljoin
-from util import flatatt
 
 from django.conf import settings
+from django.forms.util import flatatt, to_current_timezone
 from django.utils.datastructures import MultiValueDict, MergeDict
 from django.utils.html import escape, conditional_escape
 from django.utils.translation import ugettext, ugettext_lazy
@@ -138,7 +140,7 @@ class MediaDefiningClass(type):
 class Widget(object):
     __metaclass__ = MediaDefiningClass
     is_hidden = False          # Determines whether this corresponds to an <input type="hidden">.
-    needs_multipart_form = False # Determines does this widget need multipart-encrypted form
+    needs_multipart_form = False # Determines does this widget need multipart form
     is_localized = False
     is_required = False
 
@@ -462,11 +464,14 @@ class TimeInput(Input):
         return super(TimeInput, self)._has_changed(self._format_value(initial), data)
 
 class CheckboxInput(Widget):
-    def __init__(self, attrs=None, check_test=bool):
+    def __init__(self, attrs=None, check_test=None):
         super(CheckboxInput, self).__init__(attrs)
         # check_test is a callable that takes a value and returns True
         # if the checkbox should be checked for that value.
-        self.check_test = check_test
+        if check_test is None:
+            self.check_test = lambda v: not (v is False or v is None or v == '')
+        else:
+            self.check_test = check_test
 
     def render(self, name, value, attrs=None):
         final_attrs = self.build_attrs(attrs, type='checkbox', name=name)
@@ -476,7 +481,7 @@ class CheckboxInput(Widget):
             result = False
         if result:
             final_attrs['checked'] = 'checked'
-        if value not in ('', True, False, None):
+        if not (value is True or value is False or value is None or value == ''):
             # Only add the 'value' attribute if a value is non-empty.
             final_attrs['value'] = force_unicode(value)
         return mark_safe(u'<input%s />' % flatatt(final_attrs))
@@ -499,6 +504,8 @@ class CheckboxInput(Widget):
         return bool(initial) != bool(data)
 
 class Select(Widget):
+    allow_multiple_selected = False
+
     def __init__(self, attrs=None, choices=()):
         super(Select, self).__init__(attrs)
         # choices can be any iterable, but we may need to render this widget
@@ -518,14 +525,20 @@ class Select(Widget):
 
     def render_option(self, selected_choices, option_value, option_label):
         option_value = force_unicode(option_value)
-        selected_html = (option_value in selected_choices) and u' selected="selected"' or ''
+        if option_value in selected_choices:
+            selected_html = u' selected="selected"'
+            if not self.allow_multiple_selected:
+                # Only allow for a single selection.
+                selected_choices.remove(option_value)
+        else:
+            selected_html = ''
         return u'<option value="%s"%s>%s</option>' % (
             escape(option_value), selected_html,
             conditional_escape(force_unicode(option_label)))
 
     def render_options(self, choices, selected_choices):
         # Normalize to strings.
-        selected_choices = set([force_unicode(v) for v in selected_choices])
+        selected_choices = set(force_unicode(v) for v in selected_choices)
         output = []
         for option_value, option_label in chain(self.choices, choices):
             if isinstance(option_label, (list, tuple)):
@@ -542,7 +555,9 @@ class NullBooleanSelect(Select):
     A Select Widget intended to be used with NullBooleanField.
     """
     def __init__(self, attrs=None):
-        choices = ((u'1', ugettext('Unknown')), (u'2', ugettext('Yes')), (u'3', ugettext('No')))
+        choices = ((u'1', ugettext_lazy('Unknown')),
+                   (u'2', ugettext_lazy('Yes')),
+                   (u'3', ugettext_lazy('No')))
         super(NullBooleanSelect, self).__init__(attrs, choices)
 
     def render(self, name, value, attrs=None, choices=()):
@@ -571,6 +586,8 @@ class NullBooleanSelect(Select):
         return initial != data
 
 class SelectMultiple(Select):
+    allow_multiple_selected = True
+
     def render(self, name, value, attrs=None, choices=()):
         if value is None: value = []
         final_attrs = self.build_attrs(attrs, name=name)
@@ -833,6 +850,7 @@ class SplitDateTimeWidget(MultiWidget):
 
     def decompress(self, value):
         if value:
+            value = to_current_timezone(value)
             return [value.date(), value.time().replace(microsecond=0)]
         return [None, None]
 

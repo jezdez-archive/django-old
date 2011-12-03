@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import datetime
 import re
 from datetime import date
@@ -6,15 +8,15 @@ from decimal import Decimal
 from django import forms
 from django.db import models
 from django.forms.models import (_get_foreign_key, inlineformset_factory,
-    modelformset_factory, modelformset_factory)
+    modelformset_factory)
 from django.test import TestCase, skipUnlessDBFeature
 
-from modeltests.model_formsets.models import (
-    Author, BetterAuthor, Book, BookWithCustomPK,
+from .models import (Author, BetterAuthor, Book, BookWithCustomPK,
     BookWithOptionalAltEditor, AlternateBook, AuthorMeeting, CustomPrimaryKey,
     Place, Owner, Location, OwnerProfile, Restaurant, Product, Price,
     MexicanRestaurant, ClassyMexicanRestaurant, Repository, Revision,
     Person, Membership, Team, Player, Poet, Poem, Post)
+
 
 class DeletionTests(TestCase):
     def test_deletion(self):
@@ -352,6 +354,28 @@ class ModelFormsetTest(TestCase):
         poet1, poet2 = poets
         self.assertEqual(poet1.name, 'Vladimir Mayakovsky')
         self.assertEqual(poet2.name, 'Vladimir Mayakovsky')
+
+    def test_custom_form(self):
+        """ Test that model_formset respects fields and exclude parameters of
+            custom form
+        """
+        class PostForm1(forms.ModelForm):
+            class Meta:
+                model = Post
+                fields = ('title', 'posted')
+
+        class PostForm2(forms.ModelForm):
+            class Meta:
+                model = Post
+                exclude = ('subtitle',)
+
+        PostFormSet = modelformset_factory(Post, form=PostForm1)
+        formset = PostFormSet()
+        self.assertFalse("subtitle" in formset.forms[0].fields)
+
+        PostFormSet = modelformset_factory(Post, form=PostForm2)
+        formset = PostFormSet()
+        self.assertFalse("subtitle" in formset.forms[0].fields)
 
     def test_model_inheritance(self):
         BetterAuthorFormSet = modelformset_factory(BetterAuthor)

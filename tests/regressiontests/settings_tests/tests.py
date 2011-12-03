@@ -1,5 +1,7 @@
 from __future__ import with_statement
+
 import os
+
 from django.conf import settings, global_settings
 from django.test import TransactionTestCase, TestCase, signals
 from django.test.utils import override_settings
@@ -34,6 +36,38 @@ class FullyDecoratedTestCase(TestCase):
         self.assertEqual(settings.TEST, 'override2')
 
 FullyDecoratedTestCase = override_settings(TEST='override')(FullyDecoratedTestCase)
+
+
+class ClassDecoratedTestCaseSuper(TestCase):
+    """
+    Dummy class for testing max recursion error in child class call to
+    super().  Refs #17011.
+
+    """
+    def test_max_recursion_error(self):
+        pass
+
+
+class ClassDecoratedTestCase(ClassDecoratedTestCaseSuper):
+    def test_override(self):
+        self.assertEqual(settings.TEST, 'override')
+
+    @override_settings(TEST='override2')
+    def test_method_override(self):
+        self.assertEqual(settings.TEST, 'override2')
+
+    def test_max_recursion_error(self):
+        """
+        Overriding a method on a super class and then calling that method on
+        the super class should not trigger infinite recursion. See #17011.
+
+        """
+        try:
+            super(ClassDecoratedTestCase, self).test_max_recursion_error()
+        except RuntimeError, e:
+            self.fail()
+
+ClassDecoratedTestCase = override_settings(TEST='override')(ClassDecoratedTestCase)
 
 class SettingGetter(object):
     def __init__(self):

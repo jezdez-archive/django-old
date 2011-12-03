@@ -1,3 +1,4 @@
+import copy
 import operator
 from functools import wraps, update_wrapper
 
@@ -27,6 +28,18 @@ def memoize(func, cache, num_args):
         cache[mem_args] = result
         return result
     return wrapper
+
+class cached_property(object):
+    """
+    Decorator that creates converts a method with a single
+    self argument into a property cached on the instance.
+    """
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, instance, type):
+        res = instance.__dict__[self.func.__name__] = self.func(instance)
+        return res
 
 class Promise(object):
     """
@@ -246,7 +259,6 @@ class SimpleLazyObject(LazyObject):
             memo[id(self)] = result
             return result
         else:
-            import copy
             return copy.deepcopy(self._wrapped, memo)
 
     # Need to pretend to be the wrapped class, for the sake of objects that care

@@ -1,20 +1,22 @@
+from __future__ import absolute_import
+
 import datetime
 
+from django.contrib.admin import (site, ModelAdmin, SimpleListFilter,
+    BooleanFieldListFilter)
 from django.contrib.admin.options import IncorrectLookupParameters
+from django.contrib.admin.views.main import ChangeList
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, RequestFactory
 from django.utils.encoding import force_unicode
-from django.contrib.auth.admin import UserAdmin
-from django.contrib.auth.models import User
-from django.contrib.admin.views.main import ChangeList
-from django.contrib.admin import (site, ModelAdmin, SimpleListFilter,
-    BooleanFieldListFilter)
 
-from models import Book
+from .models import Book
+
 
 def select_by(dictlist, key, value):
     return [x for x in dictlist if x[key] == value][0]
-
 
 class DecadeListFilter(SimpleListFilter):
 
@@ -66,6 +68,14 @@ class DecadeListFilterWithQuerysetBasedLookups(DecadeListFilterWithTitleAndParam
         if qs.filter(year__gte=2000, year__lte=2009).exists():
             yield ('the 00s', "the 2000's")
 
+class DecadeListFilterParameterEndsWith__In(DecadeListFilter):
+    title = 'publication decade'
+    parameter_name = 'decade__in' # Ends with '__in"
+
+class DecadeListFilterParameterEndsWith__Isnull(DecadeListFilter):
+    title = 'publication decade'
+    parameter_name = 'decade__isnull' # Ends with '__isnull"
+
 class CustomUserAdmin(UserAdmin):
     list_filter = ('books_authored', 'books_contributed')
 
@@ -94,6 +104,12 @@ class DecadeFilterBookAdminWithFailingQueryset(ModelAdmin):
 
 class DecadeFilterBookAdminWithQuerysetBasedLookups(ModelAdmin):
     list_filter = (DecadeListFilterWithQuerysetBasedLookups,)
+
+class DecadeFilterBookAdminParameterEndsWith__In(ModelAdmin):
+    list_filter = (DecadeListFilterParameterEndsWith__In,)
+
+class DecadeFilterBookAdminParameterEndsWith__Isnull(ModelAdmin):
+    list_filter = (DecadeListFilterParameterEndsWith__Isnull,)
 
 class ListFiltersTests(TestCase):
 
@@ -186,8 +202,8 @@ class ListFiltersTests(TestCase):
         self.assertEqual(choice['query_string'], '?date_registered__year=%s'
                                                 % (self.today.year))
 
-        request = self.request_factory.get('/', {'date_registered__gte': self.one_week_ago.strftime('%Y-%m-%d'),
-                                                 'date_registered__lte': self.today.strftime('%Y-%m-%d')})
+        request = self.request_factory.get('/', {'date_registered__gte': str(self.one_week_ago),
+                                                 'date_registered__lte': str(self.today)})
         changelist = self.get_changelist(request, Book, modeladmin)
 
         # Make sure the correct queryset is returned
@@ -201,7 +217,7 @@ class ListFiltersTests(TestCase):
         self.assertEqual(choice['selected'], True)
         self.assertEqual(choice['query_string'], '?date_registered__gte=%s'
                                                  '&date_registered__lte=%s'
-                                                % (self.one_week_ago.strftime('%Y-%m-%d'), self.today.strftime('%Y-%m-%d')))
+                                                % (str(self.one_week_ago), str(self.today)))
 
     def test_allvaluesfieldlistfilter(self):
         modeladmin = BookAdmin(Book, site)
@@ -242,7 +258,7 @@ class ListFiltersTests(TestCase):
 
         # Make sure the last choice is None and is selected
         filterspec = changelist.get_filters(request)[0][1]
-        self.assertEqual(force_unicode(filterspec.title), u'author')
+        self.assertEquals(force_unicode(filterspec.title), u'Verbose Author')
         choices = list(filterspec.choices(changelist))
         self.assertEqual(choices[-1]['selected'], True)
         self.assertEqual(choices[-1]['query_string'], '?author__isnull=True')
@@ -252,7 +268,7 @@ class ListFiltersTests(TestCase):
 
         # Make sure the correct choice is selected
         filterspec = changelist.get_filters(request)[0][1]
-        self.assertEqual(force_unicode(filterspec.title), u'author')
+        self.assertEquals(force_unicode(filterspec.title), u'Verbose Author')
         # order of choices depends on User model, which has no order
         choice = select_by(filterspec.choices(changelist), "display", "alfred")
         self.assertEqual(choice['selected'], True)
@@ -270,7 +286,7 @@ class ListFiltersTests(TestCase):
 
         # Make sure the last choice is None and is selected
         filterspec = changelist.get_filters(request)[0][2]
-        self.assertEqual(force_unicode(filterspec.title), u'user')
+        self.assertEquals(force_unicode(filterspec.title), u'Verbose Contributors')
         choices = list(filterspec.choices(changelist))
         self.assertEqual(choices[-1]['selected'], True)
         self.assertEqual(choices[-1]['query_string'], '?contributors__isnull=True')
@@ -280,7 +296,7 @@ class ListFiltersTests(TestCase):
 
         # Make sure the correct choice is selected
         filterspec = changelist.get_filters(request)[0][2]
-        self.assertEqual(force_unicode(filterspec.title), u'user')
+        self.assertEquals(force_unicode(filterspec.title), u'Verbose Contributors')
         choice = select_by(filterspec.choices(changelist), "display", "bob")
         self.assertEqual(choice['selected'], True)
         self.assertEqual(choice['query_string'], '?contributors__id__exact=%d' % self.bob.pk)
@@ -481,7 +497,7 @@ class ListFiltersTests(TestCase):
         self.assertEqual(choices[3]['query_string'], '?publication-decade=the+00s&author__id__exact=%s' % self.alfred.pk)
 
         filterspec = changelist.get_filters(request)[0][0]
-        self.assertEqual(force_unicode(filterspec.title), u'author')
+        self.assertEquals(force_unicode(filterspec.title), u'Verbose Author')
         choice = select_by(filterspec.choices(changelist), "display", "alfred")
         self.assertEqual(choice['selected'], True)
         self.assertEqual(choice['query_string'], '?publication-decade=the+00s&author__id__exact=%s' % self.alfred.pk)
@@ -568,3 +584,44 @@ class ListFiltersTests(TestCase):
         choices = list(filterspec.choices(changelist))
         self.assertEqual(choices[2]['selected'], True)
         self.assertEqual(choices[2]['query_string'], '?no=207')
+
+    def test_parameter_ends_with__in__or__isnull(self):
+        """
+        Ensure that a SimpleListFilter's parameter name is not mistaken for a
+        model field if it ends with '__isnull' or '__in'.
+        Refs #17091.
+        """
+
+        # When it ends with '__in' -----------------------------------------
+        modeladmin = DecadeFilterBookAdminParameterEndsWith__In(Book, site)
+        request = self.request_factory.get('/', {'decade__in': 'the 90s'})
+        changelist = self.get_changelist(request, Book, modeladmin)
+
+        # Make sure the correct queryset is returned
+        queryset = changelist.get_query_set(request)
+        self.assertEqual(list(queryset), [self.bio_book])
+
+        # Make sure the correct choice is selected
+        filterspec = changelist.get_filters(request)[0][0]
+        self.assertEqual(force_unicode(filterspec.title), u'publication decade')
+        choices = list(filterspec.choices(changelist))
+        self.assertEqual(choices[2]['display'], u'the 1990\'s')
+        self.assertEqual(choices[2]['selected'], True)
+        self.assertEqual(choices[2]['query_string'], '?decade__in=the+90s')
+
+        # When it ends with '__isnull' ---------------------------------------
+        modeladmin = DecadeFilterBookAdminParameterEndsWith__Isnull(Book, site)
+        request = self.request_factory.get('/', {'decade__isnull': 'the 90s'})
+        changelist = self.get_changelist(request, Book, modeladmin)
+
+        # Make sure the correct queryset is returned
+        queryset = changelist.get_query_set(request)
+        self.assertEqual(list(queryset), [self.bio_book])
+
+        # Make sure the correct choice is selected
+        filterspec = changelist.get_filters(request)[0][0]
+        self.assertEqual(force_unicode(filterspec.title), u'publication decade')
+        choices = list(filterspec.choices(changelist))
+        self.assertEqual(choices[2]['display'], u'the 1990\'s')
+        self.assertEqual(choices[2]['selected'], True)
+        self.assertEqual(choices[2]['query_string'], '?decade__isnull=the+90s')

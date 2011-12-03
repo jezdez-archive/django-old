@@ -1,8 +1,23 @@
-from django.test import TestCase, RequestFactory
-from django.contrib.auth.models import User
-from django.contrib.admin.options import ModelAdmin
+from __future__ import absolute_import
 
-from models import Band, Song, SongInlineDefaultOrdering, SongInlineNewOrdering, DynOrderingBandAdmin
+from django.test import TestCase, RequestFactory
+from django.contrib.admin.options import ModelAdmin
+from django.contrib.auth.models import User
+
+from .models import (Band, Song, SongInlineDefaultOrdering,
+    SongInlineNewOrdering, DynOrderingBandAdmin)
+
+
+class MockRequest(object):
+    pass
+
+class MockSuperUser(object):
+    def has_perm(self, perm):
+        return True
+
+request = MockRequest()
+request.user = MockSuperUser()
+
 
 class TestAdminOrdering(TestCase):
     """
@@ -26,7 +41,7 @@ class TestAdminOrdering(TestCase):
         class.
         """
         ma = ModelAdmin(Band, None)
-        names = [b.name for b in ma.queryset(None)]
+        names = [b.name for b in ma.queryset(request)]
         self.assertEqual([u'Aerosmith', u'Radiohead', u'Van Halen'], names)
 
     def test_specified_ordering(self):
@@ -37,7 +52,7 @@ class TestAdminOrdering(TestCase):
         class BandAdmin(ModelAdmin):
             ordering = ('rank',) # default ordering is ('name',)
         ma = BandAdmin(Band, None)
-        names = [b.name for b in ma.queryset(None)]
+        names = [b.name for b in ma.queryset(request)]
         self.assertEqual([u'Radiohead', u'Van Halen', u'Aerosmith'], names)
 
     def test_dynamic_ordering(self):
@@ -79,7 +94,7 @@ class TestInlineModelAdminOrdering(TestCase):
         class.
         """
         inline = SongInlineDefaultOrdering(self.b, None)
-        names = [s.name for s in inline.queryset(None)]
+        names = [s.name for s in inline.queryset(request)]
         self.assertEqual([u'Dude (Looks Like a Lady)', u'Jaded', u'Pink'], names)
 
     def test_specified_ordering(self):
@@ -87,5 +102,5 @@ class TestInlineModelAdminOrdering(TestCase):
         Let's check with ordering set to something different than the default.
         """
         inline = SongInlineNewOrdering(self.b, None)
-        names = [s.name for s in inline.queryset(None)]
+        names = [s.name for s in inline.queryset(request)]
         self.assertEqual([u'Jaded', u'Pink', u'Dude (Looks Like a Lady)'], names)

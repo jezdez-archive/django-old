@@ -1,5 +1,9 @@
-from django.conf.urls.defaults import *
-from views import empty_view, absolute_kwargs_view
+from __future__ import absolute_import
+
+from django.conf.urls import patterns, url, include
+
+from .views import empty_view, absolute_kwargs_view
+
 
 other_patterns = patterns('',
     url(r'non_path_include/$', empty_view, name='non_path_include'),

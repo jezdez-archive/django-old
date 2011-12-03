@@ -119,7 +119,7 @@ class BaseCommand(object):
     option_list = (
         make_option('-v', '--verbosity', action='store', dest='verbosity', default='1',
             type='choice', choices=['0', '1', '2', '3'],
-            help='Verbosity level; 0=minimal output, 1=normal output, 2=all output'),
+            help='Verbosity level; 0=minimal output, 1=normal output, 2=verbose output 3=very verbose output'),
         make_option('--settings',
             help='The Python path to a settings module, e.g. "myproject.settings.main". If this isn\'t provided, the DJANGO_SETTINGS_MODULE environment variable will be used.'),
         make_option('--pythonpath',
@@ -203,9 +203,11 @@ class BaseCommand(object):
         # like permissions, and those shouldn't contain any translations.
         # But only do this if we can assume we have a working settings file,
         # because django.utils.translation requires settings.
+        saved_lang = None
         if self.can_import_settings:
             try:
                 from django.utils import translation
+                saved_lang = translation.get_language()
                 translation.activate('en-us')
             except ImportError, e:
                 # If settings should be available, but aren't,
@@ -232,6 +234,8 @@ class BaseCommand(object):
         except CommandError, e:
             self.stderr.write(smart_str(self.style.ERROR('Error: %s\n' % e)))
             sys.exit(1)
+        if saved_lang is not None:
+            translation.activate(saved_lang)
 
     def validate(self, app=None, display_num_errors=False):
         """
@@ -357,7 +361,7 @@ class NoArgsCommand(BaseCommand):
         """
         raise NotImplementedError()
 
-def copy_helper(style, app_or_project, name, directory, other_name=''):
+def copy_helper(style, app_or_project, name, directory):
     """
     Copies either a Django application layout template or a Django project
     layout template into the specified directory.
@@ -367,11 +371,9 @@ def copy_helper(style, app_or_project, name, directory, other_name=''):
     # app_or_project -- The string 'app' or 'project'.
     # name -- The name of the application or project.
     # directory -- The directory to which the layout template should be copied.
-    # other_name -- When copying an application layout, this should be the name
-    #               of the project.
     import re
     import shutil
-    other = {'project': 'app', 'app': 'project'}[app_or_project]
+
     if not re.search(r'^[_a-zA-Z]\w*$', name): # If it's not a valid directory name.
         # Provide a smart error message, depending on the error.
         if not re.search(r'^[_a-zA-Z]', name):
@@ -406,7 +408,7 @@ def copy_helper(style, app_or_project, name, directory, other_name=''):
             path_new = os.path.join(top_dir, relative_dir, f.replace('%s_name' % app_or_project, name))
             fp_old = open(path_old, 'r')
             fp_new = open(path_new, 'w')
-            fp_new.write(fp_old.read().replace('{{ %s_name }}' % app_or_project, name).replace('{{ %s_name }}' % other, other_name))
+            fp_new.write(fp_old.read().replace('{{ %s_name }}' % app_or_project, name))
             fp_old.close()
             fp_new.close()
             try:
