@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.utils.unittest import skipUnless
 from django.contrib.auth.models import User, AnonymousUser
-from django.contrib.auth import utils
 from django.core.management import call_command
 from StringIO import StringIO
 
