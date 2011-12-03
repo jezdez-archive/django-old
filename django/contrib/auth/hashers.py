@@ -122,6 +122,22 @@ class BasePasswordHasher(object):
     PasswordHasher objects are immutable.
     """
     algorithm = None
+    library = None
+
+    def _load_library(self):
+        if self.library is not None:
+            if isinstance(self.library, (tuple, list)):
+                name, mod_path = self.library
+            else:
+                name = mod_path = self.library
+            try:
+                module = importlib.import_module(mod_path)
+            except ImportError:
+                raise ValueError("Couldn't load %s password algorithm "
+                                 "library" % name)
+            return module
+        raise ValueError("Hasher '%s' doesn't specify a library attribute" %
+                         self.__class__)
 
     def salt(self):
         """
@@ -194,26 +210,20 @@ class BCryptPasswordHasher(BasePasswordHasher):
     issues.
     """
     algorithm = "bcrypt"
+    dependency = ("py-bcrypt", "bcrypt")
     rounds = 12
 
-    def _import(self):
-        try:
-            import bcrypt
-        except ImportError:
-            raise ValueError('py-bcrypt library not installed')
-        return bcrypt
-
     def salt(self):
-        bcrypt = self._import()
+        bcrypt = self._load_library()
         return bcrypt.gensalt(self.rounds)
 
     def encode(self, password, salt):
-        bcrypt = self._import()
+        bcrypt = self._load_library()
         data = bcrypt.hashpw(password, salt)
         return "%s$%s" % (self.algorithm, data)
 
     def verify(self, password, encoded):
-        bcrypt = self._import()
+        bcrypt = self._load_library()
         algorithm, data = encoded.split('$', 1)
         assert algorithm == self.algorithm
         return constant_time_compare(data, bcrypt.hashpw(password, data))
@@ -267,27 +277,20 @@ class CryptPasswordHasher(BasePasswordHasher):
     The crypt module is not supported on all platforms.
     """
     algorithm = "crypt"
-
-    def _import(self):
-        try:
-            import crypt
-        except ImportError:
-            raise ValueError('"crypt" password algorithm not supported in '
-                             'this environment')
-        return crypt
+    library = "crypt"
 
     def salt(self):
         return get_random_string(2)
 
     def encode(self, password, salt):
-        crypt = self._import()
+        crypt = self._load_library()
         assert len(salt) == 2
         data = crypt.crypt(password, salt)
-        # we don't need to store the salt, but django used to do this
+        # we don't need to store the salt, but Django used to do this
         return "%s$%s$%s" % (self.algorithm, '', data)
 
     def verify(self, password, encoded):
-        crypt = self._import()
+        crypt = self._load_library()
         algorithm, salt, data = encoded.split('$', 2)
         assert algorithm == self.algorithm
         return constant_time_compare(data, crypt.crypt(password, data))
