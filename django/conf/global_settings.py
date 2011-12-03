@@ -493,12 +493,12 @@ PASSWORD_RESET_TIMEOUT_DAYS = 3
 # password using different algorithms will be converted automatically
 # upon login
 PASSWORD_HASHERS = (
-    'django.contrib.auth.passhash.PBKDF2PasswordHasher',
-    'django.contrib.auth.passhash.PBKDF2SHA1PasswordHasher',
-    'django.contrib.auth.passhash.BCryptPasswordHasher',
-    'django.contrib.auth.passhash.SHA1PasswordHasher',
-    'django.contrib.auth.passhash.MD5PasswordHasher',
-    'django.contrib.auth.passhash.CryptPasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptPasswordHasher',
+    'django.contrib.auth.hashers.SHA1PasswordHasher',
+    'django.contrib.auth.hashers.MD5PasswordHasher',
+    'django.contrib.auth.hashers.CryptPasswordHasher',
 )
 
 ###########

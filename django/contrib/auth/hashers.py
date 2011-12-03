@@ -1,17 +1,3 @@
-"""
-
-    django.utils.passhash
-    ~~~~~~~~~~~~~~~~~~~~~
-
-    Secure password hashing utilities.
-
-    I implement a variety of hashing algorithms you can use for
-    *securely* storing passwords in a database.  The purpose of this
-    code is to ensure no one can ever turn a password hash stored in
-    your database back into the original password.
-
-"""
-
 import hashlib
 
 from django.conf import settings
@@ -181,6 +167,7 @@ class PBKDF2PasswordHasher(BasePasswordHasher):
         encoded_2 = self.encode(password, salt, int(iterations))
         return constant_time_compare(encoded, encoded_2)
 
+
 class PBKDF2SHA1PasswordHasher(PBKDF2PasswordHasher):
     """
     Alternate PBKDF2 hasher which uses SHA1, the default PRF
@@ -190,6 +177,7 @@ class PBKDF2SHA1PasswordHasher(PBKDF2PasswordHasher):
     """
     algorithm = "pbkdf2_sha1"
     digest = hashlib.sha1
+
 
 class BCryptPasswordHasher(BasePasswordHasher):
     """

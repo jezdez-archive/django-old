@@ -1,4 +1,4 @@
-from django.contrib.auth.passhash import (is_password_usable, 
+from django.contrib.auth.hashers import (is_password_usable, 
     check_password, make_password, PBKDF2PasswordHasher, 
     PBKDF2SHA1PasswordHasher, get_hasher, UNUSABLE_PASSWORD)
 from django.utils import unittest
