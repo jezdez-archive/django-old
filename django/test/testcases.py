@@ -10,11 +10,14 @@ from xml.dom.minidom import parseString, Node
 
 from django.conf import settings
 from django.core import mail
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.signals import request_started
 from django.core.urlresolvers import clear_url_caches
+from django.core.validators import EMPTY_VALUES
 from django.db import (transaction, connection, connections, DEFAULT_DB_ALIAS,
     reset_queries)
+from django.forms.fields import CharField
 from django.http import QueryDict
 from django.test import _doctest as doctest
 from django.test.client import Client
@@ -335,6 +338,83 @@ class SimpleTestCase(ut2.TestCase):
                 re.escape(expected_message), callable_obj, *args, **kwargs)
 
 
+    def assertFieldOutput(self, fieldclass, valid, invalid, field_args=None,
+            field_kwargs=None, empty_value=u''):
+        """
+        Asserts that a form field behaves correctly with various inputs.
+
+        Args:
+            fieldclass: the class of the field to be tested.
+            valid: a dictionary mapping valid inputs to their expected
+                    cleaned values.
+            invalid: a dictionary mapping invalid inputs to one or more
+                    raised error messages.
+            field_args: the args passed to instantiate the field
+            field_kwargs: the kwargs passed to instantiate the field
+            empty_value: the expected clean output for inputs in EMPTY_VALUES
+
+        """
+        if field_args is None:
+            field_args = []
+        if field_kwargs is None:
+            field_kwargs = {}
+        required = fieldclass(*field_args, **field_kwargs)
+        optional = fieldclass(*field_args, **dict(field_kwargs, required=False))
+        # test valid inputs
+        for input, output in valid.items():
+            self.assertEqual(required.clean(input), output)
+            self.assertEqual(optional.clean(input), output)
+        # test invalid inputs
+        for input, errors in invalid.items():
+            with self.assertRaises(ValidationError) as context_manager:
+                required.clean(input)
+            self.assertEqual(context_manager.exception.messages, errors)
+
+            with self.assertRaises(ValidationError) as context_manager:
+                optional.clean(input)
+            self.assertEqual(context_manager.exception.messages, errors)
+        # test required inputs
+        error_required = [u'This field is required.']
+        for e in EMPTY_VALUES:
+            with self.assertRaises(ValidationError) as context_manager:
+                required.clean(e)
+            self.assertEqual(context_manager.exception.messages, error_required)
+            self.assertEqual(optional.clean(e), empty_value)
+        # test that max_length and min_length are always accepted
+        if issubclass(fieldclass, CharField):
+            field_kwargs.update({'min_length':2, 'max_length':20})
+            self.assertTrue(isinstance(fieldclass(*field_args, **field_kwargs), fieldclass))
+
+    def assertHTMLEqual(self, html1, html2, msg=None):
+        """
+        Asserts that two html snippets are semantically the same, e.g. whitespace
+        in most cases is ignored, attribute ordering is not significant. The
+        passed in arguments must be valid HTML.
+        """
+        dom1 = assert_and_parse_html(self, html1, msg,
+            u'First argument is no valid html:')
+        dom2 = assert_and_parse_html(self, html2, msg,
+            u'Second argument is no valid html:')
+
+        if dom1 != dom2:
+            standardMsg = '%s != %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
+            diff = ('\n' + '\n'.join(difflib.ndiff(
+                           unicode(dom1).splitlines(),
+                           unicode(dom2).splitlines())))
+            standardMsg = self._truncateMessage(standardMsg, diff)
+            self.fail(self._formatMessage(msg, standardMsg))
+
+    def assertHTMLNotEqual(self, html1, html2, msg=None):
+        dom1 = assert_and_parse_html(self, html1, msg,
+            u'First argument is no valid html')
+        dom2 = assert_and_parse_html(self, html2, msg,
+            u'Second argument is no valid html')
+
+        if not dom1 != dom2:
+            standardMsg = '%s == %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
+            self.fail(self._formatMessage(msg, standardMsg))
+
+
 class TransactionTestCase(SimpleTestCase):
     # The class we'll use for the test client self.client.
     # Can be overridden in derived classes.
@@ -420,8 +500,8 @@ class TransactionTestCase(SimpleTestCase):
         # be created with the wrong time).
         # To make sure this doesn't happen, get a clean connection at the
         # start of every test.
-        for connection in connections.all():
-            connection.close()
+        for conn in connections.all():
+            conn.close()
 
     def _fixture_teardown(self):
         pass
@@ -645,48 +725,21 @@ class TransactionTestCase(SimpleTestCase):
             msg_prefix + "Template '%s' was used unexpectedly in rendering"
             " the response" % template_name)
 
-    def assertQuerysetEqual(self, qs, values, transform=repr):
+    def assertQuerysetEqual(self, qs, values, transform=repr, ordered=True):
+        if not ordered:
+            return self.assertEqual(set(map(transform, qs)), set(values))
         return self.assertEqual(map(transform, qs), values)
 
     def assertNumQueries(self, num, func=None, *args, **kwargs):
         using = kwargs.pop("using", DEFAULT_DB_ALIAS)
-        connection = connections[using]
+        conn = connections[using]
 
-        context = _AssertNumQueriesContext(self, num, connection)
+        context = _AssertNumQueriesContext(self, num, conn)
         if func is None:
             return context
 
         with context:
             func(*args, **kwargs)
-
-    def assertHTMLEqual(self, html1, html2, msg=None):
-        """
-        Asserts that two html snippets are semantically the same, e.g. whitespace
-        in most cases is ignored, attribute ordering is not significant. The
-        passed in arguments must be valid HTML.
-        """
-        dom1 = assert_and_parse_html(self, html1, msg,
-            u'First argument is no valid html:')
-        dom2 = assert_and_parse_html(self, html2, msg,
-            u'Second argument is no valid html:')
-
-        if dom1 != dom2:
-            standardMsg = '%s != %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
-            diff = ('\n' + '\n'.join(difflib.ndiff(
-                           unicode(dom1).splitlines(),
-                           unicode(dom2).splitlines())))
-            standardMsg = self._truncateMessage(standardMsg, diff)
-            self.fail(self._formatMessage(msg, standardMsg))
-
-    def assertHTMLNotEqual(self, html1, html2, msg=None):
-        dom1 = assert_and_parse_html(self, html1, msg,
-            u'First argument is no valid html')
-        dom2 = assert_and_parse_html(self, html2, msg,
-            u'Second argument is no valid html')
-
-        if not dom1 != dom2:
-            standardMsg = '%s == %s' % (safe_repr(dom1, True), safe_repr(dom2, True))
-            self.fail(self._formatMessage(msg, standardMsg))
 
 
 def connections_support_transactions():

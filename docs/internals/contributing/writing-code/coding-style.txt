@@ -10,7 +10,7 @@ Python style
     * Unless otherwise specified, follow :pep:`8`.
 
       You could use a tool like `pep8`_ to check for some problems in this
-      area, but remember that PEP 8 is only a guide, so respect the style of
+      area, but remember that :pep:`8` is only a guide, so respect the style of
       the surrounding code as a primary goal.
 
     * Use four spaces for indentation.
@@ -183,6 +183,15 @@ Miscellaneous
 
     * Remove ``import`` statements that are no longer used when you change code.
       The most common tools for this task are `pyflakes`_ and `pylint`_.
+
+    * Systematically remove all trailing whitespaces from your code as those
+      add unnecessary bytes, add visual clutter to the patches and can also
+      occasionally cause unnecessary merge conflicts. Some IDE's can be
+      configured to automatically remove them and most VCS tools can be set to
+      highlight them in diff outputs. Note, however, that patches which only
+      remove whitespace (or only make changes for nominal PEP 8 conformance)
+      are likely to be rejected, since they only introduce noise rather than
+      code improvement. Tidy up when you're next changing code in the area.
 
     * Please don't put your name in the code you contribute. Our policy is to
       keep contributors' names in the ``AUTHORS`` file distributed with Django

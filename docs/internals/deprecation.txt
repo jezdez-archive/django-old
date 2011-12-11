@@ -115,6 +115,7 @@ their deprecation, as per the :ref:`deprecation policy
       beyond that of a simple ``TextField`` since the removal of oldforms.
       All uses of ``XMLField`` can be replaced with ``TextField``.
 
+
 1.5
 ---
 
@@ -180,6 +181,10 @@ their deprecation, as per the :ref:`deprecation policy
       required to end with a trailing slash to ensure there is a consistent
       way to combine paths in templates.
 
+    * ``django.db.models.fields.URLField.verify_exists`` was deprecated in 1.4
+      due to intractable security and performance issues. The argument will be
+      removed in 1.5.
+
 1.6
 ---
 
@@ -233,6 +238,9 @@ their deprecation, as per the :ref:`deprecation policy
       :func:`django.utils.text.truncate_html_words`
       were deprecated since Django 1.4 and will be removed in favor
       of the ``django.utils.text.Truncator`` class.
+
+    * The automatic addition of the form templates loader will be removed in
+      Django 1.6.
 
 2.0
 ---

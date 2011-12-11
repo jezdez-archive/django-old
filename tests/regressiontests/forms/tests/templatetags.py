@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 from django import forms
 from django.template import Context, Template, TemplateSyntaxError
 from django.test import TestCase

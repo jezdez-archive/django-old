@@ -349,20 +349,20 @@ than -- the following::
 form
 ^^^^
 
-.. versionadded:: 1.5
+.. versionadded:: 1.4
 
-The ``form`` tag is used to render one or more form instances using a generic
+The ``form`` tag is used to render one or more form instances using a
 template. ::
 
     {% form myform using "forms/layouts/p.html" %}
     {% form myform another_form form3 using "forms/layouts/p.html" %}
 
-Django provides three kinds of built-in layouts:
+Django provides three built-in layouts:
 
-* Wrapping any field in a ``<p>`` tag: ``forms/layouts/p.html``
-* Wrapping any field in a ``<li>`` tag: ``forms/layouts/ul.html``
-* Wrapping a form row with a ``<tr>``, the label with a ``<th>`` and the
-  actual widget with a ``<td>`` tag: ``forms/layouts/table.html``
+* ``forms/layouts/p.html``: wraps each field in a ``<p>`` tag.
+* ``forms/layouts/ul.html``: wraps each field in a ``<li>`` tag.
+* ``forms/layouts/table.html``: wraps each form row with a ``<tr>``, the label
+  with a ``<th>`` and the widget with a ``<td>`` tag.
 
 See the documentation on :doc:`layouts and how to customize them
 </ref/forms/layouts>` for more details.
@@ -371,8 +371,8 @@ You can use a default layout by leaving the ``using ...`` out::
 
     {% form myform %}
 
-In this case will be the ``forms/layouts/default.html`` template used which
-again defaults back to the ``p`` layout.
+In this case the ``forms/layouts/default.html`` template will be used, which by
+default is the same as ``forms/layouts/p.html``.
 
 Sometimes it's necessary to pass additional template variables into the
 context of a form layout. This can be done in the same way and with the same
@@ -381,8 +381,8 @@ syntax as the :ttag:`include` template tag::
     {% form myform using "layout_with_title.html" with title="Please fill in the form" only %}
 
 The ``only`` keyword, as shown in the example above, acts also the same way as
-it does in the :ttag:`include` tag. It prevents other but not explicitly
-specified variables to be available in the layout's template context.
+it does in the :ttag:`include` tag. It prevents other, not explicitly
+specified, variables from being available in the layout's template context.
 
 Inline layouts
 ~~~~~~~~~~~~~~
@@ -400,7 +400,7 @@ somewhere else. This is done by not specifying a template name after the
 formconfig
 ^^^^^^^^^^
 
-.. versionadded:: 1.5
+.. versionadded:: 1.4
 
 The :ttag:`formconfig` tag can be used to configure some of the form template
 tags arguments upfront so that they don't need to be specified over and over
@@ -444,9 +444,9 @@ already set options. Here is a valid example::
 ``field``
 ~~~~~~~~~
 
-A form field takes the same arguments as a form row does. So are the same
-configuration options available here. However it has an additional one which
-limits the number of fields to which the configuration should be applied.
+A form field takes the same arguments as a form row does, so the same
+configuration options are available here, in addition to a ``for`` keyword to
+limit which fields the specified configuration will apply to.
 
 List a form field after the ``for`` keyword to only configure the arguments of
 that particular field. The following ``formconfig`` example will only affect
@@ -456,8 +456,8 @@ the second :ttag:`formfield` tag but the first one will be left untouched::
     {% formfield userform.username %}
     {% formfield userform.password %}
 
-Some more generic field filters are available. So can strings be used to limit
-configurations either to a specific field name or a field type::
+Some more generic field filters are available. A string can be used to limit
+configuration either to a specific field name or a field type::
 
     {% formconfig field with placeholder="Type to search ..." for "search" %}
     {% formfield myform.search %}
@@ -470,7 +470,7 @@ configurations either to a specific field name or a field type::
 formfield
 ^^^^^^^^^
 
-.. versionadded:: 1.5
+.. versionadded:: 1.4
 
 Renders a form field using the associated widget. You can specify a widget
 template with the ``using`` keyword. Otherwise it will fall back to the
@@ -488,7 +488,7 @@ template.
 formrow
 ^^^^^^^
 
-.. versionadded:: 1.5
+.. versionadded:: 1.4
 
 The ``formrow`` tag is a quite similar to the :ttag:`form` tag but acts on a
 set of form fields instead of complete forms. It takes one or more fields as
@@ -690,7 +690,7 @@ operators, from lowest to highest, is as follows:
  * ``and``
  * ``not``
  * ``in``
- * ``==``, ``!=``, ``<``, ``>``,``<=``, ``>=``
+ * ``==``, ``!=``, ``<``, ``>``, ``<=``, ``>=``
 
 (This follows Python exactly). So, for example, the following complex if tag:
 
@@ -1415,7 +1415,8 @@ Available format strings:
     c                 ISO 8601 format. (Note: unlike others     ``2008-01-02T10:30:00.000123+02:00``,
                       formatters, such as "Z", "O" or "r",      or ``2008-01-02T10:30:00.000123`` if the datetime is naive
                       the "c" formatter will not add timezone
-                      offset if value is a `naive datetime`_.)
+                      offset if value is a naive datetime
+                      (see :class:`datetime.tzinfo`).
     d                 Day of the month, 2 digits with           ``'01'`` to ``'31'``
                       leading zeros.
     D                 Day of the week, textual, 3 letters.      ``'Fri'``
@@ -1449,7 +1450,7 @@ Available format strings:
                       if they're zero and the special-case
                       strings 'midnight' and 'noon' if
                       appropriate. Proprietary extension.
-    r                 RFC 2822 formatted date.                  ``'Thu, 21 Dec 2000 16:01:07 +0200'``
+    r                 :rfc:`2822` formatted date.               ``'Thu, 21 Dec 2000 16:01:07 +0200'``
     s                 Seconds, 2 digits with leading zeros.     ``'00'`` to ``'59'``
     S                 English ordinal suffix for day of the     ``'st'``, ``'nd'``, ``'rd'`` or ``'th'``
                       month, 2 characters.
@@ -1506,8 +1507,6 @@ used, without applying any localization.
 
 .. versionchanged:: 1.2
     Predefined formats can now be influenced by the current locale.
-
-.. _naive datetime: http://docs.python.org/library/datetime.html#datetime.tzinfo
 
 .. templatefilter:: default
 
@@ -1976,9 +1975,7 @@ Example::
 pprint
 ^^^^^^
 
-A wrapper around `pprint.pprint`__ -- for debugging, really.
-
-__ http://docs.python.org/library/pprint.html
+A wrapper around :func:`pprint.pprint` -- for debugging, really.
 
 .. templatefilter:: random
 
@@ -2504,13 +2501,10 @@ you only need to load the library using ``{% load l10n %}``.
 
 See :ref:`topic-l10n-templates`.
 
-static
-^^^^^^
-
 .. templatetag:: static
 
 static
-""""""
+^^^^^^
 
 .. highlight:: html+django
 
@@ -2545,7 +2539,7 @@ It is also able to consume standard context variables, e.g. assuming a
 .. templatetag:: get_static_prefix
 
 get_static_prefix
-"""""""""""""""""
+^^^^^^^^^^^^^^^^^
 
 .. highlight:: html+django
 
@@ -2569,7 +2563,7 @@ the value multiple times::
 .. templatetag:: get_media_prefix
 
 get_media_prefix
-""""""""""""""""
+^^^^^^^^^^^^^^^^
 
 .. highlight:: html+django
 

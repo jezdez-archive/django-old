@@ -63,17 +63,18 @@ settings file. Here's an explanation of all available values for
 Memcached
 ---------
 
-By far the fastest, most efficient type of cache available to Django, Memcached
-is an entirely memory-based cache framework originally developed to handle high
-loads at LiveJournal.com and subsequently open-sourced by Danga Interactive.
-It's used by sites such as Facebook and Wikipedia to reduce database access and
-dramatically increase site performance.
+By far the fastest, most efficient type of cache available to Django,
+Memcached__ is an entirely memory-based cache framework originally developed to
+handle high loads at LiveJournal.com and subsequently open-sourced by Danga
+Interactive.  It is used by sites such as Facebook and Wikipedia to reduce
+database access and dramatically increase site performance.
 
-Memcached is available for free at http://memcached.org/. It runs as a
-daemon and is allotted a specified amount of RAM. All it does is provide a
-fast interface for adding, retrieving and deleting arbitrary data in the cache.
-All data is stored directly in memory, so there's no overhead of database or
-filesystem usage.
+__ http://memcached.org/
+
+Memcached runs as a daemon and is allotted a specified amount of RAM. All it does is
+provide a fast interface for adding, retrieving and deleting arbitrary data in
+the cache.  All data is stored directly in memory, so there's no overhead of
+database or filesystem usage.
 
 After installing Memcached itself, you'll need to install a memcached
 binding. There are several python memcached bindings available; the
@@ -1059,6 +1060,28 @@ Django, use the ``cache_control`` view decorator. Example::
 This decorator takes care of sending out the appropriate HTTP header behind the
 scenes.
 
+Note that the cache control settings "private" and "public" are mutually
+exclusive. The decorator ensures that the "public" directive is removed if
+"private" should be set (and vice versa). An example use of the two directives
+would be a blog site that offers both private and public entries. Public
+entries may be cached on any shared cache. The following code uses
+``patch_cache_control``, the manual way to modify the cache control header
+(it is internally called by the ``cache_control`` decorator)::
+
+    from django.views.decorators.cache import patch_cache_control
+    from django.views.decorators.vary import vary_on_cookie
+
+    @vary_on_cookie
+    def list_blog_entries_view(request):
+        if request.user.is_anonymous():
+            response = render_only_public_entries()
+            patch_cache_control(response, public=True)
+        else:
+            response = render_private_and_public_entries(request.user)
+            patch_cache_control(response, private=True)
+
+        return response
+
 There are a few other ways to control cache parameters. For example, HTTP
 allows applications to do the following:
 
@@ -1122,7 +1145,7 @@ site's performance:
       and ``Last-Modified`` headers.
 
     * :class:`django.middleware.gzip.GZipMiddleware` compresses responses for all
-      moderns browsers, saving bandwidth and transfer time.
+      modern browsers, saving bandwidth and transfer time.
 
 Order of MIDDLEWARE_CLASSES
 ===========================
