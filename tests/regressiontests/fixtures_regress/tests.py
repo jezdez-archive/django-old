@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # Unittests for fixtures.
+from __future__ import absolute_import
+
 import os
 import re
 try:
@@ -8,21 +10,16 @@ except ImportError:
     from StringIO import StringIO
 
 from django.core import management
-from django.core.management.commands.dumpdata import sort_dependencies
 from django.core.management.base import CommandError
-from django.db.models import signals
+from django.core.management.commands.dumpdata import sort_dependencies
 from django.db import transaction
+from django.db.models import signals
 from django.test import (TestCase, TransactionTestCase, skipIfDBFeature,
     skipUnlessDBFeature)
 
-from models import Animal, Stuff
-from models import Absolute, Parent, Child
-from models import Article, Widget
-from models import Store, Person, Book
-from models import NKChild, RefToNKChild
-from models import Circle1, Circle2, Circle3
-from models import ExternalDependency
-from models import Thingy
+from .models import (Animal, Stuff, Absolute, Parent, Child, Article, Widget,
+    Store, Person, Book, NKChild, RefToNKChild, Circle1, Circle2, Circle3,
+    ExternalDependency, Thingy)
 
 
 pre_save_checks = []
@@ -277,19 +274,21 @@ class TestFixtures(TestCase):
         global pre_save_checks
         pre_save_checks = []
         signals.pre_save.connect(animal_pre_save_check)
-        management.call_command(
-            'loaddata',
-            'animal.xml',
-            verbosity=0,
-            commit=False,
-        )
-        self.assertEqual(
-            pre_save_checks,
-            [
-                ("Count = 42 (<type 'int'>)", "Weight = 1.2 (<type 'float'>)")
-            ]
-        )
-        signals.pre_save.disconnect(animal_pre_save_check)
+        try:
+            management.call_command(
+                'loaddata',
+                'animal.xml',
+                verbosity=0,
+                commit=False,
+            )
+            self.assertEqual(
+                pre_save_checks,
+                [
+                    ("Count = 42 (<type 'int'>)", "Weight = 1.2 (<type 'float'>)")
+                ]
+            )
+        finally:
+            signals.pre_save.disconnect(animal_pre_save_check)
 
     def test_dumpdata_uses_default_manager(self):
         """
@@ -390,6 +389,33 @@ class TestFixtures(TestCase):
         self.assertTrue(
             stderr.getvalue().startswith('Problem installing fixture')
         )
+
+    def test_loaddata_no_fixture_specified(self):
+        """
+        Regression for #7043 - Error is quickly reported when no fixtures is provided in the command line.
+        """
+        stderr = StringIO()
+        management.call_command(
+            'loaddata',
+            verbosity=0,
+            commit=False,
+            stderr=stderr,
+        )
+        self.assertEqual(
+            stderr.getvalue(), 'No database fixture specified. Please provide the path of at least one fixture in the command line.\n'
+        )
+
+    def test_loaddata_not_existant_fixture_file(self):
+        stdout_output = StringIO()
+        management.call_command(
+            'loaddata',
+            'this_fixture_doesnt_exist',
+            verbosity=2,
+            commit=False,
+            stdout=stdout_output,
+        )
+        self.assertTrue("No xml fixture 'this_fixture_doesnt_exist' in" in
+            stdout_output.getvalue())
 
 
 class NaturalKeyFixtureTests(TestCase):

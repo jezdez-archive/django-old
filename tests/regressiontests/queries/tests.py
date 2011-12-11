@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import datetime
 import pickle
 import sys
@@ -11,11 +13,12 @@ from django.test import TestCase, skipUnlessDBFeature
 from django.utils import unittest
 from django.utils.datastructures import SortedDict
 
-from models import (Annotation, Article, Author, Celebrity, Child, Cover, Detail,
-    DumbCategory, ExtraInfo, Fan, Item, LeafA, LoopX, LoopZ, ManagedModel,
-    Member, NamedCategory, Note, Number, Plaything, PointerA, Ranking, Related,
-    Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten, Node, ObjectA, ObjectB,
-    ObjectC, CategoryItem, SimpleCategory, SpecialCategory, OneToOneCategory)
+from .models import (Annotation, Article, Author, Celebrity, Child, Cover,
+    Detail, DumbCategory, ExtraInfo, Fan, Item, LeafA, LoopX, LoopZ,
+    ManagedModel, Member, NamedCategory, Note, Number, Plaything, PointerA,
+    Ranking, Related, Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten,
+    Node, ObjectA, ObjectB, ObjectC, CategoryItem, SimpleCategory,
+    SpecialCategory, OneToOneCategory)
 
 
 class BaseQuerysetTest(TestCase):
@@ -1070,10 +1073,6 @@ class Queries4Tests(BaseQuerysetTest):
         ci3 = CategoryItem.objects.create(category=c3)
 
         qs = CategoryItem.objects.exclude(category__specialcategory__isnull=False)
-        # Under MySQL, this query gives incorrect values on the first attempt.
-        # If you run exactly the same query twice, it yields the right answer
-        # the second attempt. Oh, how we do love MySQL.
-        qs.count()
         self.assertEqual(qs.count(), 1)
         self.assertQuerysetEqual(qs, [ci1.pk], lambda x: x.pk)
 
@@ -1136,10 +1135,6 @@ class Queries4Tests(BaseQuerysetTest):
         ci3 = CategoryItem.objects.create(category=c1)
 
         qs = CategoryItem.objects.exclude(category__onetoonecategory__isnull=False)
-        # Under MySQL, this query gives incorrect values on the first attempt.
-        # If you run exactly the same query twice, it yields the right answer
-        # the second attempt. Oh, how we do love MySQL.
-        qs.count()
         self.assertEqual(qs.count(), 1)
         self.assertQuerysetEqual(qs, [ci1.pk], lambda x: x.pk)
 
@@ -1421,11 +1416,6 @@ class Queries6Tests(TestCase):
             []
         )
 
-        # This next makes exactly *zero* sense, but it works. It's needed
-        # because MySQL fails to give the right results the first time this
-        # query is executed. If you run the same query a second time, it
-        # works fine. It's a hack, but it works...
-        list(Tag.objects.exclude(children=None))
         self.assertQuerysetEqual(
             Tag.objects.exclude(children=None),
             ['<Tag: t1>', '<Tag: t3>']
@@ -1878,3 +1868,12 @@ class UnionTests(unittest.TestCase):
         Q1 = Q(objecta__name='one', objectc__objecta__name='two')
         Q2 = Q(objecta__objectc__name='ein', objectc__objecta__name='three', objecta__objectb__name='trois')
         self.check_union(ObjectB, Q1, Q2)
+
+
+class DefaultValuesInsertTest(TestCase):
+    def test_no_extra_params(self):
+        # Ticket #17056 -- affects Oracle
+        try:
+            DumbCategory.objects.create()
+        except TypeError:
+            self.fail("Creation of an instance of a model with only the PK field shouldn't error out after bulk insert refactoring (#17056)")

@@ -31,7 +31,7 @@ class GeoModelAdmin(ModelAdmin):
     map_height = 400
     map_srid = 4326
     map_template = 'gis/admin/openlayers.html'
-    openlayers_url = 'http://openlayers.org/api/2.10/OpenLayers.js'
+    openlayers_url = 'http://openlayers.org/api/2.11/OpenLayers.js'
     point_zoom = num_zoom - 6
     wms_url = 'http://labs.metacarta.com/wms/vmap0'
     wms_layer = 'basic'
@@ -121,7 +121,6 @@ if gdal.HAS_GDAL:
 
     class OSMGeoAdmin(GeoModelAdmin):
         map_template = 'gis/admin/osm.html'
-        extra_js = ['http://www.openstreetmap.org/openlayers/OpenStreetMap.js']
         num_zoom = 20
         map_srid = spherical_mercator_srid
         max_extent = '-20037508,-20037508,20037508,20037508'

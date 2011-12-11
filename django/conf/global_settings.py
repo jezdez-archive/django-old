@@ -31,8 +31,12 @@ INTERNAL_IPS = ()
 
 # Local time zone for this installation. All choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name (although not all
-# systems may support all possibilities).
+# systems may support all possibilities). When USE_TZ is True, this is
+# interpreted as the default user time zone.
 TIME_ZONE = 'America/Chicago'
+
+# If you set this to True, Django will use timezone-aware datetimes.
+USE_TZ = False
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -119,7 +123,7 @@ LOCALE_PATHS = ()
 LANGUAGE_COOKIE_NAME = 'django_language'
 
 # If you set this to True, Django will format dates, numbers and calendars
-# according to user current locale
+# according to user current locale.
 USE_L10N = False
 
 # Not-necessarily-technical managers of the site. They get broken link
@@ -143,6 +147,9 @@ SEND_BROKEN_LINK_EMAILS = False
 
 # Database connection info.
 DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.dummy',
+    },
 }
 
 # Classes used to implement db routing behaviour
@@ -189,6 +196,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.i18n',
     'django.core.context_processors.media',
     'django.core.context_processors.static',
+    'django.core.context_processors.tz',
 #    'django.core.context_processors.request',
     'django.contrib.messages.context_processors.messages',
 )
@@ -404,6 +412,13 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 USE_X_FORWARDED_HOST = False
 
+# The Python dotted path to the WSGI application that Django's internal servers
+# (runserver, runfcgi) will use. If `None`, the return value of
+# 'django.core.wsgi.get_wsgi_application' is used, thus preserving the same
+# behavior as previous versions of Django. Otherwise this should point to an
+# actual WSGI application object.
+WSGI_APPLICATION = None
+
 ##############
 # MIDDLEWARE #
 ##############
@@ -430,7 +445,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 7 * 2               # Age of cookie, in seco
 SESSION_COOKIE_DOMAIN = None                            # A string like ".lawrence.com", or None for standard domain cookie.
 SESSION_COOKIE_SECURE = False                           # Whether the session cookie should be secure (https:// only).
 SESSION_COOKIE_PATH = '/'                               # The path of the session cookie.
-SESSION_COOKIE_HTTPONLY = False                         # Whether to use the non-RFC standard httpOnly flag (IE, FF3+, others)
+SESSION_COOKIE_HTTPONLY = True                          # Whether to use the non-RFC standard httpOnly flag (IE, FF3+, others)
 SESSION_SAVE_EVERY_REQUEST = False                      # Whether to save the session data on every request.
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False                 # Whether a user's session cookie expires when the Web browser is closed.
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # The module to store session data
@@ -455,8 +470,8 @@ CACHE_MIDDLEWARE_ALIAS = 'default'
 
 COMMENTS_ALLOW_PROFANITIES = False
 
-# The profanities that will trigger a validation error in the
-# 'hasNoProfanities' validator. All of these should be in lowercase.
+# The profanities that will trigger a validation error in
+# CommentDetailsForm.clean_comment. All of these should be in lowercase.
 PROFANITIES_LIST = ()
 
 ##################
@@ -514,13 +529,13 @@ LOGGING_CONFIG = 'django.utils.log.dictConfig'
 # The default logging configuration. This sends an email to
 # the site admins on every HTTP 500 error. All other log
 # records are sent to the bit bucket.
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'filters': {
         'require_debug_false': {
-            '()': 'django.utils.log.CallbackFilter',
-            'callback': lambda r: not DEBUG
+            '()': 'django.utils.log.RequireDebugFalse',
         }
     },
     'handlers': {

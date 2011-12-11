@@ -10,64 +10,14 @@ from django.template.base import (Node, NodeList, Template, Library,
     TemplateSyntaxError, VariableDoesNotExist, InvalidTemplateLibrary,
     BLOCK_TAG_START, BLOCK_TAG_END, VARIABLE_TAG_START, VARIABLE_TAG_END,
     SINGLE_BRACE_START, SINGLE_BRACE_END, COMMENT_TAG_START, COMMENT_TAG_END,
-    get_library)
+    get_library, token_kwargs, kwarg_re)
 from django.template.smartif import IfParser, Literal
 from django.template.defaultfilters import date
 from django.utils.encoding import smart_str, smart_unicode
 from django.utils.safestring import mark_safe
+from django.utils import timezone
 
 register = Library()
-# Regex for token keyword arguments
-kwarg_re = re.compile(r"(?:(\w+)=)?(.+)")
-
-def token_kwargs(bits, parser, support_legacy=False):
-    """
-    A utility method for parsing token keyword arguments.
-
-    :param bits: A list containing remainder of the token (split by spaces)
-        that is to be checked for arguments. Valid arguments will be removed
-        from this list.
-
-    :param support_legacy: If set to true ``True``, the legacy format
-        ``1 as foo`` will be accepted. Otherwise, only the standard ``foo=1``
-        format is allowed.
-
-    :returns: A dictionary of the arguments retrieved from the ``bits`` token
-        list.
-
-    There is no requirement for all remaining token ``bits`` to be keyword
-    arguments, so the dictionary will be returned as soon as an invalid
-    argument format is reached.
-    """
-    if not bits:
-        return {}
-    match = kwarg_re.match(bits[0])
-    kwarg_format = match and match.group(1)
-    if not kwarg_format:
-        if not support_legacy:
-            return {}
-        if len(bits) < 3 or bits[1] != 'as':
-            return {}
-
-    kwargs = {}
-    while bits:
-        if kwarg_format: 
-            match = kwarg_re.match(bits[0])
-            if not match or not match.group(1):
-                return kwargs
-            key, value = match.groups()
-            del bits[:1]
-        else:
-            if len(bits) < 3 or bits[1] != 'as':
-                return kwargs
-            key, value = bits[2], bits[0]
-            del bits[:3]
-        kwargs[key] = parser.compile_filter(value)
-        if bits and not kwarg_format:
-            if bits[0] != 'and':
-                return kwargs
-            del bits[:1]
-    return kwargs
 
 class AutoEscapeControlNode(Node):
     """Implements the actions of the autoescape tag."""
@@ -227,17 +177,15 @@ class ForNode(Node):
                     context.update(unpacked_vars)
             else:
                 context[self.loopvars[0]] = item
-            # In TEMPLATE_DEBUG mode providing source of the node which
-            # actually raised an exception to DefaultNodeList.render_node
+            # In TEMPLATE_DEBUG mode provide source of the node which
+            # actually raised the exception
             if settings.TEMPLATE_DEBUG:
                 for node in self.nodelist_loop:
                     try:
                         nodelist.append(node.render(context))
                     except Exception, e:
-                        if not hasattr(e, 'template_node_source'):
-                            from sys import exc_info
-                            e.template_node_source = node.source
-                            raise e, None, exc_info()[2]
+                        if not hasattr(e, 'django_template_source'):
+                            e.django_template_source = node.source
                         raise
             else:
                 for node in self.nodelist_loop:
@@ -276,7 +224,6 @@ class IfChangedNode(Node):
             compare_to = None
 
         if compare_to != self._last_seen:
-            firstloop = (self._last_seen == None)
             self._last_seen = compare_to
             content = self.nodelist_true.render(context)
             return content
@@ -303,31 +250,37 @@ class IfEqualNode(Node):
         return self.nodelist_false.render(context)
 
 class IfNode(Node):
-    child_nodelists = ('nodelist_true', 'nodelist_false')
 
-    def __init__(self, var, nodelist_true, nodelist_false=None):
-        self.nodelist_true, self.nodelist_false = nodelist_true, nodelist_false
-        self.var = var
+    def __init__(self, conditions_nodelists):
+        self.conditions_nodelists = conditions_nodelists
 
     def __repr__(self):
-        return "<If node>"
+        return "<IfNode>"
 
     def __iter__(self):
-        for node in self.nodelist_true:
-            yield node
-        for node in self.nodelist_false:
-            yield node
+        for _, nodelist in self.conditions_nodelists:
+            for node in nodelist:
+                yield node
+
+    @property
+    def nodelist(self):
+        return NodeList(node for _, nodelist in self.conditions_nodelists for node in nodelist)
 
     def render(self, context):
-        try:
-            var = self.var.eval(context)
-        except VariableDoesNotExist:
-            var = None
+        for condition, nodelist in self.conditions_nodelists:
 
-        if var:
-            return self.nodelist_true.render(context)
-        else:
-            return self.nodelist_false.render(context)
+            if condition is not None:           # if / elif clause
+                try:
+                    match = condition.eval(context)
+                except VariableDoesNotExist:
+                    match = None
+            else:                               # else clause
+                match = True
+
+            if match:
+                return nodelist.render(context)
+
+        return ''
 
 class RegroupNode(Node):
     def __init__(self, target, expression, var_name):
@@ -397,7 +350,8 @@ class NowNode(Node):
         self.format_string = format_string
 
     def render(self, context):
-        return date(datetime.now(), self.format_string)
+        tzinfo = timezone.get_current_timezone() if settings.USE_TZ else None
+        return date(datetime.now(tz=tzinfo), self.format_string)
 
 class SpacelessNode(Node):
     def __init__(self, nodelist):
@@ -877,6 +831,8 @@ def do_if(parser, token):
 
         {% if athlete_list %}
             Number of athletes: {{ athlete_list|count }}
+        {% elif athlete_in_locker_room_list %}
+            Athletes should be out of the locker room soon!
         {% else %}
             No athletes.
         {% endif %}
@@ -884,8 +840,9 @@ def do_if(parser, token):
     In the above, if ``athlete_list`` is not empty, the number of athletes will
     be displayed by the ``{{ athlete_list|count }}`` variable.
 
-    As you can see, the ``if`` tag can take an option ``{% else %}`` clause
-    that will be displayed if the test fails.
+    As you can see, the ``if`` tag may take one or several `` {% elif %}``
+    clauses, as well as an ``{% else %}`` clause that will be displayed if all
+    previous conditions fail. These clauses are optional.
 
     ``if`` tags may use ``or``, ``and`` or ``not`` to test a number of
     variables or to negate a given variable::
@@ -923,23 +880,40 @@ def do_if(parser, token):
 
     Operator precedence follows Python.
     """
+    # {% if ... %}
     bits = token.split_contents()[1:]
-    var = TemplateIfParser(parser, bits).parse()
-    nodelist_true = parser.parse(('else', 'endif'))
+    condition = TemplateIfParser(parser, bits).parse()
+    nodelist = parser.parse(('elif', 'else', 'endif'))
+    conditions_nodelists = [(condition, nodelist)]
     token = parser.next_token()
+
+    # {% elif ... %} (repeatable)
+    while token.contents.startswith('elif'):
+        bits = token.split_contents()[1:]
+        condition = TemplateIfParser(parser, bits).parse()
+        nodelist = parser.parse(('elif', 'else', 'endif'))
+        conditions_nodelists.append((condition, nodelist))
+        token = parser.next_token()
+
+    # {% else %} (optional)
     if token.contents == 'else':
-        nodelist_false = parser.parse(('endif',))
-        parser.delete_first_token()
-    else:
-        nodelist_false = NodeList()
-    return IfNode(var, nodelist_true, nodelist_false)
+        nodelist = parser.parse(('endif',))
+        conditions_nodelists.append((None, nodelist))
+        token = parser.next_token()
+
+    # {% endif %}
+    assert token.contents == 'endif'
+
+    return IfNode(conditions_nodelists)
+
 
 @register.tag
 def ifchanged(parser, token):
     """
     Checks if a value has changed from the last iteration of a loop.
 
-    The 'ifchanged' block tag is used within a loop. It has two possible uses.
+    The ``{% ifchanged %}`` block tag is used within a loop. It has two
+    possible uses.
 
     1. Checks its own rendered contents against its previous state and only
        displays the content if it has changed. For example, this displays a
@@ -952,9 +926,9 @@ def ifchanged(parser, token):
                 <a href="{{ date|date:"M/d"|lower }}/">{{ date|date:"j" }}</a>
             {% endfor %}
 
-    2. If given a variable, check whether that variable has changed.
-       For example, the following shows the date every time it changes, but
-       only shows the hour if both the hour and the date have changed::
+    2. If given one or more variables, check whether any variable has changed.
+       For example, the following shows the date every time it changes, while
+       showing the hour if either the hour or the date has changed::
 
             {% for date in days %}
                 {% ifchanged date.date %} {{ date.date }} {% endifchanged %}

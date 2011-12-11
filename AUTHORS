@@ -27,6 +27,7 @@ The PRIMARY AUTHORS are (and/or have been):
     * Idan Gazit
     * Paul McMillan
     * Julien Phalip
+    * Aymeric Augustin
 
 More information on the main contributors to Django can be found in
 docs/internals/committers.txt.
@@ -63,7 +64,6 @@ answer newbie questions, and generally made Django that much better:
     atlithorn <atlithorn@gmail.com>
     Jökull Sólberg Auðunsson <jokullsolberg@gmail.com>
     Arthur <avandorp@gmail.com>
-    Aymeric Augustin <aymeric.augustin@m4x.org>
     av0000@mail.ru
     David Avsajanishvili <avsd05@gmail.com>
     Mike Axiak <axiak@mit.edu>
@@ -87,6 +87,7 @@ answer newbie questions, and generally made Django that much better:
     Julian Bez
     Arvis Bickovskis <viestards.lists@gmail.com>
     Natalia Bidart <nataliabidart@gmail.com>
+    Mark Biggers <biggers@utsl.com>
     Paul Bissex <http://e-scribe.com/>
     Simon Blanchard
     David Blewett <david@dawninglight.net>
@@ -222,6 +223,7 @@ answer newbie questions, and generally made Django that much better:
     Janos Guljas
     Thomas Güttler <hv@tbz-pariv.de>
     Horst Gutmann <zerok@zerokspot.com>
+    Antti Haapala <antti@industrialwebandmagic.com>
     Scot Hacker <shacker@birdhouse.org>
     dAniel hAhler
     hambaloney
@@ -393,6 +395,7 @@ answer newbie questions, and generally made Django that much better:
     Jay Parlar <parlar@gmail.com>
     Claude Paroz <claude@2xlibre.net>
     Carlos Eduardo de Paula <carlosedp@gmail.com>
+    John Paulett <john@paulett.org>
     pavithran s <pavithran.s@gmail.com>
     Barry Pederson <bp@barryp.org>
     Andreas Pelme <andreas@pelme.se>
@@ -406,6 +409,7 @@ answer newbie questions, and generally made Django that much better:
     Michael Placentra II <someone@michaelplacentra2.net>
     plisk
     Daniel Poelzleithner <http://poelzi.org/>
+    Dan Poirier <poirier@pobox.com>
     polpak@yahoo.com
     Ross Poulton <ross@rossp.org>
     Mihai Preda <mihai_preda@yahoo.com>
@@ -470,6 +474,7 @@ answer newbie questions, and generally made Django that much better:
     Leo Soto <leo.soto@gmail.com>
     Wiliam Alves de Souza <wiliamsouza83@gmail.com>
     Don Spaulding <donspauldingii@gmail.com>
+    Calvin Spealman <ironfroggy@gmail.com>
     Bjørn Stabell <bjorn@exoweb.net>
     Georgi Stanojevski <glisha@gmail.com>
     starrynight <cmorgh@gmail.com>
@@ -523,7 +528,7 @@ answer newbie questions, and generally made Django that much better:
     wam-djangobug@wamber.net
     Wang Chun <wangchun@exoweb.net>
     Filip Wasilewski <filip.wasilewski@gmail.com>
-    Dan Watson <http://theidioteque.net/>
+    Dan Watson <http://danwatson.net/>
     Joel Watts <joel@joelwatts.com>
     Lakin Wecker <lakin@structuredabstraction.com>
     Chris Wesseling <Chris.Wesseling@cwi.nl>
@@ -558,6 +563,6 @@ A big THANK YOU goes to:
 
     Ian Bicking for convincing Adrian to ditch code generation.
 
-    Mark Pilgrim for diveintopython.org.
+    Mark Pilgrim for diveintopython.org. (RIP!)
 
     Guido van Rossum for creating Python.

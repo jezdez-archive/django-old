@@ -2,6 +2,7 @@
 
 import copy
 import datetime
+
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
@@ -9,7 +10,6 @@ from django.utils import formats
 from django.utils.safestring import mark_safe
 from django.utils.translation import activate, deactivate
 from django.test import TestCase
-
 
 
 class FormsWidgetTestCase(TestCase):
@@ -253,6 +253,10 @@ class FormsWidgetTestCase(TestCase):
 
         self.assertHTMLEqual(w.render('is_cool', False, attrs={'class': 'pretty'}), u'<input type="checkbox" name="is_cool" class="pretty" />\n')
 
+        # regression for #17114
+        self.assertHTMLEqual(w.render('is_cool', 0), u'<input checked="checked" type="checkbox" name="is_cool" value="0" />')
+        self.assertHTMLEqual(w.render('is_cool', 1), u'<input checked="checked" type="checkbox" name="is_cool" value="1" />')
+
         # You can also pass 'attrs' to the constructor:
         w = CheckboxInput(attrs={'class': 'pretty'})
         self.assertHTMLEqual(w.render('is_cool', ''), u'<input type="checkbox" name="is_cool" class="pretty" />\n')
@@ -326,6 +330,15 @@ class FormsWidgetTestCase(TestCase):
 <option value="R">Ringo</option>
 </select>
 """)
+
+        # Only one option can be selected, see #8103:
+        self.assertHTMLEqual(w.render('choices', '0', choices=(('0', '0'), ('1', '1'), ('2', '2'), ('3', '3'), ('0', 'extra'))), """<select name="choices">
+<option value="0" selected="selected">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="0">extra</option>
+</select>""")
 
         # The value is compared to its str():
         self.assertHTMLEqual(w.render('num', 2, choices=[('1', '1'), ('2', '2'), ('3', '3')]), """<select name="num">
@@ -572,6 +585,15 @@ class FormsWidgetTestCase(TestCase):
 <option value="R">Ringo</option>
 </select>
 """)
+
+        # Multiple options (with the same value) can be selected, see #8103:
+        self.assertHTMLEqual(w.render('choices', ['0'], choices=(('0', '0'), ('1', '1'), ('2', '2'), ('3', '3'), ('0', 'extra'))), """<select multiple="multiple" name="choices">
+<option value="0" selected="selected">0</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="0" selected="selected">extra</option>
+</select>""")
 
         # If multiple values are given, but some of them are not valid, the valid ones are selected:
         self.assertHTMLEqual(w.render('beatles', ['J', 'G', 'foo'], choices=(('J', 'John'), ('P', 'Paul'), ('G', 'George'), ('R', 'Ringo'))), """<select name="beatles" multiple="multiple">
@@ -1312,6 +1334,10 @@ beatle J R Ringo False""")
             u'<input type="hidden" name="date_0" /><input type="hidden" name="date_1" />Extended!')
 
 
+class NullBooleanSelectLazyForm(Form):
+    """Form to test for lazy evaluation. Refs #17190"""
+    bool = BooleanField(widget=NullBooleanSelect())
+
 class FormsI18NWidgetsTestCase(TestCase):
     def setUp(self):
         super(FormsI18NWidgetsTestCase, self).setUp()
@@ -1352,6 +1378,15 @@ class FormsI18NWidgetsTestCase(TestCase):
         w = SplitHiddenDateTimeWidget()
         w.is_localized = True
         self.assertHTMLEqual(w.render('date', datetime.datetime(2007, 9, 17, 12, 51)), u'<input type="hidden" name="date_0" value="17.09.2007" />\n<input type="hidden" name="date_1" value="12:51:00" />\n\n')
+
+    def test_nullbooleanselect(self):
+        """
+        Ensure that the NullBooleanSelect widget's options are lazily
+        localized.
+        Refs #17190
+        """
+        f = NullBooleanSelectLazyForm()
+        self.assertHTMLEqual(f.fields['bool'].widget.render('id_bool', True), u'<select name="id_bool">\n<option value="1">Unbekannt</option>\n<option value="2" selected="selected">Ja</option>\n<option value="3">Nein</option>\n</select>')
 
 
 class SelectAndTextWidget(MultiWidget):

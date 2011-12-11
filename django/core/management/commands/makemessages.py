@@ -15,16 +15,19 @@ plural_forms_re = re.compile(r'^(?P<value>"Plural-Forms.+?\\n")\s*$', re.MULTILI
 
 def handle_extensions(extensions=('html',)):
     """
-    organizes multiple extensions that are separated with commas or passed by
-    using --extension/-e multiple times.
+    Organizes multiple extensions that are separated with commas or passed by
+    using --extension/-e multiple times. Note that the .py extension is ignored
+    here because of the way non-*.py files are handled in make_messages() (they
+    are copied to file.ext.py files to trick xgettext to parse them as Python
+    files).
 
-    for example: running 'django-admin makemessages -e js,txt -e xhtml -a'
-    would result in a extension list: ['.js', '.txt', '.xhtml']
+    For example: running 'django-admin makemessages -e js,txt -e xhtml -a'
+    would result in an extension list: ['.js', '.txt', '.xhtml']
 
     >>> handle_extensions(['.html', 'html,js,py,py,py,.py', 'py,.py'])
-    ['.html', '.js']
+    set(['.html', '.js'])
     >>> handle_extensions(['.html, txt,.tpl'])
-    ['.html', '.tpl', '.txt']
+    set(['.html', '.tpl', '.txt'])
     """
     ext_list = []
     for ext in extensions:
@@ -32,10 +35,6 @@ def handle_extensions(extensions=('html',)):
     for i, ext in enumerate(ext_list):
         if not ext.startswith('.'):
             ext_list[i] = '.%s' % ext_list[i]
-
-    # we don't want *.py files here because of the way non-*.py files
-    # are handled in make_messages() (they are copied to file.ext.py files to
-    # trick xgettext to parse them as Python files)
     return set([x for x in ext_list if x != '.py'])
 
 def _popen(cmd):
@@ -116,6 +115,7 @@ def copy_plural_forms(msgs, locale, domain, verbosity):
 
 def make_messages(locale=None, domain='django', verbosity='1', all=False,
         extensions=None, symlinks=False, ignore_patterns=[], no_wrap=False,
+        no_location=False,
         no_obsolete=False):
     """
     Uses the locale directory from the Django SVN tree or an application/
@@ -164,6 +164,7 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False,
         languages = [os.path.basename(l) for l in locale_dirs]
 
     wrap = no_wrap and '--no-wrap' or ''
+    location = no_location and '--no-location' or ''
 
     for locale in languages:
         if verbosity > 0:
@@ -192,11 +193,11 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False,
                 finally:
                     f.close()
                 cmd = (
-                    'xgettext -d %s -L C %s --keyword=gettext_noop '
+                    'xgettext -d %s -L C %s %s --keyword=gettext_noop '
                     '--keyword=gettext_lazy --keyword=ngettext_lazy:1,2 '
                     '--keyword=pgettext:1c,2 --keyword=npgettext:1c,2,3 '
                     '--from-code UTF-8 --add-comments=Translators -o - "%s"' % (
-                        domain, wrap, os.path.join(dirpath, thefile)
+                        domain, wrap, location, os.path.join(dirpath, thefile)
                     )
                 )
                 msgs, errors = _popen(cmd)
@@ -236,14 +237,14 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False,
                 if verbosity > 1:
                     sys.stdout.write('processing file %s in %s\n' % (file, dirpath))
                 cmd = (
-                    'xgettext -d %s -L Python %s --keyword=gettext_noop '
+                    'xgettext -d %s -L Python %s %s --keyword=gettext_noop '
                     '--keyword=gettext_lazy --keyword=ngettext_lazy:1,2 '
                     '--keyword=ugettext_noop --keyword=ugettext_lazy '
                     '--keyword=ungettext_lazy:1,2 --keyword=pgettext:1c,2 '
                     '--keyword=npgettext:1c,2,3 --keyword=pgettext_lazy:1c,2 '
                     '--keyword=npgettext_lazy:1c,2,3 --from-code UTF-8 '
                     '--add-comments=Translators -o - "%s"' % (
-                        domain, wrap, os.path.join(dirpath, thefile))
+                        domain, wrap, location, os.path.join(dirpath, thefile))
                 )
                 msgs, errors = _popen(cmd)
                 if errors:
@@ -273,8 +274,8 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False,
                     os.unlink(os.path.join(dirpath, thefile))
 
         if os.path.exists(potfile):
-            msgs, errors = _popen('msguniq %s --to-code=utf-8 "%s"' %
-                                  (wrap, potfile))
+            msgs, errors = _popen('msguniq %s %s --to-code=utf-8 "%s"' %
+                                  (wrap, location, potfile))
             if errors:
                 os.unlink(potfile)
                 raise CommandError(
@@ -285,8 +286,8 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False,
                     f.write(msgs)
                 finally:
                     f.close()
-                msgs, errors = _popen('msgmerge %s -q "%s" "%s"' %
-                                      (wrap, pofile, potfile))
+                msgs, errors = _popen('msgmerge %s %s -q "%s" "%s"' %
+                                      (wrap, location, pofile, potfile))
                 if errors:
                     os.unlink(potfile)
                     raise CommandError(
@@ -302,8 +303,8 @@ def make_messages(locale=None, domain='django', verbosity='1', all=False,
                 f.close()
             os.unlink(potfile)
             if no_obsolete:
-                msgs, errors = _popen('msgattrib %s -o "%s" --no-obsolete "%s"' %
-                                      (wrap, pofile, pofile))
+                msgs, errors = _popen('msgattrib %s %s -o "%s" --no-obsolete "%s"' %
+                                      (wrap, location, pofile, pofile))
                 if errors:
                     raise CommandError(
                         "errors happened while running msgattrib\n%s" % errors)
@@ -318,7 +319,7 @@ class Command(NoArgsCommand):
         make_option('--all', '-a', action='store_true', dest='all',
             default=False, help='Updates the message files for all existing locales.'),
         make_option('--extension', '-e', dest='extensions',
-            help='The file extension(s) to examine (default: ".html", separate multiple extensions with commas, or use -e multiple times)',
+            help='The file extension(s) to examine (default: "html,txt", or "js" if the domain is "djangojs"). Separate multiple extensions with commas, or use -e multiple times.',
             action='append'),
         make_option('--symlinks', '-s', action='store_true', dest='symlinks',
             default=False, help='Follows symlinks to directories when examining source code and templates for translation strings.'),
@@ -328,6 +329,8 @@ class Command(NoArgsCommand):
             default=True, help="Don't ignore the common glob-style patterns 'CVS', '.*' and '*~'."),
         make_option('--no-wrap', action='store_true', dest='no_wrap',
             default=False, help="Don't break long message lines into several lines"),
+        make_option('--no-location', action='store_true', dest='no_location',
+            default=False, help="Don't write '#: filename:line' lines"),
         make_option('--no-obsolete', action='store_true', dest='no_obsolete',
             default=False, help="Remove obsolete message strings"),
     )
@@ -352,6 +355,7 @@ class Command(NoArgsCommand):
             ignore_patterns += ['CVS', '.*', '*~']
         ignore_patterns = list(set(ignore_patterns))
         no_wrap = options.get('no_wrap')
+        no_location = options.get('no_location')
         no_obsolete = options.get('no_obsolete')
         if domain == 'djangojs':
             extensions = handle_extensions(extensions or ['js'])
@@ -362,4 +366,4 @@ class Command(NoArgsCommand):
             sys.stdout.write('examining files with the extensions: %s\n'
                              % get_text_list(list(extensions), 'and'))
 
-        make_messages(locale, domain, verbosity, process_all, extensions, symlinks, ignore_patterns, no_wrap, no_obsolete)
+        make_messages(locale, domain, verbosity, process_all, extensions, symlinks, ignore_patterns, no_wrap, no_location, no_obsolete)

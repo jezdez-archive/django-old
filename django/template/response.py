@@ -6,10 +6,6 @@ class ContentNotRenderedError(Exception):
     pass
 
 
-class DiscardedAttributeError(AttributeError):
-    pass
-
-
 class SimpleTemplateResponse(HttpResponse):
     rendering_attrs = ['template_name', 'context_data', '_post_render_callbacks']
 
@@ -21,10 +17,6 @@ class SimpleTemplateResponse(HttpResponse):
         self.template_name = template
         self.context_data = context
 
-        # _is_rendered tracks whether the template and context has been
-        # baked into a final response.
-        self._is_rendered = False
-
         self._post_render_callbacks = []
 
         # content argument doesn't make sense here because it will be replaced
@@ -32,6 +24,13 @@ class SimpleTemplateResponse(HttpResponse):
         # prevent errors and provide shorter signature.
         super(SimpleTemplateResponse, self).__init__('', mimetype, status,
                                                      content_type)
+
+        # _is_rendered tracks whether the template and context has been baked
+        # into a final response.
+        # Super __init__ doesn't know any better than to set self.content to
+        # the empty string we just gave it, which wrongly sets _is_rendered
+        # True, so we initialize it to False after the call to super __init__.
+        self._is_rendered = False
 
     def __getstate__(self):
         """Pickling support function.
@@ -49,13 +48,6 @@ class SimpleTemplateResponse(HttpResponse):
                 del obj_dict[attr]
 
         return obj_dict
-
-    def __getattr__(self, name):
-        if name in self.rendering_attrs:
-            raise DiscardedAttributeError('The %s attribute was discarded '
-                                          'when this %s class was pickled.' %
-                                          (name, self.__class__.__name__))
-        return super(SimpleTemplateResponse, self).__getattr__(name)
 
     def resolve_template(self, template):
         "Accepts a template object, path-to-template or list of paths"

@@ -135,9 +135,10 @@ Storage engines
 MySQL has several `storage engines`_ (previously called table types). You can
 change the default storage engine in the server configuration.
 
-The default engine is MyISAM_ [#]_. The main drawback of MyISAM is that it
-doesn't currently support transactions or foreign keys. On the plus side, it's
-currently the only engine that supports full-text indexing and searching.
+The default engine is MyISAM_ [#]_. The main drawbacks of MyISAM are that it
+doesn't currently support transactions or enforce foreign keys constraints. On
+the plus side, it's currently the only engine that supports full-text indexing
+and searching.
 
 The InnoDB_ engine is fully transactional and supports foreign key references
 and is probably the best choice at this point in time.
@@ -257,10 +258,10 @@ Refer to the :doc:`settings documentation </ref/settings>`.
 
 Connection settings are used in this order:
 
-    1. :setting:`OPTIONS`.
-    2. :setting:`NAME`, :setting:`USER`, :setting:`PASSWORD`,
-       :setting:`HOST`, :setting:`PORT`
-    3. MySQL option files.
+1. :setting:`OPTIONS`.
+2. :setting:`NAME`, :setting:`USER`, :setting:`PASSWORD`,
+   :setting:`HOST`, :setting:`PORT`
+3. MySQL option files.
 
 In other words, if you set the name of the database in :setting:`OPTIONS`,
 this will take precedence over :setting:`NAME`, which would override
@@ -304,27 +305,40 @@ default storage engine to the desired engine.
 If you're using a hosting service and can't change your server's default
 storage engine, you have a couple of options.
 
-    * After the tables are created, execute an ``ALTER TABLE`` statement to
-      convert a table to a new storage engine (such as InnoDB)::
+* After the tables are created, execute an ``ALTER TABLE`` statement to
+  convert a table to a new storage engine (such as InnoDB)::
 
-          ALTER TABLE <tablename> ENGINE=INNODB;
+      ALTER TABLE <tablename> ENGINE=INNODB;
 
-      This can be tedious if you have a lot of tables.
+  This can be tedious if you have a lot of tables.
 
-    * Another option is to use the ``init_command`` option for MySQLdb prior to
-      creating your tables::
+* Another option is to use the ``init_command`` option for MySQLdb prior to
+  creating your tables::
 
-          'OPTIONS': {
-             'init_command': 'SET storage_engine=INNODB',
-          }
+      'OPTIONS': {
+         'init_command': 'SET storage_engine=INNODB',
+      }
 
-      This sets the default storage engine upon connecting to the database.
-      After your tables have been created, you should remove this option.
+  This sets the default storage engine upon connecting to the database.
+  After your tables have been created, you should remove this option.
 
-    * Another method for changing the storage engine is described in
-      AlterModelOnSyncDB_.
+* Another method for changing the storage engine is described in
+  AlterModelOnSyncDB_.
 
 .. _AlterModelOnSyncDB: http://code.djangoproject.com/wiki/AlterModelOnSyncDB
+
+Table names
+-----------
+
+There are `known issues`_ in even the latest versions of MySQL that can cause the
+case of a table name to be altered when certain SQL statements are executed
+under certain conditions. It is recommended that you use lowercase table
+names, if possible, to avoid any problems that might arise from this behavior.
+Django uses lowercase table names when it auto-generates table names from
+models, so this is mainly a consideration if you are overriding the table name
+via the :class:`~django.db.models.Options.db_table` parameter.
+
+.. _known issues: http://bugs.mysql.com/bug.php?id=48875
 
 Notes on specific fields
 ------------------------
@@ -358,6 +372,9 @@ MySQL does not have a timezone-aware column type. If an attempt is made to
 store a timezone-aware ``time`` or ``datetime`` to a
 :class:`~django.db.models.TimeField` or :class:`~django.db.models.DateTimeField`
 respectively, a ``ValueError`` is raised rather than truncating data.
+
+MySQL does not store fractions of seconds. Fractions of seconds are truncated
+to zero when the time is stored.
 
 Row locking with ``QuerySet.select_for_update()``
 -------------------------------------------------
@@ -409,13 +426,13 @@ SQLite 3.3.6 or newer strongly recommended
 
 Versions of SQLite 3.3.5 and older contains the following bugs:
 
- * A bug when `handling`_ ``ORDER BY`` parameters. This can cause problems when
-   you use the ``select`` parameter for the ``extra()`` QuerySet method. The bug
-   can be identified by the error message ``OperationalError: ORDER BY terms
-   must not be non-integer constants``.
+* A bug when `handling`_ ``ORDER BY`` parameters. This can cause problems when
+  you use the ``select`` parameter for the ``extra()`` QuerySet method. The bug
+  can be identified by the error message ``OperationalError: ORDER BY terms
+  must not be non-integer constants``.
 
- * A bug when handling `aggregation`_ together with DateFields and
-   DecimalFields.
+* A bug when handling `aggregation`_ together with DateFields and
+  DecimalFields.
 
 .. _handling: http://www.sqlite.org/cvstrac/tktview?tn=1768
 .. _aggregation: http://code.djangoproject.com/ticket/10031
@@ -494,24 +511,24 @@ is locked`` error.
 
 If you're getting this error, you can solve it by:
 
-    * Switching to another database backend. At a certain point SQLite becomes
-      too "lite" for real-world applications, and these sorts of concurrency
-      errors indicate you've reached that point.
+* Switching to another database backend. At a certain point SQLite becomes
+  too "lite" for real-world applications, and these sorts of concurrency
+  errors indicate you've reached that point.
 
-    * Rewriting your code to reduce concurrency and ensure that database
-      transactions are short-lived.
+* Rewriting your code to reduce concurrency and ensure that database
+  transactions are short-lived.
 
-    * Increase the default timeout value by setting the ``timeout`` database
-      option option::
+* Increase the default timeout value by setting the ``timeout`` database
+  option option::
 
-          'OPTIONS': {
-              # ...
-              'timeout': 20,
-              # ...
-          }
+      'OPTIONS': {
+          # ...
+          'timeout': 20,
+          # ...
+      }
 
-      This will simply make SQLite wait a bit longer before throwing "database
-      is locked" errors; it won't really do anything to solve them.
+  This will simply make SQLite wait a bit longer before throwing "database
+  is locked" errors; it won't really do anything to solve them.
 
 ``QuerySet.select_for_update()`` not supported
 ----------------------------------------------
@@ -554,19 +571,19 @@ required.
 In order for the ``python manage.py syncdb`` command to work, your Oracle
 database user must have privileges to run the following commands:
 
-    * CREATE TABLE
-    * CREATE SEQUENCE
-    * CREATE PROCEDURE
-    * CREATE TRIGGER
+* CREATE TABLE
+* CREATE SEQUENCE
+* CREATE PROCEDURE
+* CREATE TRIGGER
 
 To run Django's test suite, the user needs these *additional* privileges:
 
-    * CREATE USER
-    * DROP USER
-    * CREATE TABLESPACE
-    * DROP TABLESPACE
-    * CONNECT WITH ADMIN OPTION
-    * RESOURCE WITH ADMIN OPTION
+* CREATE USER
+* DROP USER
+* CREATE TABLESPACE
+* DROP TABLESPACE
+* CONNECT WITH ADMIN OPTION
+* RESOURCE WITH ADMIN OPTION
 
 Connecting to the database
 --------------------------
@@ -633,49 +650,6 @@ The ``RETURNING INTO`` clause can be disabled by setting the
 In this case, the Oracle backend will use a separate ``SELECT`` query to
 retrieve AutoField values.
 
-Tablespace options
-------------------
-
-A common paradigm for optimizing performance in Oracle-based systems is the
-use of `tablespaces`_ to organize disk layout. The Oracle backend supports
-this use case by adding ``db_tablespace`` options to the ``Meta`` and
-``Field`` classes.  (When you use a backend that lacks support for tablespaces,
-Django ignores these options.)
-
-.. _`tablespaces`: http://en.wikipedia.org/wiki/Tablespace
-
-A tablespace can be specified for the table(s) generated by a model by
-supplying the ``db_tablespace`` option inside the model's ``class Meta``.
-Additionally, you can pass the ``db_tablespace`` option to a ``Field``
-constructor to specify an alternate tablespace for the ``Field``'s column
-index. If no index would be created for the column, the ``db_tablespace``
-option is ignored::
-
-    class TablespaceExample(models.Model):
-        name = models.CharField(max_length=30, db_index=True, db_tablespace="indexes")
-        data = models.CharField(max_length=255, db_index=True)
-        edges = models.ManyToManyField(to="self", db_tablespace="indexes")
-
-        class Meta:
-            db_tablespace = "tables"
-
-In this example, the tables generated by the ``TablespaceExample`` model
-(i.e., the model table and the many-to-many table) would be stored in the
-``tables`` tablespace. The index for the name field and the indexes on the
-many-to-many table would be stored in the ``indexes`` tablespace. The ``data``
-field would also generate an index, but no tablespace for it is specified, so
-it would be stored in the model tablespace ``tables`` by default.
-
-Use the :setting:`DEFAULT_TABLESPACE` and :setting:`DEFAULT_INDEX_TABLESPACE`
-settings to specify default values for the db_tablespace options.
-These are useful for setting a tablespace for the built-in Django apps and
-other applications whose code you cannot control.
-
-Django does not create the tablespaces for you. Please refer to `Oracle's
-documentation`_ for details on creating and managing tablespaces.
-
-.. _`Oracle's documentation`: http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/statements_7003.htm#SQLRF01403
-
 Naming issues
 -------------
 
@@ -708,16 +682,16 @@ assumption.
 The Oracle backend stores ``TextFields`` as ``NCLOB`` columns. Oracle imposes
 some limitations on the usage of such LOB columns in general:
 
-  * LOB columns may not be used as primary keys.
+* LOB columns may not be used as primary keys.
 
-  * LOB columns may not be used in indexes.
+* LOB columns may not be used in indexes.
 
-  * LOB columns may not be used in a ``SELECT DISTINCT`` list. This means that
-    attempting to use the ``QuerySet.distinct`` method on a model that
-    includes ``TextField`` columns will result in an error when run against
-    Oracle. As a workaround, use the ``QuerySet.defer`` method in conjunction
-    with ``distinct()`` to prevent ``TextField`` columns from being included in
-    the ``SELECT DISTINCT`` list.
+* LOB columns may not be used in a ``SELECT DISTINCT`` list. This means that
+  attempting to use the ``QuerySet.distinct`` method on a model that
+  includes ``TextField`` columns will result in an error when run against
+  Oracle. As a workaround, use the ``QuerySet.defer`` method in conjunction
+  with ``distinct()`` to prevent ``TextField`` columns from being included in
+  the ``SELECT DISTINCT`` list.
 
 .. _third-party-notes:
 

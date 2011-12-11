@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -90,3 +91,15 @@ class GenericIPAddressTestModel(models.Model):
 
 class GenericIPAddrUnpackUniqueTest(models.Model):
     generic_v4unpack_ip = models.GenericIPAddressField(blank=True, unique=True, unpack_ipv4=True)
+
+
+# A model can't have multiple AutoFields
+# Refs #12467.
+assertion_error = None
+try:
+    class MultipleAutoFields(models.Model):
+        auto1 = models.AutoField(primary_key=True)
+        auto2 = models.AutoField(primary_key=True)
+except AssertionError, assertion_error:
+    pass # Fail silently
+assert str(assertion_error) == u"A model can't have more than one AutoField."

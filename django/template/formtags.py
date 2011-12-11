@@ -463,9 +463,8 @@ class FormNode(BaseFormRenderNode):
             return False
         # we assume its a form if the var has these fields
         significant_attributes = ('is_bound', 'data', 'fields')
-        for attr in significant_attributes:
-            if hasattr(var, attr):
-                return False
+        if all(hasattr(var, attr) for attr in significant_attributes):
+            return False
         # form duck-typing was not successful so it must be a list
         return True
 
@@ -515,9 +514,13 @@ class FormRowNode(BaseFormRenderNode):
     optional_using_parameter = True
 
     def is_list_variable(self, var):
-        if hasattr(var, '__iter__'):
-            return True
-        return False
+        if not hasattr(var, '__iter__'):
+            return False
+        # we assume its a bound field if the var has these fields
+        significant_attributes = ('form', 'field', 'name', 'as_widget')
+        if all(hasattr(var, attr) for attr in significant_attributes):
+            return False
+        return True
 
     def get_template_name(self, context):
         config = self.get_config(context)

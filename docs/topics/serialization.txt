@@ -21,9 +21,10 @@ At the highest level, serializing data is a very simple operation::
     data = serializers.serialize("xml", SomeModel.objects.all())
 
 The arguments to the ``serialize`` function are the format to serialize the data
-to (see `Serialization formats`_) and a :class:`~django.db.models.QuerySet` to
-serialize. (Actually, the second argument can be any iterator that yields Django
-objects, but it'll almost always be a QuerySet).
+to (see `Serialization formats`_) and a
+:class:`~django.db.models.query.QuerySet` to serialize. (Actually, the second
+argument can be any iterator that yields Django objects, but it'll almost
+always be a QuerySet).
 
 You can also use a serializer object directly::
 
@@ -137,17 +138,17 @@ Serialization formats
 Django supports a number of serialization formats, some of which require you
 to install third-party Python modules:
 
-    ==========  ==============================================================
-    Identifier  Information
-    ==========  ==============================================================
-    ``xml``     Serializes to and from a simple XML dialect.
+==========  ==============================================================
+Identifier  Information
+==========  ==============================================================
+``xml``     Serializes to and from a simple XML dialect.
 
-    ``json``    Serializes to and from JSON_ (using a version of simplejson_
-                bundled with Django).
+``json``    Serializes to and from JSON_ (using a version of simplejson_
+            bundled with Django).
 
-    ``yaml``    Serializes to YAML (YAML Ain't a Markup Language). This
-                serializer is only available if PyYAML_ is installed.
-    ==========  ==============================================================
+``yaml``    Serializes to YAML (YAML Ain't a Markup Language). This
+            serializer is only available if PyYAML_ is installed.
+==========  ==============================================================
 
 .. _json: http://json.org/
 .. _simplejson: http://undefined.org/python/#simplejson
@@ -197,7 +198,6 @@ Natural keys
 ------------
 
 .. versionadded:: 1.2
-
    The ability to use natural keys when serializing/deserializing data was
    added in the 1.2 release.
 

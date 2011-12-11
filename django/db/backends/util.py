@@ -3,7 +3,9 @@ import decimal
 import hashlib
 from time import time
 
+from django.conf import settings
 from django.utils.log import getLogger
+from django.utils.timezone import utc
 
 
 logger = getLogger('django.db.backends')
@@ -99,13 +101,10 @@ def typecast_timestamp(s): # does NOT store time zone information
         seconds, microseconds = seconds.split('.')
     else:
         microseconds = '0'
+    tzinfo = utc if settings.USE_TZ else None
     return datetime.datetime(int(dates[0]), int(dates[1]), int(dates[2]),
-        int(times[0]), int(times[1]), int(seconds), int((microseconds + '000000')[:6]))
-
-def typecast_boolean(s):
-    if s is None: return None
-    if not s: return False
-    return str(s)[0].lower() == 't'
+        int(times[0]), int(times[1]), int(seconds),
+        int((microseconds + '000000')[:6]), tzinfo)
 
 def typecast_decimal(s):
     if s is None or s == '':
@@ -115,9 +114,6 @@ def typecast_decimal(s):
 ###############################################
 # Converters from Python to database (string) #
 ###############################################
-
-def rev_typecast_boolean(obj, d):
-    return obj and '1' or '0'
 
 def rev_typecast_decimal(d):
     if d is None:

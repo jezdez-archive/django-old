@@ -48,7 +48,7 @@ documentation to determine which mode is right for your setup. Make
 sure you have Apache installed, with the mod_wsgi module activated.
 Django will work with any version of Apache that supports mod_wsgi.
 
-See :doc:`How to use Django with mod_wsgi </howto/deployment/modwsgi>`
+See :doc:`How to use Django with mod_wsgi </howto/deployment/wsgi/modwsgi>`
 for information on how to configure mod_wsgi once you have it
 installed.
 
@@ -198,19 +198,19 @@ of dependencies and easy upgrade paths.
 Installing an official release
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    1. Download the latest release from our `download page`_.
+1. Download the latest release from our `download page`_.
 
-    2. Untar the downloaded file (e.g. ``tar xzvf Django-NNN.tar.gz``,
-       where ``NNN`` is the version number of the latest release).
-       If you're using Windows, you can download the command-line tool
-       bsdtar_ to do this, or you can use a GUI-based tool such as 7-zip_.
+2. Untar the downloaded file (e.g. ``tar xzvf Django-NNN.tar.gz``,
+   where ``NNN`` is the version number of the latest release).
+   If you're using Windows, you can download the command-line tool
+   bsdtar_ to do this, or you can use a GUI-based tool such as 7-zip_.
 
-    3. Change into the directory created in step 2 (e.g. ``cd Django-NNN``).
+3. Change into the directory created in step 2 (e.g. ``cd Django-NNN``).
 
-    4. If you're using Linux, Mac OS X or some other flavor of Unix, enter
-       the command ``sudo python setup.py install`` at the shell prompt.
-       If you're using Windows, start up a command shell with administrator
-       privileges and run the command ``setup.py install``.
+4. If you're using Linux, Mac OS X or some other flavor of Unix, enter
+   the command ``sudo python setup.py install`` at the shell prompt.
+   If you're using Windows, start up a command shell with administrator
+   privileges and run the command ``setup.py install``.
 
 These commands will install Django in your Python installation's
 ``site-packages`` directory.
@@ -257,8 +257,10 @@ latest bug fixes and improvements, follow these instructions:
 
    .. code-block:: bash
 
-       # Git
+       # Git (requires version 1.6.6 or later)
        git clone https://github.com/django/django.git
+       # or (works with all versions)
+       git clone git://github.com/django/django.git       
 
        # Mercurial
        hg clone https://bitbucket.org/django/django

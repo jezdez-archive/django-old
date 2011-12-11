@@ -48,7 +48,7 @@ def get_dist_ops(operator):
     return (SpatiaLiteDistance(operator),)
 
 class SpatiaLiteOperations(DatabaseOperations, BaseSpatialOperations):
-    compiler_module = 'django.contrib.gis.db.backends.spatialite.compiler'
+    compiler_module = 'django.contrib.gis.db.models.sql.compiler'
     name = 'spatialite'
     spatialite = True
     version_regex = re.compile(r'^(?P<major>\d)\.(?P<minor1>\d)\.(?P<minor2>\d+)')
@@ -132,6 +132,18 @@ class SpatiaLiteOperations(DatabaseOperations, BaseSpatialOperations):
         gis_terms = ['isnull']
         gis_terms += self.geometry_functions.keys()
         self.gis_terms = dict([(term, None) for term in gis_terms])
+
+        if version >= (2, 4, 0):
+            # Spatialite 2.4.0-RC4 added AsGML and AsKML, however both
+            # RC2 (shipped in popular Debian/Ubuntu packages) and RC4
+            # report version as '2.4.0', so we fall back to feature detection
+            try:
+                self._get_spatialite_func("AsGML(GeomFromText('POINT(1 1)'))")
+                self.gml = 'AsGML'
+                self.kml = 'AsKML'
+            except DatabaseError:
+                # we are using < 2.4.0-RC4
+                pass
 
     def check_aggregate_support(self, aggregate):
         """
