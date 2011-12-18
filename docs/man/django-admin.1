@@ -99,8 +99,7 @@ Prints the DROP TABLE SQL statements for the given app name(s).
 Prints the custom SQL statements for the given app name(s).
 .TP
 .BI "sqlflush [" "appname ..." "]"
-Prints the SQL statements that would be executed for the "flush" 
-command.
+Prints the SQL statements that would be executed for the "flush" command.
 .TP
 .BI "sqlindexes [" "appname ..." "]"
 Prints the CREATE INDEX SQL statements for the given model module name(s).
@@ -116,13 +115,13 @@ name(s).
 Prints the SQL statements for resetting PostgreSQL sequences for the
 given app name(s).
 .TP
-.BI "startapp [" "appname" "]"
+.BI "startapp [" "\-\-template=PATH" "] [" "appname" "] [" "destination" "]"
 Creates a Django app directory structure for the given app name in
-the current directory.
+the current directory or the optional destination.
 .TP
-.BI "startproject [" "projectname" "]"
+.BI "startproject [" "\-\-template=PATH" "] [" "projectname" "] [" "destination" "]"
 Creates a Django project directory structure for the given project name
-in the current directory.
+in the current directory or the optional destination.
 .TP
 .BI syncdb
 Creates the database tables for all apps in INSTALLED_APPS whose tables
@@ -213,6 +212,9 @@ Don't break long message lines into several lines.
 .TP
 .I \-a, \-\-all
 Process all available locales when using makemessages..SH "ENVIRONMENT"
+.TP
+.I \-a, \-\-template=PATH
+The dotted import path to load the project and app templates from.
 .TP
 .I DJANGO_SETTINGS_MODULE
 In the absence of the

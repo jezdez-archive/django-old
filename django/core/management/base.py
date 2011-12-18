@@ -3,16 +3,22 @@ Base classes for writing management commands (named commands which can
 be executed through ``django-admin.py`` or ``manage.py``).
 
 """
-
+from __future__ import with_statement
 import os
+import re
+import shutil
 import sys
+
 from optparse import make_option, OptionParser
 import traceback
 
 import django
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import color_style
+from django.template import Template, Context
 from django.utils.encoding import smart_str
+from django.utils.importlib import import_module
+
 
 class CommandError(Exception):
     """
@@ -370,41 +376,69 @@ class NoArgsCommand(BaseCommand):
         """
         raise NotImplementedError()
 
-def copy_helper(style, app_or_project, name, directory):
+def copy_helper(style, app_or_project, name, directory=None, template=None, **options):
     """
     Copies either a Django application layout template or a Django project
     layout template into the specified directory.
 
+    style -- A color style object (see django.core.management.color).
+    app_or_project -- The string 'app' or 'project'.
+    name -- The name of the application or project.
+    directory -- The directory to which the layout template should be copied.
+    options -- The additional variables passed to project or app templates
     """
-    # style -- A color style object (see django.core.management.color).
-    # app_or_project -- The string 'app' or 'project'.
-    # name -- The name of the application or project.
-    # directory -- The directory to which the layout template should be copied.
-    import re
-    import shutil
-
     if not re.search(r'^[_a-zA-Z]\w*$', name): # If it's not a valid directory name.
         # Provide a smart error message, depending on the error.
         if not re.search(r'^[_a-zA-Z]', name):
             message = 'make sure the name begins with a letter or underscore'
         else:
             message = 'use only numbers, letters and underscores'
-        raise CommandError("%r is not a valid %s name. Please %s." % (name, app_or_project, message))
+        raise CommandError("%r is not a valid %s name. Please %s." %
+                           (name, app_or_project, message))
+
+    # if some directory is given, make sure it's nicely expanded
+    if directory is None:
+        directory = os.getcwd()
+    else:
+        directory = os.path.expanduser(directory)
+
     top_dir = os.path.join(directory, name)
     try:
-        os.mkdir(top_dir)
+        os.makedirs(top_dir)
     except OSError, e:
         raise CommandError(e)
 
-    # Determine where the app or project templates are. Use
-    # django.__path__[0] because we don't know into which directory
-    # django has been installed.
-    template_dir = os.path.join(django.__path__[0], 'conf', '%s_template' % app_or_project)
+    # Determine where the app or project templates are.
+    # Use django.__path__[0] as the default because we don't
+    # know into which directory Django has been installed.
+    if template is None:
+        base_dir = os.path.join(django.__path__[0], 'conf')
+    else:
+        try:
+            template_mod = import_module(template)
+        except ImportError:
+            raise CommandError("couldn't import %s template module %s." %
+                               (app_or_project, template))
+        if hasattr(template_mod, '__path__'):
+            # it's a package
+            base_dir = template_mod.__path__[0]
+        else:
+            # it's a module, using the package enclosing it
+            base_dir = os.path.dirname(template_mod.__file__)
+    template_dir = os.path.join(base_dir, '%s_template' % app_or_project)
+    base_name = '%s_name' % app_or_project
+
+    # Setup a stub settings environment for template rendering
+    from django.conf import settings
+    if not settings.configured:
+        settings.configure()
 
     for d, subdirs, files in os.walk(template_dir):
-        relative_dir = d[len(template_dir)+1:].replace('%s_name' % app_or_project, name)
+        relative_dir = d[len(template_dir) + 1:].replace(base_name, name)
         if relative_dir:
-            os.mkdir(os.path.join(top_dir, relative_dir))
+            target_dir = os.path.join(top_dir, relative_dir)
+            if not os.path.exists(target_dir):
+                os.mkdir(target_dir)
         for subdir in subdirs[:]:
             if subdir.startswith('.'):
                 subdirs.remove(subdir)
@@ -414,17 +448,29 @@ def copy_helper(style, app_or_project, name, directory):
                 # breakages.
                 continue
             path_old = os.path.join(d, f)
-            path_new = os.path.join(top_dir, relative_dir, f.replace('%s_name' % app_or_project, name))
-            fp_old = open(path_old, 'r')
-            fp_new = open(path_new, 'w')
-            fp_new.write(fp_old.read().replace('{{ %s_name }}' % app_or_project, name))
-            fp_old.close()
-            fp_new.close()
+            path_new = os.path.join(top_dir, relative_dir, f.replace(base_name, name))
+            if os.path.exists(path_new):
+                raise CommandError("%s already exists, overlaying a project "
+                                   "or app into an existing directory won't "
+                                   "replace conflicting files" % path_new)
+            with open(path_old, 'r') as template_file:
+                template = Template(template_file.read())
+            context = Context(dict(options, **{
+                base_name: name,
+                '%s_directory' % app_or_project: top_dir,
+            }))
+            new_content = template.render(context)
+            with open(path_new, 'w') as file_new:
+                file_new.write(new_content)
             try:
                 shutil.copymode(path_old, path_new)
                 _make_writeable(path_new)
             except OSError:
-                sys.stderr.write(style.NOTICE("Notice: Couldn't set permission bits on %s. You're probably using an uncommon filesystem setup. No problem.\n" % path_new))
+                notice = style.NOTICE("Notice: Couldn't set permission bits "
+                                      "on %s. You're probably using an "
+                                      "uncommon filesystem setup. No problem."
+                                      "\n" % path_new)
+                sys.stderr.write(notice)
 
 def _make_writeable(filename):
     """

@@ -426,6 +426,24 @@ callable :djadmin:`runserver` uses.
 (The :djadmin:`runfcgi` management command also internally wraps the WSGI
 callable configured via :setting:`WSGI_APPLICATION`.)
 
+Custom project and app templates
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :djadmin:`startapp` and :djadmin:`startproject` management commands
+got a ``--template`` option for specifying import paths of packages
+containing custom app or project templates.
+
+For example, Django will look for a ``project_template`` directory in the
+Python package ``foo.bar`` when running the following command::
+
+    django-admin.py startproject --template=foo.bar myproject
+
+Additionally you can now provide a destination directory as the second
+argument to both :djadmin:`startapp` and :djadmin:`startproject`::
+
+    django-admin.py startapp myapp /path/to/new/app
+    django-admin.py startproject myproject /path/to/new/project
+
 Support for time zones
 ~~~~~~~~~~~~~~~~~~~~~~
 
