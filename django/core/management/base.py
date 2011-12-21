@@ -7,17 +7,26 @@ from __future__ import with_statement
 import os
 import re
 import shutil
+import stat
 import sys
+import tempfile
+import urllib
 
 from optparse import make_option, OptionParser
+from os import path
 import traceback
 
 import django
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management.color import color_style
 from django.template import Template, Context
+from django.utils import archive
 from django.utils.encoding import smart_str
-from django.utils.importlib import import_module
+from django.utils._os import rmtree_errorhandler
+
+
+_drive_re = re.compile('^([a-z]):', re.I)
+_url_drive_re = re.compile('^([a-z])[:|]', re.I)
 
 
 class CommandError(Exception):
@@ -35,6 +44,7 @@ class CommandError(Exception):
     """
     pass
 
+
 def handle_default_options(options):
     """
     Include any default options that all commands should accept here
@@ -46,6 +56,7 @@ def handle_default_options(options):
         os.environ['DJANGO_SETTINGS_MODULE'] = options.settings
     if options.pythonpath:
         sys.path.insert(0, options.pythonpath)
+
 
 class BaseCommand(object):
     """
@@ -140,7 +151,7 @@ class BaseCommand(object):
     # Configuration shortcuts that alter various logic.
     can_import_settings = True
     requires_model_validation = True
-    output_transaction = False # Whether to wrap the output in a "BEGIN; COMMIT;"
+    output_transaction = False  # Whether to wrap the output in a "BEGIN; COMMIT;"
 
     def __init__(self):
         self.style = color_style()
@@ -281,6 +292,7 @@ class BaseCommand(object):
         """
         raise NotImplementedError()
 
+
 class AppCommand(BaseCommand):
     """
     A management command which takes one or more installed application
@@ -315,6 +327,7 @@ class AppCommand(BaseCommand):
 
         """
         raise NotImplementedError()
+
 
 class LabelCommand(BaseCommand):
     """
@@ -351,6 +364,7 @@ class LabelCommand(BaseCommand):
         """
         raise NotImplementedError()
 
+
 class NoArgsCommand(BaseCommand):
     """
     A command which takes no arguments on the command line.
@@ -376,113 +390,204 @@ class NoArgsCommand(BaseCommand):
         """
         raise NotImplementedError()
 
-def copy_helper(style, app_or_project, name, directory=None, template=None, **options):
+
+class TemplateCommand(BaseCommand):
     """
     Copies either a Django application layout template or a Django project
     layout template into the specified directory.
 
-    style -- A color style object (see django.core.management.color).
-    app_or_project -- The string 'app' or 'project'.
-    name -- The name of the application or project.
-    directory -- The directory to which the layout template should be copied.
-    options -- The additional variables passed to project or app templates
+    :param style: A color style object (see django.core.management.color).
+    :param app_or_project: The string 'app' or 'project'.
+    :param name: The name of the application or project.
+    :param directory: The directory to which the layout template should be copied.
+    :param options: The additional variables passed to project or app templates
     """
-    if not re.search(r'^[_a-zA-Z]\w*$', name): # If it's not a valid directory name.
-        # Provide a smart error message, depending on the error.
-        if not re.search(r'^[_a-zA-Z]', name):
-            message = 'make sure the name begins with a letter or underscore'
+    args = "[name] [optional destination directory]"
+    option_list = BaseCommand.option_list + (
+        make_option('--template',
+                    action='store', dest='template',
+                    help='The dotted import path to load the template from.'),
+    )
+    requires_model_validation = False
+    # Can't import settings during this command, because they haven't
+    # necessarily been created.
+    can_import_settings = False
+    # The supported URL schemes
+    url_schemes = ['http', 'https', 'ftp']
+
+    def handle(self, app_or_project, name, directory=None, template=None, **options):
+        self.app_or_project = app_or_project
+        self.paths_to_remove = []
+        self.verbosity = int(options.get('verbosity'))
+
+        # if some directory is given, make sure it's nicely expanded
+        if directory is None:
+            directory = os.getcwd()
         else:
-            message = 'use only numbers, letters and underscores'
-        raise CommandError("%r is not a valid %s name. Please %s." %
-                           (name, app_or_project, message))
+            directory = path.expanduser(directory)
 
-    # if some directory is given, make sure it's nicely expanded
-    if directory is None:
-        directory = os.getcwd()
-    else:
-        directory = os.path.expanduser(directory)
-
-    top_dir = os.path.join(directory, name)
-    try:
-        os.makedirs(top_dir)
-    except OSError, e:
-        raise CommandError(e)
-
-    # Determine where the app or project templates are.
-    # Use django.__path__[0] as the default because we don't
-    # know into which directory Django has been installed.
-    if template is None:
-        base_dir = os.path.join(django.__path__[0], 'conf')
-    else:
+        top_dir = path.join(directory, name)
         try:
-            template_mod = import_module(template)
-        except ImportError:
-            raise CommandError("couldn't import %s template module %s." %
-                               (app_or_project, template))
-        if hasattr(template_mod, '__path__'):
-            # it's a package
-            base_dir = template_mod.__path__[0]
+            os.makedirs(top_dir)
+        except OSError, e:
+            raise CommandError(e)
+
+        base_subdir = '%s_template' % app_or_project
+        base_name = '%s_name' % app_or_project
+        base_directory = '%s_directory' % app_or_project
+
+        context = Context(dict(options, **{
+            base_name: name,
+            base_subdir: template or 'default',
+            base_directory: directory,
+        }))
+
+        if not re.search(r'^[_a-zA-Z]\w*$', name):  # If it's not a valid directory name.
+            # Provide a smart error message, depending on the error.
+            if not re.search(r'^[_a-zA-Z]', name):
+                message = 'make sure the name begins with a letter or underscore'
+            else:
+                message = 'use only numbers, letters and underscores'
+            raise CommandError("%r is not a valid %s name. Please %s." %
+                               (name, app_or_project, message))
+
+        # Setup a stub settings environment for template rendering
+        from django.conf import settings
+        if not settings.configured:
+            settings.configure()
+
+        template_dir = self.handle_template(template, base_subdir)
+        prefix_length = len(template_dir) + 1
+
+        for root, dirs, files in os.walk(template_dir):
+
+            path_rest = root[prefix_length:]
+            relative_dir = path_rest.replace(base_name, name)
+            if relative_dir:
+                target_dir = path.join(top_dir, relative_dir)
+                if not path.exists(target_dir):
+                    os.mkdir(target_dir)
+
+            for dirname in dirs[:]:
+                if dirname.startswith('.'):
+                    dirs.remove(dirname)
+
+            for filename in files:
+                if filename.endswith(('.pyo', '.pyc', '.py.class')):
+                    # Ignore some files as they cause various breakages.
+                    continue
+                old_path = path.join(root, filename)
+                new_path = path.join(top_dir, relative_dir,
+                                     filename.replace(base_name, name))
+                if path.exists(new_path):
+                    raise CommandError("%s already exists, overlaying a "
+                                       "project or app into an existing "
+                                       "directory won't replace conflicting "
+                                       "files" % new_path)
+
+                with open(old_path, 'r') as template_file:
+                    template = Template(template_file.read())
+                rendered_content = template.render(context)
+                with open(new_path, 'w') as new_file:
+                    new_file.write(rendered_content)
+                if self.verbosity >= 2:
+                    self.stdout.write("Creating %s\n" % new_path)
+                try:
+                    shutil.copymode(old_path, new_path)
+                    self.make_writeable(new_path)
+                except OSError:
+                    notice = self.style.NOTICE(
+                        "Notice: Couldn't set permission bits on %s. You're "
+                        "probably using an uncommon filesystem setup. No "
+                        "problem.\n" % new_path)
+                    sys.stderr.write(smart_str(notice))
+
+        if self.paths_to_remove:
+            if self.verbosity >= 2:
+                self.stdout.write("Cleaning up temporary files.\n")
+            for path_to_remove in self.paths_to_remove:
+                if os.path.isfile(path_to_remove):
+                    os.remove(path_to_remove)
+                else:
+                    shutil.rmtree(path_to_remove,
+                                  onerror=rmtree_errorhandler)
+
+    def handle_template(self, template, subdir):
+        """
+        Determines where the app or project templates are.
+        Use django.__path__[0] as the default because we don't
+        know into which directory Django has been installed.
+        """
+        if template is None:
+            return path.join(django.__path__[0], 'conf', subdir)
         else:
-            # it's a module, using the package enclosing it
-            base_dir = os.path.dirname(template_mod.__file__)
-    template_dir = os.path.join(base_dir, '%s_template' % app_or_project)
-    base_name = '%s_name' % app_or_project
+            if template.startswith('file://'):
+                template = template[7:]
+            expanded_template = path.expanduser(template)
+            if os.path.isdir(expanded_template):
+                return expanded_template
+            if self.is_url(template):
+                # downloads the file and returns the path
+                absolute_path = self.download(template)
+                self.paths_to_remove.append(absolute_path)
+            else:
+                absolute_path = path.abspath(expanded_template)
+            if os.path.exists(absolute_path):
+                return self.extract(absolute_path)
 
-    # Setup a stub settings environment for template rendering
-    from django.conf import settings
-    if not settings.configured:
-        settings.configure()
+        raise CommandError("couldn't handle %s template %s." %
+                           (self.app_or_project, template))
 
-    for d, subdirs, files in os.walk(template_dir):
-        relative_dir = d[len(template_dir) + 1:].replace(base_name, name)
-        if relative_dir:
-            target_dir = os.path.join(top_dir, relative_dir)
-            if not os.path.exists(target_dir):
-                os.mkdir(target_dir)
-        for subdir in subdirs[:]:
-            if subdir.startswith('.'):
-                subdirs.remove(subdir)
-        for f in files:
-            if not f.endswith('.py'):
-                # Ignore .pyc, .pyo, .py.class etc, as they cause various
-                # breakages.
-                continue
-            path_old = os.path.join(d, f)
-            path_new = os.path.join(top_dir, relative_dir, f.replace(base_name, name))
-            if os.path.exists(path_new):
-                raise CommandError("%s already exists, overlaying a project "
-                                   "or app into an existing directory won't "
-                                   "replace conflicting files" % path_new)
-            with open(path_old, 'r') as template_file:
-                template = Template(template_file.read())
-            context = Context(dict(options, **{
-                base_name: name,
-                '%s_directory' % app_or_project: top_dir,
-            }))
-            new_content = template.render(context)
-            with open(path_new, 'w') as file_new:
-                file_new.write(new_content)
-            try:
-                shutil.copymode(path_old, path_new)
-                _make_writeable(path_new)
-            except OSError:
-                notice = style.NOTICE("Notice: Couldn't set permission bits "
-                                      "on %s. You're probably using an "
-                                      "uncommon filesystem setup. No problem."
-                                      "\n" % path_new)
-                sys.stderr.write(notice)
+    def download(self, url):
+        """
+        Downloads the given URL and returns the file name.
+        """
+        tempdir = tempfile.gettempdir()
+        filename = path.join(tempdir, url.split('/')[-1])
+        if self.verbosity >= 2:
+            self.stdout.write("Downloading %s\n" % url)
+        try:
+            urllib.urlretrieve(url, filename)
+        except IOError, e:
+            raise CommandError("couldn't download URL %s to %s: %s" %
+                               (url, filename, e))
+        return filename
 
-def _make_writeable(filename):
-    """
-    Make sure that the file is writeable. Useful if our source is
-    read-only.
+    def extract(self, filename):
+        """
+        Extracts the given file to a temporarily and returns
+        the path of the directory with the extracted content.
+        """
+        prefix = 'django_%s_template_' % self.app_or_project
+        tempdir = tempfile.mkdtemp(prefix=prefix)
+        self.paths_to_remove.append(tempdir)
+        if self.verbosity >= 2:
+            self.stdout.write("Extracting %s\n" % filename)
+        try:
+            archive.extract(filename, tempdir)
+            return tempdir
+        except (archive.ArchiveException, IOError), e:
+            raise CommandError("couldn't extract file %s to %s: %s" %
+                               (filename, tempdir, e))
 
-    """
-    import stat
-    if sys.platform.startswith('java'):
-        # On Jython there is no os.access()
-        return
-    if not os.access(filename, os.W_OK):
-        st = os.stat(filename)
-        new_permissions = stat.S_IMODE(st.st_mode) | stat.S_IWUSR
-        os.chmod(filename, new_permissions)
+    def is_url(self, template):
+        """
+        Returns True if the name looks like a URL
+        """
+        if ':' not in template:
+            return False
+        scheme = template.split(':', 1)[0].lower()
+        return scheme in self.url_schemes
+
+    def make_writeable(self, filename):
+        """
+        Make sure that the file is writeable.
+        Useful if our source is read-only.
+        """
+        if sys.platform.startswith('java'):
+            # On Jython there is no os.access()
+            return
+        if not os.access(filename, os.W_OK):
+            st = os.stat(filename)
+            new_permissions = stat.S_IMODE(st.st_mode) | stat.S_IWUSR
+            os.chmod(filename, new_permissions)

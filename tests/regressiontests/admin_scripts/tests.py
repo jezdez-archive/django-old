@@ -51,7 +51,6 @@ class AdminScriptTestCase(unittest.TestCase):
         settings_file.close()
 
     def remove_settings(self, filename, is_dir=False):
-        test_dir = os.path.dirname(os.path.dirname(__file__))
         full_name = os.path.join(test_dir, filename)
         if is_dir:
             shutil.rmtree(full_name)
@@ -148,7 +147,6 @@ class AdminScriptTestCase(unittest.TestCase):
         conf_dir = os.path.dirname(conf.__file__)
         template_manage_py = os.path.join(conf_dir, 'project_template', 'manage.py')
 
-        test_dir = os.path.dirname(os.path.dirname(__file__))
         test_manage_py = os.path.join(test_dir, 'manage.py')
         shutil.copyfile(template_manage_py, test_manage_py)
 
@@ -565,7 +563,6 @@ class DjangoAdminSettingsDirectory(AdminScriptTestCase):
 
     def test_setup_environ(self):
         "directory: startapp creates the correct directory"
-        test_dir = os.path.dirname(os.path.dirname(__file__))
         args = ['startapp', 'settings_test']
         app_path = os.path.join(test_dir, 'settings_test')
         out, err = self.run_django_admin(args, 'regressiontests.settings')
@@ -575,8 +572,8 @@ class DjangoAdminSettingsDirectory(AdminScriptTestCase):
 
     def test_setup_environ_custom_template(self):
         "directory: startapp creates the correct directory with a custom template"
-        test_dir = os.path.dirname(os.path.dirname(__file__))
-        args = ['startapp', '--template', 'regressiontests.admin_scripts.custom_templates', 'custom_settings_test']
+        template_path = os.path.join(test_dir, 'admin_scripts', 'custom_templates', 'app_template')
+        args = ['startapp', '--template', template_path, 'custom_settings_test']
         app_path = os.path.join(test_dir, 'custom_settings_test')
         out, err = self.run_django_admin(args, 'regressiontests.settings')
         self.addCleanup(shutil.rmtree, app_path)
@@ -1006,7 +1003,6 @@ class ManageSettingsWithImportError(AdminScriptTestCase):
         self.remove_settings('settings.py')
 
     def write_settings_with_import_error(self, filename, apps=None, is_dir=False, sdict=None):
-        test_dir = os.path.dirname(os.path.dirname(__file__))
         if is_dir:
             settings_dir = os.path.join(test_dir, filename)
             os.mkdir(settings_dir)
@@ -1373,7 +1369,8 @@ class StartProject(AdminScriptTestCase):
 
     def test_custom_project_template(self):
         "Make sure the startproject management command is able to use a different project template"
-        args = ['startproject', '--template', 'regressiontests.admin_scripts.custom_templates', 'customtestproject']
+        template_path = os.path.join(test_dir, 'admin_scripts', 'custom_templates', 'project_template')
+        args = ['startproject', '--template', template_path, 'customtestproject']
         testproject_dir = os.path.join(test_dir, 'customtestproject')
 
         out, err = self.run_django_admin(args)
