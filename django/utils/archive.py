@@ -178,7 +178,7 @@ class ZipArchive(BaseArchive):
                 name = self.split_leading_dir(name)[1]
             filename = os.path.join(to_path, name)
             dirname = os.path.dirname(filename)
-            if not os.path.exists(dirname):
+            if dirname and not os.path.exists(dirname):
                 os.makedirs(dirname)
             if filename.endswith(('/', '\\')):
                 # A directory
