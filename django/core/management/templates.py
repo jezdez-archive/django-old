@@ -34,7 +34,7 @@ class TemplateCommand(BaseCommand):
     :param style: A color style object (see django.core.management.color).
     :param app_or_project: The string 'app' or 'project'.
     :param name: The name of the application or project.
-    :param directory: The directory to which the layout template should be copied.
+    :param directory: The directory to which the template should be copied.
     :param options: The additional variables passed to project or app templates
     """
     args = "[name] [optional destination directory]"
@@ -75,7 +75,8 @@ class TemplateCommand(BaseCommand):
         extensions = tuple(
             handle_extensions(options.get('extensions'), ignored=()))
         if self.verbosity >= 2:
-            self.stdout.write("Rendering %s template files with extensions: %s\n" %
+            self.stdout.write("Rendering %s template files with "
+                              "extensions: %s\n" %
                               (app_or_project, ', '.join(extensions)))
 
         base_name = '%s_name' % app_or_project
@@ -87,10 +88,12 @@ class TemplateCommand(BaseCommand):
             base_directory: top_dir,
         }))
 
-        if not re.search(r'^[_a-zA-Z]\w*$', name):  # If it's not a valid directory name.
+        # If it's not a valid directory name.
+        if not re.search(r'^[_a-zA-Z]\w*$', name):
             # Provide a smart error message, depending on the error.
             if not re.search(r'^[_a-zA-Z]', name):
-                message = 'make sure the name begins with a letter or underscore'
+                message = ('make sure the name begins '
+                           'with a letter or underscore')
             else:
                 message = 'use only numbers, letters and underscores'
             raise CommandError("%r is not a valid %s name. Please %s." %
@@ -200,7 +203,8 @@ class TemplateCommand(BaseCommand):
         if self.verbosity >= 2:
             self.stdout.write("Downloading %s\n" % url)
         try:
-            path, info = urllib.urlretrieve(url, os.path.join(tempdir, filename))
+            path, info = urllib.urlretrieve(url,
+                                            os.path.join(tempdir, filename))
         except IOError, e:
             raise CommandError("couldn't download URL %s to %s: %s" %
                                (url, filename, e))
