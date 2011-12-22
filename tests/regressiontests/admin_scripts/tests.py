@@ -16,6 +16,7 @@ from django import conf, bin, get_version
 from django.conf import settings
 from django.test.simple import DjangoTestSuiteRunner
 from django.utils import unittest
+from django.test import LiveServerTestCase
 
 test_dir = os.path.dirname(os.path.dirname(__file__))
 expected_query_re = re.compile(r'CREATE TABLE [`"]admin_scripts_article[`"]', re.IGNORECASE)
@@ -1374,7 +1375,7 @@ class ArgumentOrder(AdminScriptTestCase):
         self.assertOutput(out, "EXECUTE:BaseCommand labels=('testlabel',), options=[('option_a', 'x'), ('option_b', 'y'), ('option_c', '3'), ('pythonpath', None), ('settings', 'alternate_settings'), ('traceback', None), ('verbosity', '1')]")
 
 
-class StartProject(AdminScriptTestCase):
+class StartProject(LiveServerTestCase, AdminScriptTestCase):
 
     def test_wrong_args(self):
         "Make sure passing the wrong kinds of arguments raises a CommandError"
@@ -1440,7 +1441,7 @@ class StartProject(AdminScriptTestCase):
     def test_custom_project_template_from_tarball_by_url(self):
         "Make sure the startproject management command is able to use a different project template from a tarball via a url"
         template_path = os.path.join(test_dir, 'admin_scripts', 'custom_templates', 'project_template.tgz')
-        template_url = 'http://dl.dropbox.com/u/631204/project_template.tgz'
+        template_url = '%s/admin_scripts/custom_templates/project_template.tgz' % self.live_server_url
 
         args = ['startproject', '--template', template_url, 'urltestproject']
         testproject_dir = os.path.join(test_dir, 'urltestproject')
@@ -1449,4 +1450,4 @@ class StartProject(AdminScriptTestCase):
         self.assertNoOutput(err)
         self.assertTrue(os.path.isdir(testproject_dir))
         self.addCleanup(shutil.rmtree, testproject_dir)
-        self.assertTrue(os.path.exists(os.path.join(testproject_dir, 'manage.py')))
+        self.assertTrue(os.path.exists(os.path.join(testproject_dir, 'run.py')))
