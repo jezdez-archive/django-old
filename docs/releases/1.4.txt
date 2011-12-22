@@ -430,19 +430,22 @@ Custom project and app templates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The :djadmin:`startapp` and :djadmin:`startproject` management commands
-got a ``--template`` option for specifying import paths of packages
-containing custom app or project templates.
+got a ``--template`` option for specifying paths or URL to custom app or
+project templates.
 
-For example, Django will look for a ``project_template`` directory in the
-Python package ``foo.bar`` when running the following command::
+For example, Django will use the ``/path/to/my_project_template``
+directorywhen running the following command::
 
-    django-admin.py startproject --template=foo.bar myproject
+    django-admin.py startproject --template=/path/to/my_project_template myproject
 
 Additionally you can now provide a destination directory as the second
 argument to both :djadmin:`startapp` and :djadmin:`startproject`::
 
     django-admin.py startapp myapp /path/to/new/app
     django-admin.py startproject myproject /path/to/new/project
+
+For more information see the :djadmin:`startapp` and :djadmin:`startproject`
+documentation.
 
 Support for time zones
 ~~~~~~~~~~~~~~~~~~~~~~

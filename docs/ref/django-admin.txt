@@ -922,33 +922,40 @@ template files, see the `source`_ for more details. If only the app
 name is given, the app directory will be created in the current working
 directory.
 
-If the optional destination is provided, it will be used for the app
-directory. The use of '.' to denote the current working directory is
-valid for the destination.
+If the optional destination is provided, it will be used to create the
+the new app directory in. The use of '.' to denote the current working
+directory is valid for the destination. For example::
+
+    django-admin.py startapp myapp /Users/jezdez/Code
+
 
 .. versionadded:: 1.4
 .. django-admin-option:: --template
 
-With the ``--template`` option you can specify a dotted import path of the
-Python package to be used as the base dir when loading the app template,
-which is especially useful with custom app templates, e.g. provided by 3rd
-party packages.
+With the ``--template`` option you can use a custom app template by providing
+either the path to a directory with the app template file, a path to a
+compressed file (``.tar.gz``, ``.tar.bz2``, ``.tgz``, ``.tbz``, ``.zip``)
+containing the app template files.
 
-Django will look for a directory called ``app_template`` in the package
-with the given import path. The default is ``'django.conf'``.
+Additionally Django will also accept URLs (``http``, ``https``, ``ftp``) to
+compressed archives with the app template files, downloading and extracting
+them on the fly.
 
-For example this would look for the ``app_template`` directory in a
-``foo.bar`` package when creating the ``myapp`` app::
+For example, this would look for an app template in the given directory when creating the ``myapp`` app::
 
-    django-admin.py startapp --template=foo.bar myapp
+    django-admin.py startapp --template=/Users/jezdez/Code/my_app_template myapp
 
-When Django copies the app template files it will also render them using
-the template engine with a :class:`template context
-<django.template.Context>` like this:
+.. versionadded:: 1.4
+.. django-admin-option:: --extension
+
+When Django copies the app template files it will also render the files
+whose extension matches those passed with the ``--extension`` option (``py``
+by default) using the template engine. The :class:`template context
+<django.template.Context>` used is:
 
 - Any option passed to the startapp command
-- ``app_name`` -- the project name as passed to the command
-- ``app_directory`` -- the full path of the newly created project
+- ``app_name`` -- the appp name as passed to the command
+- ``app_directory`` -- the full path of the newly created app
 
 .. _source: https://code.djangoproject.com/browser/django/trunk/django/conf/app_template/
 
@@ -970,28 +977,28 @@ If only the project name is given, both the project directory and project
 package will be named ``<projectname>`` and the project directory
 will be created in the current working directory.
 
-If the optional destination is provided, it will be used as the location of
-the new project. The use of '.' to denote the current working directory is
-valid for the destination.
+If the optional destination is provided, it will be used to create the
+the new project directory in. The use of '.' to denote the current working
+directory is valid for the destination. For example::
+
+    django-admin.py startproject myproject /Users/jezdez/Code
 
 .. versionadded:: 1.4
 
 Similar to the :djadmin:`startapp` command the ``--template`` option is also
-available for specifying a dotted import path of the Python package to be
-used as the base dir when loading the project template. This is especially
-useful with custom project templates, e.g. provided by 3rd party packages.
+available for specifying a directory or file path of a custom project
+template. See the :djadmin:`startapp` documentation for details of supported
+project template formats.
 
-Django will look for a directory called ``project_template`` in the package
-with the given import path. The default is ``'django.conf'``.
+For example, this would look for a project template in the given directory
+when creating the ``myproject`` project::
 
-For example, this looks in a ``foo.bar`` package for the ``project_template``
-directory and creates a project named ``myproject``::
+    django-admin.py startproject --template=/Users/jezdez/Code/my_project_template myproject
 
-    django-admin.py startproject --template=foo.bar myproject
-
-When Django copies the project template files it will also render them using
-the template engine and with a :class:`template context
-<django.template.Context>` like this:
+When Django copies the project template files it will also render the files
+whose extension matches those passed with the ``--extension`` option (``py``
+by default) using the template engine. The :class:`template context
+<django.template.Context>` used is:
 
 - Any option passed to the startproject command
 - ``project_name`` -- the project name as passed to the command
