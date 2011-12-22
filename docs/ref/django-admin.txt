@@ -946,7 +946,6 @@ For example, this would look for an app template in the given directory when cre
     django-admin.py startapp --template=/Users/jezdez/Code/my_app_template myapp
 
 .. versionadded:: 1.4
-.. django-admin-option:: --extension
 
 When Django copies the app template files it will also render the files
 whose extension matches those passed with the ``--extension`` option (``py``
@@ -956,6 +955,19 @@ by default) using the template engine. The :class:`template context
 - Any option passed to the startapp command
 - ``app_name`` -- the appp name as passed to the command
 - ``app_directory`` -- the full path of the newly created app
+
+.. _render_warning:
+
+.. warning::
+
+    When the app template files are rendered with the Django template
+    engine (by default all ``*.py`` files) it will also replace all
+    stray template variables contained. If one of the Python files for
+    example contains a docstring explaining a particular feature related
+    to template rendering, it might result in an incorrect example.
+
+    To work around this problem you can use the :ttag:`templatetag`
+    templatetag to "escape" the various parts of the template syntax.
 
 .. _source: https://code.djangoproject.com/browser/django/trunk/django/conf/app_template/
 
@@ -1004,6 +1016,9 @@ by default) using the template engine. The :class:`template context
 - ``project_name`` -- the project name as passed to the command
 - ``project_directory`` -- the full path of the newly created project
 - ``secret_key`` -- a random key for the :setting:`SECRET_KEY` setting
+
+Please also see the :ref:`rendering warning <render_warning>` as mentioned
+for :djadmin:`startapp`.
 
 .. _`template source`: https://code.djangoproject.com/browser/django/trunk/django/conf/project_template/
 
