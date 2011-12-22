@@ -1,4 +1,5 @@
-from django.core.management.base import TemplateCommand, CommandError
+from django.core.management.base import CommandError
+from django.core.management.templates import TemplateCommand
 from django.utils.importlib import import_module
 
 
@@ -7,7 +8,7 @@ class Command(TemplateCommand):
             "name in the current directory or optionally in the given "
             "directory.")
 
-    def handle(self, app_name=None, directory=None, **options):
+    def handle(self, app_name=None, **options):
         if app_name is None:
             raise CommandError("you must provide an app name")
 

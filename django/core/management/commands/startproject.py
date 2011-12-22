@@ -1,6 +1,7 @@
 from random import choice
 
-from django.core.management.base import TemplateCommand, CommandError
+from django.core.management.base import CommandError
+from django.core.management.templates import TemplateCommand
 from django.utils.importlib import import_module
 
 
@@ -9,7 +10,7 @@ class Command(TemplateCommand):
             "project name in the current directory or optionally in the "
             "given directory.")
 
-    def handle(self, project_name=None, directory=None, *args, **options):
+    def handle(self, project_name=None, *args, **options):
         if project_name is None:
             raise CommandError("you must provide a project name")
 
@@ -28,4 +29,4 @@ class Command(TemplateCommand):
         chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)'
         options['secret_key'] = ''.join([choice(chars) for i in range(50)])
 
-        super(Command, self).handle('project', project_name, directory, **options)
+        super(Command, self).handle('project', project_name, **options)
