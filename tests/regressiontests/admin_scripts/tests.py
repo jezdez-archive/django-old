@@ -18,6 +18,7 @@ from django.test.simple import DjangoTestSuiteRunner
 from django.utils import unittest
 
 test_dir = os.path.dirname(os.path.dirname(__file__))
+expected_query_re = re.compile(r'CREATE TABLE [`"]admin_scripts_article[`"]', re.IGNORECASE)
 
 
 class AdminScriptTestCase(unittest.TestCase):
@@ -876,7 +877,6 @@ class ManageAlternateSettings(AdminScriptTestCase):
         "alternate: manage.py builtin commands work with settings provided as argument"
         args = ['sqlall', '--settings=alternate_settings', 'admin_scripts']
         out, err = self.run_manage(args)
-        expected_query_re = re.compile('CREATE TABLE [`"]admin_scripts_article[`"]', re.IGNORECASE)
         self.assertRegexpMatches(out, expected_query_re)
         self.assertNoOutput(err)
 
@@ -884,7 +884,6 @@ class ManageAlternateSettings(AdminScriptTestCase):
         "alternate: manage.py builtin commands work if settings are provided in the environment"
         args = ['sqlall', 'admin_scripts']
         out, err = self.run_manage(args, 'alternate_settings')
-        expected_query_re = re.compile('CREATE TABLE [`"]admin_scripts_article[`"]', re.IGNORECASE)
         self.assertRegexpMatches(out, expected_query_re)
         self.assertNoOutput(err)
 
