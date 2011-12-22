@@ -55,18 +55,18 @@ class TemplateCommand(BaseCommand):
     # The supported URL schemes
     url_schemes = ['http', 'https', 'ftp']
 
-    def handle(self, app_or_project, name, directory=None, template=None, **options):
+    def handle(self, app_or_project, name, target=None, **options):
         self.app_or_project = app_or_project
         self.paths_to_remove = []
         self.verbosity = int(options.get('verbosity'))
 
         # if some directory is given, make sure it's nicely expanded
-        if directory is None:
-            directory = os.getcwd()
+        if target is None:
+            target = os.getcwd()
         else:
-            directory = path.expanduser(directory)
+            target = path.expanduser(target)
 
-        top_dir = path.join(directory, name)
+        top_dir = path.join(target, name)
         try:
             os.makedirs(top_dir)
         except OSError, e:
@@ -78,14 +78,13 @@ class TemplateCommand(BaseCommand):
             self.stdout.write("Rendering %s template files with extensions: %s\n" %
                               (app_or_project, ', '.join(extensions)))
 
-        base_subdir = '%s_template' % app_or_project
         base_name = '%s_name' % app_or_project
+        base_subdir = '%s_template' % app_or_project
         base_directory = '%s_directory' % app_or_project
 
         context = Context(dict(options, **{
             base_name: name,
-            base_subdir: template or 'default',
-            base_directory: directory,
+            base_directory: top_dir,
         }))
 
         if not re.search(r'^[_a-zA-Z]\w*$', name):  # If it's not a valid directory name.
@@ -102,7 +101,8 @@ class TemplateCommand(BaseCommand):
         if not settings.configured:
             settings.configure()
 
-        template_dir = self.handle_template(template, base_subdir)
+        template_dir = self.handle_template(options.get('template'),
+                                            base_subdir)
         prefix_length = len(template_dir) + 1
 
         for root, dirs, files in os.walk(template_dir):
@@ -195,7 +195,7 @@ class TemplateCommand(BaseCommand):
         """
         prefix = 'django_%s_template_' % self.app_or_project
         tempdir = tempfile.mkdtemp(prefix=prefix, suffix='_download')
-        # self.paths_to_remove.append(tempdir)
+        self.paths_to_remove.append(tempdir)
         filename = url.split('/')[-1]
 
         if self.verbosity >= 2:
@@ -224,6 +224,8 @@ class TemplateCommand(BaseCommand):
             if ext:
                 guessed_filename += ext
 
+        # Move the temporary file to a filename that has better
+        # chances of being recognnized by the archive utils
         if used_name != guessed_filename:
             guessed_path = os.path.join(tempdir, guessed_filename)
             shutil.move(path, guessed_path)

@@ -8,7 +8,7 @@ class Command(TemplateCommand):
             "name in the current directory or optionally in the given "
             "directory.")
 
-    def handle(self, app_name=None, **options):
+    def handle(self, app_name=None, target=None, **options):
         if app_name is None:
             raise CommandError("you must provide an app name")
 
@@ -22,4 +22,4 @@ class Command(TemplateCommand):
                                "Python module and cannot be used as an app "
                                "name. Please try another name." % app_name)
 
-        super(Command, self).handle('app', app_name, directory, **options)
+        super(Command, self).handle('app', app_name, target, **options)

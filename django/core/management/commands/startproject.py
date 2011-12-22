@@ -10,7 +10,7 @@ class Command(TemplateCommand):
             "project name in the current directory or optionally in the "
             "given directory.")
 
-    def handle(self, project_name=None, *args, **options):
+    def handle(self, project_name=None, target=None, *args, **options):
         if project_name is None:
             raise CommandError("you must provide a project name")
 
@@ -29,4 +29,4 @@ class Command(TemplateCommand):
         chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)'
         options['secret_key'] = ''.join([choice(chars) for i in range(50)])
 
-        super(Command, self).handle('project', project_name, **options)
+        super(Command, self).handle('project', project_name, target, **options)
