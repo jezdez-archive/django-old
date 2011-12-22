@@ -180,7 +180,6 @@ class TemplateCommand(BaseCommand):
             if self.is_url(template):
                 # downloads the file and returns the path
                 absolute_path = self.download(template)
-                self.paths_to_remove.append(absolute_path)
             else:
                 absolute_path = path.abspath(expanded_template)
             if os.path.exists(absolute_path):

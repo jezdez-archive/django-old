@@ -6,10 +6,11 @@ and default settings.py files.
 from __future__ import with_statement
 
 import os
+import re
 import shutil
 import socket
 import sys
-import re
+import urllib
 
 from django import conf, bin, get_version
 from django.conf import settings
@@ -1359,7 +1360,8 @@ class StartProject(AdminScriptTestCase):
 
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
-        self.assertTrue(os.path.isdir(testproject_dir))
+        self.assertTrue(os.path.isdir(os.path.join(testproject_dir, 'testproject')))
+        self.assertTrue(os.path.exists(os.path.join(testproject_dir, 'testproject', 'manage.py')))
         self.addCleanup(shutil.rmtree, testproject_dir)
 
         # running again..
@@ -1377,4 +1379,30 @@ class StartProject(AdminScriptTestCase):
         self.assertNoOutput(err)
         self.assertTrue(os.path.isdir(testproject_dir))
         self.addCleanup(shutil.rmtree, testproject_dir)
-        self.assertTrue(os.path.join(testproject_dir, 'additional_dir'))
+        self.assertTrue(os.path.exists(os.path.join(testproject_dir, 'additional_dir')))
+
+    def test_custom_project_template_from_tarball_by_path(self):
+        "Make sure the startproject management command is able to use a different project template from a tarball"
+        template_path = os.path.join(test_dir, 'admin_scripts', 'custom_templates', 'project_template.tgz')
+        args = ['startproject', '--template', template_path, 'tarballtestproject']
+        testproject_dir = os.path.join(test_dir, 'tarballtestproject')
+
+        out, err = self.run_django_admin(args)
+        self.assertNoOutput(err)
+        self.assertTrue(os.path.isdir(testproject_dir))
+        self.addCleanup(shutil.rmtree, testproject_dir)
+        self.assertTrue(os.path.exists(os.path.join(testproject_dir, 'run.py')))
+
+    def test_custom_project_template_from_tarball_by_url(self):
+        "Make sure the startproject management command is able to use a different project template from a tarball via a url"
+        template_path = os.path.join(test_dir, 'admin_scripts', 'custom_templates', 'project_template.tgz')
+        template_url = 'http://dl.dropbox.com/u/631204/project_template.tgz'
+
+        args = ['startproject', '--template', template_url, 'urltestproject']
+        testproject_dir = os.path.join(test_dir, 'urltestproject')
+
+        out, err = self.run_django_admin(args)
+        self.assertNoOutput(err)
+        self.assertTrue(os.path.isdir(testproject_dir))
+        self.addCleanup(shutil.rmtree, testproject_dir)
+        self.assertTrue(os.path.exists(os.path.join(testproject_dir, 'manage.py')))
