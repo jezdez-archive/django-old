@@ -220,6 +220,22 @@ class HTMLEqualTests(TestCase):
         self.assertEqual(dom.name, 'p')
         self.assertEqual(dom[0], 'foo')
 
+    def test_parse_html_in_script(self):
+        from django.test.html import parse_html
+        parse_html('<script>var a = "<p" + ">";</script>');
+        parse_html('''
+            <script>
+            var js_sha_link='<p>***</p>';
+            </script>
+        ''')
+
+        # script content will be parsed to text
+        dom = parse_html('''
+            <script><p>foo</p> '</scr'+'ipt>' <span>bar</span></script>
+        ''')
+        self.assertEqual(len(dom.children), 1)
+        self.assertEqual(dom.children[0], "<p>foo</p> '</scr'+'ipt>' <span>bar</span>")
+
     def test_self_closing_tags(self):
         from django.test.html import parse_html
 

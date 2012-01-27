@@ -2,7 +2,8 @@
 Comparing two html documents.
 '''
 import re
-from HTMLParser import HTMLParser, HTMLParseError
+from HTMLParser import HTMLParseError
+from django.utils.htmlparser import HTMLParser
 
 
 WHITESPACE = re.compile('\s+')
