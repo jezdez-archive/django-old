@@ -620,14 +620,27 @@ class Select(Widget):
         context = super(Select, self).get_context(name, value, attrs=attrs, extra_context=extra_context, **kwargs)
 
         final_choices = []
+        if self.allow_multiple_selected:
+            string_value = [force_unicode(v) for v in value]
+        else:
+            string_value = force_unicode(value)
+        selected_count = 0
         for option_value, option_label in chain(self.choices, choices):
             if isinstance(option_label, (list, tuple)):
                 optgroup = {'label': force_unicode(option_value),
                             'choices': option_label}
                 final_choices.append(optgroup)
             else:
-                final_choices.append((force_unicode(option_value),
-                                      option_label))
+                selected = False
+                option_value = force_unicode(option_value)
+                if self.allow_multiple_selected:
+                    if option_value in string_value:
+                        selected = True
+                else:
+                    if selected_count < 1 and option_value == string_value:
+                        selected = True
+                        selected_count = 1
+                final_choices.append((option_value, option_label, selected))
         context.update({
             'allow_multiple_selected': self.allow_multiple_selected,
             'choices': final_choices,
