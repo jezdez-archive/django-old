@@ -975,15 +975,16 @@ class ResponseTemplateDeprecationTests(TestCase):
 
 class ReadLimitedStreamTest(TestCase):
     """
-    Tests that ensure that HttpRequest.raw_post_data, HttpRequest.read() and
-    HttpRequest.read(BUFFER) have proper LimitedStream behaviour.
+    Tests that ensure that HttpRequest.body, HttpRequest.read() and
+    HttpRequest.read(BUFFER) have proper LimitedStream behavior.
 
     Refs #14753, #15785
     """
-    def test_raw_post_data_from_empty_request(self):
-        """HttpRequest.raw_post_data on a test client GET request should return
+
+    def test_body_from_empty_request(self):
+        """HttpRequest.body on a test client GET request should return
         the empty string."""
-        self.assertEquals(self.client.get("/test_client_regress/raw_post_data/").content, '')
+        self.assertEquals(self.client.get("/test_client_regress/body/").content, '')
 
     def test_read_from_empty_request(self):
         """HttpRequest.read() on a test client GET request should return the
@@ -1016,7 +1017,7 @@ class RequestFactoryStateTest(TestCase):
     """Regression tests for #15929."""
     # These tests are checking that certain middleware don't change certain
     # global state. Alternatively, from the point of view of a test, they are
-    # ensuring test isolation behaviour. So, unusually, it doesn't make sense to
+    # ensuring test isolation behavior. So, unusually, it doesn't make sense to
     # run the tests individually, and if any are failing it is confusing to run
     # them with any other set of tests.
 

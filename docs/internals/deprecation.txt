@@ -186,6 +186,12 @@ these changes.
   performance issues and will follow a slightly accelerated deprecation
   timeframe.
 
+* Translations located under the so-called *project path* will be ignored during
+  the translation building process performed at runtime. The
+  :setting:`LOCALE_PATHS` setting can be used for the same task by including the
+  filesystem path to a ``locale`` directory containing non-app-specific
+  translations in its value.
+
 1.6
 ---
 
@@ -257,8 +263,12 @@ these changes.
 * Setting the ``is_safe`` and ``needs_autoescape`` flags as attributes of
   template filter functions will no longer be supported.
 
-    * The automatic addition of the form templates loader will be removed in
-      Django 1.6.
+* The attribute ``HttpRequest.raw_post_data`` was renamed to ``HttpRequest.body``
+  in 1.4. The backward compatibility will be removed --
+  ``HttpRequest.raw_post_data`` will no longer work.
+
+* The automatic addition of the form templates loader will be removed in
+  Django 1.6.
 
 2.0
 ---

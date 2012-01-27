@@ -7,6 +7,7 @@ from __future__ import with_statement, absolute_import
 import hashlib
 import os
 import re
+import StringIO
 import tempfile
 import time
 import warnings
@@ -28,6 +29,7 @@ from django.test.utils import (get_warnings_state, restore_warnings_state,
 from django.utils import timezone, translation, unittest
 from django.utils.cache import (patch_vary_headers, get_cache_key,
     learn_cache_key, patch_cache_control, patch_response_headers)
+from django.utils.encoding import force_unicode
 from django.views.decorators.cache import cache_page
 
 from .models import Poll, expensive_calculation
@@ -175,6 +177,17 @@ class DummyCacheTests(unittest.TestCase):
 
 class BaseCacheTests(object):
     # A common set of tests to apply to all cache backends
+
+    def _get_request_cache(self, path):
+        request = HttpRequest()
+        request.META = {
+            'SERVER_NAME': 'testserver',
+            'SERVER_PORT': 80,
+        }
+        request.path = request.path_info = path
+        request._cache_update_cache = True
+        request.method = 'GET'
+        return request
 
     def test_simple(self):
         # Simple cache set/get works
@@ -741,6 +754,35 @@ class BaseCacheTests(object):
         self.assertEqual(self.custom_key_cache2.get('answer2'), 42)
 
 
+    def test_cache_write_unpickable_object(self):
+        update_middleware = UpdateCacheMiddleware()
+        update_middleware.cache = self.cache
+
+        fetch_middleware = FetchFromCacheMiddleware()
+        fetch_middleware.cache = self.cache
+
+        request = self._get_request_cache('/cache/test')
+        get_cache_data = FetchFromCacheMiddleware().process_request(request)
+        self.assertEqual(get_cache_data, None)
+
+        response = HttpResponse()
+        content = 'Testing cookie serialization.'
+        response.content = content
+        response.set_cookie('foo', 'bar')
+
+        update_middleware.process_response(request, response)
+
+        get_cache_data = fetch_middleware.process_request(request)
+        self.assertNotEqual(get_cache_data, None)
+        self.assertEqual(get_cache_data.content, content)
+        self.assertEqual(get_cache_data.cookies, response.cookies)
+
+        update_middleware.process_response(request, get_cache_data)
+        get_cache_data = fetch_middleware.process_request(request)
+        self.assertNotEqual(get_cache_data, None)
+        self.assertEqual(get_cache_data.content, content)
+        self.assertEqual(get_cache_data.cookies, response.cookies)
+
 def custom_key_func(key, key_prefix, version):
     "A customized cache key function"
     return 'CUSTOM-' + '-'.join([key_prefix, str(version), key])
@@ -775,6 +817,11 @@ class DBCacheTests(BaseCacheTests, TransactionTestCase):
     def test_old_initialization(self):
         self.cache = get_cache('db://%s?max_entries=30&cull_frequency=0' % self._table_name)
         self.perform_cull_test(50, 18)
+
+    def test_second_call_doesnt_crash(self):
+        err = StringIO.StringIO()
+        management.call_command('createcachetable', self._table_name, verbosity=0, interactive=False, stderr=err)
+        self.assertTrue("Cache table 'test cache table' could not be created" in err.getvalue())
 
 
 DBCacheWithTimeZoneTests = override_settings(USE_TZ=True)(DBCacheTests)
@@ -1230,7 +1277,10 @@ class CacheI18nTest(TestCase):
     @override_settings(USE_I18N=False, USE_L10N=False, USE_TZ=True)
     def test_cache_key_i18n_timezone(self):
         request = self._get_request()
-        tz = timezone.get_current_timezone_name()
+        # This is tightly coupled to the implementation,
+        # but it's the most straightforward way to test the key.
+        tz = force_unicode(timezone.get_current_timezone_name(), errors='ignore')
+        tz = tz.encode('ascii', 'ignore').replace(' ', '_')
         response = HttpResponse()
         key = learn_cache_key(request, response)
         self.assertIn(tz, key, "Cache keys should include the time zone name when time zones are active")
@@ -1241,11 +1291,34 @@ class CacheI18nTest(TestCase):
     def test_cache_key_no_i18n (self):
         request = self._get_request()
         lang = translation.get_language()
-        tz = timezone.get_current_timezone_name()
+        tz = force_unicode(timezone.get_current_timezone_name(), errors='ignore')
+        tz = tz.encode('ascii', 'ignore').replace(' ', '_')
         response = HttpResponse()
         key = learn_cache_key(request, response)
         self.assertNotIn(lang, key, "Cache keys shouldn't include the language name when i18n isn't active")
         self.assertNotIn(tz, key, "Cache keys shouldn't include the time zone name when i18n isn't active")
+
+    @override_settings(USE_I18N=False, USE_L10N=False, USE_TZ=True)
+    def test_cache_key_with_non_ascii_tzname(self):
+        # Regression test for #17476
+        class CustomTzName(timezone.UTC):
+            name = ''
+            def tzname(self, dt):
+                return self.name
+
+        request = self._get_request()
+        response = HttpResponse()
+        with timezone.override(CustomTzName()):
+            CustomTzName.name = 'Hora estándar de Argentina'    # UTF-8 string
+            sanitized_name = 'Hora_estndar_de_Argentina'
+            self.assertIn(sanitized_name, learn_cache_key(request, response),
+                    "Cache keys should include the time zone name when time zones are active")
+
+            CustomTzName.name = u'Hora estándar de Argentina'    # unicode
+            sanitized_name = 'Hora_estndar_de_Argentina'
+            self.assertIn(sanitized_name, learn_cache_key(request, response),
+                    "Cache keys should include the time zone name when time zones are active")
+
 
     @override_settings(
             CACHE_MIDDLEWARE_KEY_PREFIX="test",

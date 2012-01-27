@@ -17,7 +17,7 @@ from django.conf import settings
 __all__ = [
     'utc', 'get_default_timezone', 'get_current_timezone',
     'activate', 'deactivate', 'override',
-    'localtime', 'isnaive',
+    'localtime', 'is_naive', 'is_aware', 'make_aware', 'make_naive',
 ]
 
 
@@ -267,5 +267,5 @@ def make_naive(value, timezone):
     value = value.astimezone(timezone)
     if hasattr(timezone, 'normalize'):
         # available for pytz time zones
-        return timezone.normalize(value)
+        value = timezone.normalize(value)
     return value.replace(tzinfo=None)

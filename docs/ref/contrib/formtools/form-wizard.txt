@@ -206,8 +206,8 @@ Here's a full example template:
     {% endif %}
     </table>
     {% if wizard.steps.prev %}
-    <button name="wizard_prev_step" type="submit" value="{{ wizard.steps.first }}">{% trans "first step" %}</button>
-    <button name="wizard_prev_step" type="submit" value="{{ wizard.steps.prev }}">{% trans "prev step" %}</button>
+    <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.first }}">{% trans "first step" %}</button>
+    <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}">{% trans "prev step" %}</button>
     {% endif %}
     <input type="submit" value="{% trans "submit" %}"/>
     </form>
@@ -309,33 +309,26 @@ Advanced ``WizardView`` methods
     Example to add extra variables for a specific step::
 
         def get_context_data(self, form, **kwargs):
-            context = super(MyWizard, self).get_context_data(form, **kwargs)
+            context = super(MyWizard, self).get_context_data(form=form, **kwargs)
             if self.steps.current == 'my_step_name':
                 context.update({'another_var': True})
             return context
 
-.. method:: WizardView.get_wizard_name()
+.. method:: WizardView.get_prefix(*args, **kwargs)
 
-    This method can be used to change the wizard's internal name.
-
-    Default implementation::
-
-        def get_wizard_name(self):
-            return normalize_name(self.__class__.__name__)
-
-.. method:: WizardView.get_prefix()
-
-    This method returns a prefix for the storage backends. These backends use
-    the prefix to fetch the correct data for the wizard. (Multiple wizards
-    could save their data in one session)
+    This method returns a prefix for use by the storage backends. Backends use
+    the prefix as a mechanism to allow data to be stored separately for each
+    wizard. This allows wizards to store their data in a single backend
+    without overwriting each other.
 
     You can change this method to make the wizard data prefix more unique to,
     e.g. have multiple instances of one wizard in one session.
 
     Default implementation::
 
-        def get_prefix(self):
-            return self.wizard_name
+        def get_prefix(self, *args, **kwargs):
+            # use the lowercase underscore version of the class name
+            return normalize_name(self.__class__.__name__)
 
 .. method:: WizardView.get_form(step=None, data=None, files=None)
 
@@ -436,7 +429,7 @@ Advanced ``WizardView`` methods
 
         def render(self, form=None, **kwargs):
             form = form or self.get_form()
-            context = self.get_context_data(form, **kwargs)
+            context = self.get_context_data(form=form, **kwargs)
             return self.render_to_response(context)
 
 Providing initial data for the forms
@@ -564,8 +557,8 @@ an ``instance_dict`` argument that should contain instances of ``ModelForm`` and
 ``ModelFormSet``.  Similarly to :attr:`~WizardView.initial_dict`, these
 dictionary key values should be equal to the step number in the form list.
 
-Usage of NamedUrlWizardView
-===========================
+Usage of ``NamedUrlWizardView``
+===============================
 
 .. class:: NamedUrlWizardView
 
@@ -602,3 +595,15 @@ Example code for the changed ``urls.py`` file::
         url(r'^contact/(?P<step>.+)/$', contact_wizard, name='contact_step'),
         url(r'^contact/$', contact_wizard, name='contact'),
     )
+
+Advanced ``NamedUrlWizardView`` methods
+=======================================
+
+.. method:: NamedUrlWizardView.get_step_url(step)
+
+    This method returns the URL for a specific step.
+
+    Default implementation::
+
+        def get_step_url(self, step):
+            return reverse(self.url_name, kwargs={'step': step})

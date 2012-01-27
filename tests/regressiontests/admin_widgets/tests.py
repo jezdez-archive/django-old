@@ -7,6 +7,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin import widgets
+from django.contrib.admin.tests import AdminSeleniumWebDriverTestCase
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import DateField
@@ -417,3 +418,52 @@ class AdminRadioSelectTests(DjangoTestCase):
         rendered = w.render('foo', 1, attrs={'class': 'RadioSelect'},
                             choices=(('1', 'one'), ('2', 'two')))
         self.assertTrue('<ul class="RadioSelect">' in rendered, rendered)
+
+
+class SeleniumFirefoxTests(AdminSeleniumWebDriverTestCase):
+    webdriver_class = 'selenium.webdriver.firefox.webdriver.WebDriver'
+    fixtures = ['admin-widgets-users.xml']
+    urls = "regressiontests.admin_widgets.urls"
+
+    def test_show_hide_date_time_picker_widgets(self):
+        """
+        Ensure that pressing the ESC key closes the date and time picker
+        widgets.
+        Refs #17064.
+        """
+        from selenium.webdriver.common.keys import Keys
+
+        self.admin_login(username='super', password='secret', login_url='/')
+        # Open a page that has a date and time picker widgets
+        self.selenium.get('%s%s' % (self.live_server_url,
+            '/admin_widgets/member/add/'))
+
+        # First, with the date picker widget ---------------------------------
+        # Check that the date picker is hidden
+        self.assertEqual(
+            self.get_css_value('#calendarbox0', 'display'), 'none')
+        # Click the calendar icon
+        self.selenium.find_element_by_id('calendarlink0').click()
+        # Check that the date picker is visible
+        self.assertEqual(
+            self.get_css_value('#calendarbox0', 'display'), 'block')
+        # Press the ESC key
+        self.selenium.find_element_by_tag_name('html').send_keys([Keys.ESCAPE])
+        # Check that the date picker is hidden again
+        self.assertEqual(
+            self.get_css_value('#calendarbox0', 'display'), 'none')
+
+        # Then, with the time picker widget ----------------------------------
+        # Check that the time picker is hidden
+        self.assertEqual(
+            self.get_css_value('#clockbox0', 'display'), 'none')
+        # Click the time icon
+        self.selenium.find_element_by_id('clocklink0').click()
+        # Check that the time picker is visible
+        self.assertEqual(
+            self.get_css_value('#clockbox0', 'display'), 'block')
+        # Press the ESC key
+        self.selenium.find_element_by_tag_name('html').send_keys([Keys.ESCAPE])
+        # Check that the time picker is hidden again
+        self.assertEqual(
+            self.get_css_value('#clockbox0', 'display'), 'none')

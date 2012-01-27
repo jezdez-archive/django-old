@@ -75,9 +75,9 @@ class MailTests(TestCase):
         """
         Test for space continuation character in long (ascii) subject headers (#7747)
         """
-        email = EmailMessage('Long subject lines that get wrapped should use a space continuation character to get expected behaviour in Outlook and Thunderbird', 'Content', 'from@example.com', ['to@example.com'])
+        email = EmailMessage('Long subject lines that get wrapped should use a space continuation character to get expected behavior in Outlook and Thunderbird', 'Content', 'from@example.com', ['to@example.com'])
         message = email.message()
-        self.assertEqual(message['Subject'], 'Long subject lines that get wrapped should use a space continuation\n character to get expected behaviour in Outlook and Thunderbird')
+        self.assertEqual(message['Subject'], 'Long subject lines that get wrapped should use a space continuation\n character to get expected behavior in Outlook and Thunderbird')
 
     def test_message_header_overrides(self):
         """
@@ -95,6 +95,24 @@ class MailTests(TestCase):
         email = EmailMessage('Subject', 'Content', 'bounce@example.com', ['to@example.com'], headers={'From': 'from@example.com'})
         message = email.message()
         self.assertEqual(message['From'], 'from@example.com')
+
+    def test_to_header(self):
+        """
+        Make sure we can manually set the To header (#17444)
+        """
+        email = EmailMessage('Subject', 'Content', 'bounce@example.com',
+                             ['list-subscriber@example.com', 'list-subscriber2@example.com'],
+                             headers={'To': 'mailing-list@example.com'})
+        message = email.message()
+        self.assertEqual(message['To'], 'mailing-list@example.com')
+        self.assertEqual(email.to, ['list-subscriber@example.com', 'list-subscriber2@example.com'])
+
+        # If we don't set the To header manually, it should default to the `to` argument to the constructor
+        email = EmailMessage('Subject', 'Content', 'bounce@example.com',
+                             ['list-subscriber@example.com', 'list-subscriber2@example.com'])
+        message = email.message()
+        self.assertEqual(message['To'], 'list-subscriber@example.com, list-subscriber2@example.com')
+        self.assertEqual(email.to, ['list-subscriber@example.com', 'list-subscriber2@example.com'])
 
     def test_multiple_message_call(self):
         """
@@ -179,6 +197,19 @@ class MailTests(TestCase):
         payload = message.get_payload()
         self.assertEqual(payload[0].get_content_type(), 'multipart/alternative')
         self.assertEqual(payload[1].get_content_type(), 'application/pdf')
+
+    def test_non_ascii_attachment_filename(self):
+        """Regression test for #14964"""
+        headers = {"Date": "Fri, 09 Nov 2001 01:08:47 -0000", "Message-ID": "foo"}
+        subject, from_email, to = 'hello', 'from@example.com', 'to@example.com'
+        content = 'This is the message.'
+        msg = EmailMessage(subject, content, from_email, [to], headers=headers)
+        # Unicode in file name
+        msg.attach(u"une pièce jointe.pdf", "%PDF-1.4.%...", mimetype="application/pdf")
+        msg_str = msg.message().as_string()
+        message = email.message_from_string(msg_str)
+        payload = message.get_payload()
+        self.assertEqual(payload[1].get_filename(), u'une pièce jointe.pdf')
 
     def test_dummy_backend(self):
         """

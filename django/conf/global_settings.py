@@ -152,7 +152,7 @@ DATABASES = {
     },
 }
 
-# Classes used to implement db routing behaviour
+# Classes used to implement DB routing behavior.
 DATABASE_ROUTERS = []
 
 # The email backend to use. For possible shortcuts see django.core.mail.
@@ -419,6 +419,15 @@ USE_X_FORWARDED_HOST = False
 # actual WSGI application object.
 WSGI_APPLICATION = None
 
+# If your Django app is behind a proxy that sets a header to specify secure
+# connections, AND that proxy ensures that user-submitted headers with the
+# same name are ignored (so that people can't spoof it), set this value to
+# a tuple of (header_name, header_value). For any requests that come in with
+# that header/value, request.is_secure() will return True.
+# WARNING! Only set this if you fully understand what you're doing. Otherwise,
+# you may be opening yourself up to a security risk.
+SECURE_PROXY_SSL_HEADER = None
+
 ##############
 # MIDDLEWARE #
 ##############
@@ -488,6 +497,18 @@ LOGIN_REDIRECT_URL = '/accounts/profile/'
 
 # The number of days a password reset link is valid for
 PASSWORD_RESET_TIMEOUT_DAYS = 3
+
+# the first hasher in this list is the preferred algorithm.  any
+# password using different algorithms will be converted automatically
+# upon login
+PASSWORD_HASHERS = (
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptPasswordHasher',
+    'django.contrib.auth.hashers.SHA1PasswordHasher',
+    'django.contrib.auth.hashers.MD5PasswordHasher',
+    'django.contrib.auth.hashers.CryptPasswordHasher',
+)
 
 ###########
 # SIGNING #

@@ -4,12 +4,11 @@ from optparse import OptionParser, NO_DEFAULT
 import imp
 import warnings
 
-import django
 from django.core.management.base import BaseCommand, CommandError, handle_default_options
 from django.utils.importlib import import_module
 
 # For backwards compatibility: get_version() used to be in this module.
-get_version = django.get_version
+from django import get_version
 
 # A cache of loaded commands, so that call_command
 # doesn't have to reload every time it's called.
@@ -77,9 +76,7 @@ def get_commands():
     in that package are registered.
 
     Core commands are always included. If a settings module has been
-    specified, user-defined commands will also be included, the
-    startproject command will be disabled, and the startapp command
-    will be modified to use the directory in which the settings module appears.
+    specified, user-defined commands will also be included.
 
     The dictionary is in the format {command_name: app_name}. Key-value
     pairs from this dictionary can then be used in calls to
@@ -168,7 +165,7 @@ class LaxOptionParser(OptionParser):
     def print_lax_help(self):
         """Output the basic options available to every command.
 
-        This just redirects to the default print_help() behaviour.
+        This just redirects to the default print_help() behavior.
         """
         OptionParser.print_help(self)
 

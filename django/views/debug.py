@@ -92,7 +92,7 @@ def get_exception_reporter_filter(request):
 class ExceptionReporterFilter(object):
     """
     Base for all exception reporter filter classes. All overridable hooks
-    contain lenient default behaviours.
+    contain lenient default behaviors.
     """
 
     def get_request_repr(self, request):
@@ -302,8 +302,14 @@ class ExceptionReporter(object):
         top = max(1, line - context_lines)
         bottom = min(total, line + 1 + context_lines)
 
+        # In some rare cases, exc_value.args might be empty.
+        try:
+            message = self.exc_value.args[0]
+        except IndexError:
+            message = '(Could not get exception message)'
+
         self.template_info = {
-            'message': self.exc_value.args[0],
+            'message': message,
             'source_lines': source_lines[top:bottom],
             'before': before,
             'during': during,
@@ -1077,7 +1083,7 @@ EMPTY_URLCONF_TEMPLATE = """
   <p>Of course, you haven't actually done any work yet. Here's what to do next:</p>
   <ul>
     <li>If you plan to use a database, edit the <code>DATABASES</code> setting in <code>{{ project_name }}/settings.py</code>.</li>
-    <li>Start your first app by running <code>python {{ project_name }}/manage.py startapp [appname]</code>.</li>
+    <li>Start your first app by running <code>python manage.py startapp [appname]</code>.</li>
   </ul>
 </div>
 

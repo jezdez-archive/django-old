@@ -2,6 +2,7 @@
 from __future__ import with_statement
 
 import datetime
+import decimal
 
 from django.template.defaultfilters import *
 from django.test import TestCase
@@ -26,6 +27,11 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(floatformat(11.0000, -2), u'11')
         self.assertEqual(floatformat(11.000001, -2), u'11.00')
         self.assertEqual(floatformat(8.2798, 3), u'8.280')
+        self.assertEqual(floatformat(5555.555, 2), u'5555.56')
+        self.assertEqual(floatformat(001.3000, 2), u'1.30')
+        self.assertEqual(floatformat(0.12345, 2), u'0.12')
+        self.assertEqual(floatformat(decimal.Decimal('555.555'), 2), u'555.56')
+        self.assertEqual(floatformat(decimal.Decimal('09.000')), u'9')
         self.assertEqual(floatformat(u'foo'), u'')
         self.assertEqual(floatformat(13.1031, u'bar'), u'13.1031')
         self.assertEqual(floatformat(18.125, 2), u'18.13')
@@ -56,6 +62,20 @@ class DefaultFiltersTests(TestCase):
                 return self.value
 
         self.assertEqual(floatformat(FloatWrapper(11.000001), -2), u'11.00')
+
+        # Regression for #15789
+        decimal_ctx = decimal.getcontext()
+        old_prec, decimal_ctx.prec = decimal_ctx.prec, 2
+        try:
+            self.assertEqual(floatformat(1.2345, 2), u'1.23')
+            self.assertEqual(floatformat(15.2042, -3), u'15.204')
+            self.assertEqual(floatformat(1.2345, '2'), u'1.23')
+            self.assertEqual(floatformat(15.2042, '-3'), u'15.204')
+            self.assertEqual(floatformat(decimal.Decimal('1.2345'), 2), u'1.23')
+            self.assertEqual(floatformat(decimal.Decimal('15.2042'), -3), u'15.204')
+        finally:
+            decimal_ctx.prec = old_prec
+
 
     # This fails because of Python's float handling. Floats with many zeroes
     # after the decimal point should be passed in as another type such as
@@ -219,6 +239,55 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(urlize('https://google.com'),
             u'<a href="https://google.com" rel="nofollow">https://google.com</a>')
 
+        # Check urlize doesn't overquote already quoted urls - see #9655
+        self.assertEqual(urlize('http://hi.baidu.com/%D6%D8%D0%C2%BF'),
+            u'<a href="http://hi.baidu.com/%D6%D8%D0%C2%BF" rel="nofollow">'
+            u'http://hi.baidu.com/%D6%D8%D0%C2%BF</a>')
+        self.assertEqual(urlize('www.mystore.com/30%OffCoupons!'),
+            u'<a href="http://www.mystore.com/30%25OffCoupons!" rel="nofollow">'
+            u'www.mystore.com/30%OffCoupons!</a>')
+        self.assertEqual(urlize('http://en.wikipedia.org/wiki/Caf%C3%A9'),
+            u'<a href="http://en.wikipedia.org/wiki/Caf%C3%A9" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Caf%C3%A9</a>')
+        self.assertEqual(urlize('http://en.wikipedia.org/wiki/Café'),
+            u'<a href="http://en.wikipedia.org/wiki/Caf%C3%A9" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Café</a>')
+
+        # Check urlize keeps balanced parentheses - see #11911
+        self.assertEqual(urlize('http://en.wikipedia.org/wiki/Django_(web_framework)'),
+            u'<a href="http://en.wikipedia.org/wiki/Django_(web_framework)" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Django_(web_framework)</a>')
+        self.assertEqual(urlize('(see http://en.wikipedia.org/wiki/Django_(web_framework))'),
+            u'(see <a href="http://en.wikipedia.org/wiki/Django_(web_framework)" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Django_(web_framework)</a>)')
+
+        # Check urlize adds nofollow properly - see #12183
+        self.assertEqual(urlize('foo@bar.com or www.bar.com'),
+            u'<a href="mailto:foo@bar.com">foo@bar.com</a> or '
+            u'<a href="http://www.bar.com" rel="nofollow">www.bar.com</a>')
+
+        # Check urlize handles IDN correctly - see #13704
+        self.assertEqual(urlize('http://c✶.ws'),
+            u'<a href="http://xn--c-lgq.ws" rel="nofollow">http://c✶.ws</a>')
+        self.assertEqual(urlize('www.c✶.ws'),
+            u'<a href="http://www.xn--c-lgq.ws" rel="nofollow">www.c✶.ws</a>')
+        self.assertEqual(urlize('c✶.org'),
+            u'<a href="http://xn--c-lgq.org" rel="nofollow">c✶.org</a>')
+        self.assertEqual(urlize('info@c✶.org'),
+            u'<a href="mailto:info@xn--c-lgq.org">info@c✶.org</a>')
+
+        # Check urlize doesn't highlight malformed URIs - see #16395
+        self.assertEqual(urlize('http:///www.google.com'),
+           u'http:///www.google.com')
+        self.assertEqual(urlize('http://.google.com'),
+            u'http://.google.com')
+        self.assertEqual(urlize('http://@foo.com'),
+            u'http://@foo.com')
+
+        # Check urlize accepts more TLDs - see #16656
+        self.assertEqual(urlize('usa.gov'),
+            u'<a href="http://usa.gov" rel="nofollow">usa.gov</a>')
+
     def test_wordcount(self):
         self.assertEqual(wordcount(''), 0)
         self.assertEqual(wordcount(u'oneword'), 1)
@@ -299,6 +368,13 @@ class DefaultFiltersTests(TestCase):
              [('age', 23), ('name', 'Barbara-Ann')],
              [('age', 63), ('name', 'Ra Ra Rasputin')]])
 
+        # If it gets passed a list of something else different from
+        # dictionaries it should fail silently
+        self.assertEqual(dictsort([1, 2, 3], 'age'), '')
+        self.assertEqual(dictsort('Hello!', 'age'), '')
+        self.assertEqual(dictsort({'a': 1}, 'age'), '')
+        self.assertEqual(dictsort(1, 'age'), '')
+
     def test_dictsortreversed(self):
         sorted_dicts = dictsortreversed([{'age': 23, 'name': 'Barbara-Ann'},
                                          {'age': 63, 'name': 'Ra Ra Rasputin'},
@@ -309,6 +385,13 @@ class DefaultFiltersTests(TestCase):
             [[('age', 63), ('name', 'Ra Ra Rasputin')],
              [('age', 23), ('name', 'Barbara-Ann')],
              [('age', 18), ('name', 'Jonny B Goode')]])
+
+        # If it gets passed a list of something else different from
+        # dictionaries it should fail silently
+        self.assertEqual(dictsortreversed([1, 2, 3], 'age'), '')
+        self.assertEqual(dictsortreversed('Hello!', 'age'), '')
+        self.assertEqual(dictsortreversed({'a': 1}, 'age'), '')
+        self.assertEqual(dictsortreversed(1, 'age'), '')
 
     def test_first(self):
         self.assertEqual(first([0,1,2]), 0)

@@ -147,13 +147,6 @@ This is because template tags do not escape their content. Any HTML or
 Javascript code contained in the printed variable will be rendered
 as-is, which could potentially lead to security issues.
 
-If you need to escape the variables in the cycle, you must do so
-explicitly::
-
-    {% filter force_escape %}
-        {% cycle var1 var2 var3 %}
-    {% endfilter %}
-
 For backwards compatibility, the ``{% cycle %}`` tag supports the much inferior
 old syntax from previous Django versions. You shouldn't use this in any new
 projects, but for the sake of the people who are still using it, here's what it
@@ -236,6 +229,12 @@ Sample usage::
     {% filter force_escape|lower %}
         This text will be HTML-escaped, and will appear in all lowercase.
     {% endfilter %}
+
+.. note::
+
+    The :tfilter:`escape` and :tfilter:`safe` filters are not acceptable
+    arguments. Instead, use the :ttag:`autoescape` tag to manage autoescaping
+    for blocks of template code.
 
 .. templatetag:: firstof
 
@@ -2388,13 +2387,18 @@ urlize
 
 Converts URLs in text into clickable links.
 
-Works on links prefixed with ``http://``, ``https://``, or ``www.``. For
-example, ``http://goo.gl/aia1t`` will get converted but ``goo.gl/aia1t``
-won't.
+This template tag works on links prefixed with ``http://``, ``https://``, or
+``www.``. For example, ``http://goo.gl/aia1t`` will get converted but
+``goo.gl/aia1t`` won't.
 
-Also works on domain-only links ending in one of the common ``.com``, ``.net``,
-or ``.org`` top level domains. For example, ``djangoproject.com`` will still
-get converted.
+It also supports domain-only links ending in one of the original top level
+domains (``.com``, ``.edu``, ``.gov``, ``.int``, ``.mil``, ``.net``, and
+``.org``). For example, ``djangoproject.com`` gets converted too.
+
+.. versionchanged:: 1.4
+
+Until Django 1.4, only the ``.com``, ``.net`` and ``.org`` suffixes were
+supported for domain-only links.
 
 Links can have trailing punctuation (periods, commas, close-parens) and leading
 punctuation (opening parens) and ``urlize`` will still do the right thing.
@@ -2501,7 +2505,7 @@ Internationalization tags and filters
 -------------------------------------
 
 Django provides template tags and filters to control each aspect of
-`internationalization </topics/i18n/index>`_ in templates. They allow for
+:doc:`internationalization </topics/i18n/index>` in templates. They allow for
 granular control of translations, formatting, and time zone conversions.
 
 i18n

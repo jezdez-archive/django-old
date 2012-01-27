@@ -229,8 +229,8 @@ class FileStorageTests(unittest.TestCase):
 
         # should encode special chars except ~!*()'
         # like encodeURIComponent() JavaScript function do
-        self.assertEqual(self.storage.url(r"""~!*()'@#$%^&*abc`+=.file"""),
-            """/test_media_url/~!*()'%40%23%24%25%5E%26*abc%60%2B%3D.file""")
+        self.assertEqual(self.storage.url(r"""~!*()'@#$%^&*abc`+ =.file"""),
+            """/test_media_url/~!*()'%40%23%24%25%5E%26*abc%60%2B%20%3D.file""")
 
         # should stanslate os path separator(s) to the url path separator
         self.assertEqual(self.storage.url("""a/b\\c.file"""),
@@ -542,3 +542,14 @@ class InconsistentGetImageDimensionsBug(unittest.TestCase):
         size_1, size_2 = get_image_dimensions(image), get_image_dimensions(image)
         self.assertEqual(image_pil.size, size_1)
         self.assertEqual(size_1, size_2)
+
+class ContentFileTestCase(unittest.TestCase):
+    """
+    Test that the constructor of ContentFile accepts 'name' (#16590).
+    """
+    def test_content_file_default_name(self):
+        self.assertEqual(ContentFile("content").name, None)
+
+    def test_content_file_custome_name(self):
+        name = "I can have a name too!"
+        self.assertEqual(ContentFile("content", name=name).name, name)

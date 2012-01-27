@@ -30,6 +30,22 @@ Attributes
 
 All attributes except ``session`` should be considered read-only.
 
+.. attribute:: HttpRequest.body
+
+    .. versionchanged:: 1.4
+
+    Before Django 1.4, ``HttpRequest.body`` was named
+    ``HttpRequest.raw_post_data``.
+
+    The raw HTTP request body as a byte string. This is useful for processing
+    data in different ways than conventional HTML forms: binary images,
+    XML payload etc. For processing conventional form data, use ``HttpRequest.POST``.
+
+    .. versionadded:: 1.3
+
+    You can also read from an HttpRequest using a file-like interface. See
+    :meth:`HttpRequest.read()`.
+
 .. attribute:: HttpRequest.path
 
     A string representing the full path to the requested page, not including
@@ -169,17 +185,6 @@ All attributes except ``session`` should be considered read-only.
     session. This is only available if your Django installation has session
     support activated. See the :doc:`session documentation
     </topics/http/sessions>` for full details.
-
-.. attribute:: HttpRequest.raw_post_data
-
-    The raw HTTP POST data as a byte string. This is useful for processing
-    data in different formats than of conventional HTML forms: binary images,
-    XML payload etc. For processing form data use ``HttpRequest.POST``.
-
-    .. versionadded:: 1.3
-
-    You can also read from an HttpRequest using file-like interface. See
-    :meth:`HttpRequest.read()`.
 
 .. attribute:: HttpRequest.urlconf
 
@@ -533,8 +538,9 @@ Passing strings
 Typical usage is to pass the contents of the page, as a string, to the
 :class:`HttpResponse` constructor::
 
+    >>> from django.http import HttpResponse
     >>> response = HttpResponse("Here's the text of the Web page.")
-    >>> response = HttpResponse("Text only, please.", mimetype="text/plain")
+    >>> response = HttpResponse("Text only, please.", content_type="text/plain")
 
 But if you want to add content incrementally, you can use ``response`` as a
 file-like object::
@@ -573,10 +579,10 @@ Telling the browser to treat the response as a file attachment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To tell the browser to treat the response as a file attachment, use the
-``mimetype`` argument and set the ``Content-Disposition`` header. For example,
+``content_type`` argument and set the ``Content-Disposition`` header. For example,
 this is how you might return a Microsoft Excel spreadsheet::
 
-    >>> response = HttpResponse(my_data, mimetype='application/vnd.ms-excel')
+    >>> response = HttpResponse(my_data, content_type='application/vnd.ms-excel')
     >>> response['Content-Disposition'] = 'attachment; filename=foo.xls'
 
 There's nothing Django-specific about the ``Content-Disposition`` header, but

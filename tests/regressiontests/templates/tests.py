@@ -1429,7 +1429,7 @@ class Templates(unittest.TestCase):
 
             ### WIDTHRATIO TAG ########################################################
             'widthratio01': ('{% widthratio a b 0 %}', {'a':50,'b':100}, '0'),
-            'widthratio02': ('{% widthratio a b 100 %}', {'a':0,'b':0}, ''),
+            'widthratio02': ('{% widthratio a b 100 %}', {'a':0,'b':0}, '0'),
             'widthratio03': ('{% widthratio a b 100 %}', {'a':0,'b':100}, '0'),
             'widthratio04': ('{% widthratio a b 100 %}', {'a':50,'b':100}, '50'),
             'widthratio05': ('{% widthratio a b 100 %}', {'a':100,'b':100}, '100'),
@@ -1462,14 +1462,18 @@ class Templates(unittest.TestCase):
 
             ### NOW TAG ########################################################
             # Simple case
-            'now01': ('{% now "j n Y"%}', {}, str(datetime.now().day) + ' ' + str(datetime.now().month) + ' ' + str(datetime.now().year)),
-
-            # Check parsing of escaped and special characters
-            'now02': ('{% now "j "n" Y"%}', {}, template.TemplateSyntaxError),
-        #    'now03': ('{% now "j \"n\" Y"%}', {}, str(datetime.now().day) + '"' + str(datetime.now().month) + '"' + str(datetime.now().year)),
-        #    'now04': ('{% now "j \nn\n Y"%}', {}, str(datetime.now().day) + '\n' + str(datetime.now().month) + '\n' + str(datetime.now().year))
+            'now01': ('{% now "j n Y" %}', {}, "%d %d %d" % (
+                datetime.now().day, datetime.now().month, datetime.now().year)),
             # Check parsing of locale strings
-            'now05': ('{% now "DATE_FORMAT" %}', {},  date_format(datetime.now())),
+            'now02': ('{% now "DATE_FORMAT" %}', {},  date_format(datetime.now())),
+            # Also accept simple quotes - #15092
+            'now03': ("{% now 'j n Y' %}", {}, "%d %d %d" % (
+                datetime.now().day, datetime.now().month, datetime.now().year)),
+            'now04': ("{% now 'DATE_FORMAT' %}", {},  date_format(datetime.now())),
+            'now05': ('''{% now 'j "n" Y'%}''', {}, '''%d "%d" %d''' % (
+                datetime.now().day, datetime.now().month, datetime.now().year)),
+            'now06': ('''{% now "j 'n' Y"%}''', {}, '''%d '%d' %d''' % (
+                datetime.now().day, datetime.now().month, datetime.now().year)),
 
             ### URL TAG ########################################################
             # Successes

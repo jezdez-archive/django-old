@@ -1,6 +1,6 @@
 from __future__ import with_statement, absolute_import
 
-from django.forms import EmailField
+from django.forms import EmailField, IntegerField
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase, TestCase, skipUnlessDBFeature
@@ -461,6 +461,12 @@ class AssertFieldOutputTests(SimpleTestCase):
         self.assertRaises(AssertionError, self.assertFieldOutput, EmailField, {'a@a.com': 'Wrong output'}, {'aaa': error_invalid})
         self.assertRaises(AssertionError, self.assertFieldOutput, EmailField, {'a@a.com': 'a@a.com'}, {'aaa': [u'Come on, gimme some well formatted data, dude.']})
 
+    def test_custom_required_message(self):
+        class MyCustomField(IntegerField):
+            default_error_messages = {
+                'required': u'This is really required.',
+            }
+        self.assertFieldOutput(MyCustomField, {}, {}, empty_value=None)
 
 __test__ = {"API_TEST": r"""
 # Some checks of the doctest output normalizer.

@@ -234,17 +234,21 @@ class Queries1Tests(BaseQuerysetTest):
             ['<Item: four>', '<Item: one>']
         )
 
-    # FIXME: This is difficult to fix and very much an edge case, so punt for
-    # now.  This is related to the order_by() tests for ticket #2253, but the
-    # old bug exhibited itself here (q2 was pulling too many tables into the
-    # combined query with the new ordering, but only because we have evaluated
-    # q2 already).
-    @unittest.expectedFailure
     def test_order_by_tables(self):
         q1 = Item.objects.order_by('name')
         q2 = Item.objects.filter(id=self.i1.id)
         list(q2)
         self.assertEqual(len((q1 & q2).order_by('name').query.tables), 1)
+
+    def test_order_by_join_unref(self):
+        """
+        This test is related to the above one, testing that there aren't
+        old JOINs in the query.
+        """
+        qs = Celebrity.objects.order_by('greatest_fan__fan_of')
+        self.assertIn('OUTER JOIN', str(qs.query))
+        qs = qs.order_by('id')
+        self.assertNotIn('OUTER JOIN', str(qs.query))
 
     def test_tickets_4088_4306(self):
         self.assertQuerysetEqual(
@@ -826,6 +830,17 @@ class Queries1Tests(BaseQuerysetTest):
             1
         )
 
+    def test_ticket17429(self):
+        """
+        Ensure that Meta.ordering=None works the same as Meta.ordering=[]
+        """
+        original_ordering = Tag._meta.ordering
+        Tag._meta.ordering = None
+        self.assertQuerysetEqual(
+            Tag.objects.all(),
+            ['<Tag: t1>', '<Tag: t2>', '<Tag: t3>', '<Tag: t4>', '<Tag: t5>'],
+        )
+        Tag._meta.ordering = original_ordering
 
 class Queries2Tests(TestCase):
     def setUp(self):
@@ -1354,7 +1369,7 @@ class Queries6Tests(TestCase):
         ann1.notes.add(n1)
         ann2 = Annotation.objects.create(name='a2', tag=t4)
 
-    # This next test used to cause really weird PostgreSQL behaviour, but it was
+    # This next test used to cause really weird PostgreSQL behavior, but it was
     # only apparent much later when the full test suite ran.
     #@unittest.expectedFailure
     def test_slicing_and_cache_interaction(self):
@@ -1430,7 +1445,7 @@ class Queries6Tests(TestCase):
 
         # The annotation->tag link is single values and tag->children links is
         # multi-valued. So we have to split the exclude filter in the middle
-        # and then optimise the inner query without losing results.
+        # and then optimize the inner query without losing results.
         self.assertQuerysetEqual(
             Annotation.objects.exclude(tag__children__name="t2"),
             ['<Annotation: a2>']
@@ -1728,7 +1743,7 @@ class ToFieldTests(TestCase):
 
 
 class ConditionalTests(BaseQuerysetTest):
-    """Tests whose execution depend on dfferent environment conditions like
+    """Tests whose execution depend on different environment conditions like
     Python version or DB backend features"""
 
     def setUp(self):
@@ -1738,6 +1753,7 @@ class ConditionalTests(BaseQuerysetTest):
         t3 = Tag.objects.create(name='t3', parent=t1)
         t4 = Tag.objects.create(name='t4', parent=t3)
         t5 = Tag.objects.create(name='t5', parent=t3)
+
 
     # In Python 2.6 beta releases, exceptions raised in __len__ are swallowed
     # (Python issue 1242657), so these cases return an empty list, rather than
@@ -1809,6 +1825,7 @@ class ConditionalTests(BaseQuerysetTest):
             Number.objects.filter(num__in=numbers).count(),
             2500
         )
+
 
 class UnionTests(unittest.TestCase):
     """

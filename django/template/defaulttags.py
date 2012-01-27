@@ -435,7 +435,7 @@ class WidthRatioNode(Node):
     def render(self, context):
         try:
             value = self.val_expr.resolve(context)
-            maxvalue = self.max_expr.resolve(context)
+            max_value = self.max_expr.resolve(context)
             max_width = int(self.max_width.resolve(context))
         except VariableDoesNotExist:
             return ''
@@ -443,9 +443,11 @@ class WidthRatioNode(Node):
             raise TemplateSyntaxError("widthratio final argument must be an number")
         try:
             value = float(value)
-            maxvalue = float(maxvalue)
-            ratio = (value / maxvalue) * max_width
-        except (ValueError, ZeroDivisionError):
+            max_value = float(max_value)
+            ratio = (value / max_value) * max_width
+        except ZeroDivisionError:
+            return '0'
+        except ValueError:
             return ''
         return str(int(round(ratio)))
 
@@ -472,7 +474,7 @@ class WithNode(Node):
 @register.tag
 def autoescape(parser, token):
     """
-    Force autoescape behaviour for this block.
+    Force autoescape behavior for this block.
     """
     args = token.contents.split()
     if len(args) != 2:
@@ -615,6 +617,10 @@ def do_filter(parser, token):
         {% filter force_escape|lower %}
             This text will be HTML-escaped, and will appear in lowercase.
         {% endfilter %}
+
+    Note that the ``escape`` and ``safe`` filters are not acceptable arguments.
+    Instead, use the ``autoescape`` tag to manage autoescaping for blocks of
+    template code.
     """
     _, rest = token.contents.split(None, 1)
     filter_expr = parser.compile_filter("var|%s" % (rest))
@@ -1043,10 +1049,10 @@ def now(parser, token):
 
         It is {% now "jS F Y H:i" %}
     """
-    bits = token.contents.split('"')
-    if len(bits) != 3:
+    bits = token.split_contents()
+    if len(bits) != 2:
         raise TemplateSyntaxError("'now' statement takes one argument")
-    format_string = bits[1]
+    format_string = bits[1][1:-1]
     return NowNode(format_string)
 
 @register.tag
