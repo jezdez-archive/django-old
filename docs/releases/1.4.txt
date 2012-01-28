@@ -36,7 +36,6 @@ timeline for deprecating Python 2.x and moving to Python 3.x.
 What's new in Django 1.4
 ========================
 
-<<<<<<< HEAD
 Template based form rendering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -61,36 +60,6 @@ The form widgets now have a :doc:`public API<../ref/forms/widgets>` for easier
 custom rendering. Like the rest of the form library, widgets are now rendered
 to HTML using Django templates.
 
-HTML comparisons in tests
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The :class:`~django.test.testcase.TestCase` base class now has some helpers to
-compare HTML roughly without tripping over trivial differences in whitespace,
-argument quoting and ordering, and closing of self-closing tags. HTML can
-either be compared directly with the new
-:meth:`~django.test.testcase.TestCase.assertHTMLEqual` and
-:meth:`~django.test.testcase.TestCase.assertHTMLNotEqual` assertions, or use
-the ``html=True`` flag with
-:meth:`~django.test.testcase.TestCase.assertContains` and
-:meth:`~django.test.testcase.TestCase.assertNotContains` to test if the test
-client's response contains a given HTML fragment. See the :ref:`assertion
-documentation<assertions>` for more information.
-
-``assertTemplateUsed`` as context manager
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-It is now possible to check whether a template was used or not in a block of
-code with the :meth:`~django.test.testcase.TestCase.assertTemplateUsed` and
-:meth:`~django.test.testcase.TestCase.assertTemplateNotUsed` assertions. They
-can be used as a context manager::
-
-    with self.assertTemplateUsed('index.html'):
-        render_to_string('index.html')
-    with self.assertTemplateNotUsed('base.html'):
-        render_to_string('index.html')
-
-See the :ref:`assertion documentation<assertions>` for more information.
-=======
 Support for in-browser testing frameworks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -103,7 +72,6 @@ concrete examples.
 
 .. _Windmill: http://www.getwindmill.com/
 .. _Selenium: http://seleniumhq.org/
->>>>>>> master
 
 ``SELECT FOR UPDATE`` support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -530,6 +498,36 @@ Reasons for using this feature include:
 Time zone support is enabled by default in new projects created with
 :djadmin:`startproject`. If you want to use this feature in an existing
 project, read the :ref:`migration guide <time-zones-migration-guide>`.
+
+HTML comparisons in tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :class:`~django.test.testcase.TestCase` base class now has some helpers to
+compare HTML roughly without tripping over trivial differences in whitespace,
+argument quoting and ordering, and closing of self-closing tags. HTML can
+either be compared directly with the new
+:meth:`~django.test.testcase.TestCase.assertHTMLEqual` and
+:meth:`~django.test.testcase.TestCase.assertHTMLNotEqual` assertions, or use
+the ``html=True`` flag with
+:meth:`~django.test.testcase.TestCase.assertContains` and
+:meth:`~django.test.testcase.TestCase.assertNotContains` to test if the test
+client's response contains a given HTML fragment. See the :ref:`assertion
+documentation<assertions>` for more information.
+
+``assertTemplateUsed`` as context manager
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is now possible to check whether a template was used or not in a block of
+code with the :meth:`~django.test.testcase.TestCase.assertTemplateUsed` and
+:meth:`~django.test.testcase.TestCase.assertTemplateNotUsed` assertions. They
+can be used as a context manager::
+
+    with self.assertTemplateUsed('index.html'):
+        render_to_string('index.html')
+    with self.assertTemplateNotUsed('base.html'):
+        render_to_string('index.html')
+
+See the :ref:`assertion documentation<assertions>` for more information.
 
 Minor features
 ~~~~~~~~~~~~~~
