@@ -1,19 +1,4 @@
 from __future__ import absolute_import
-from .error_messages import *
-from .extra import *
-from .fields import FieldsTests
-from .forms import *
-from .formsets import *
-from .input_formats import *
-from .layouts import *
-from .media import *
-from .models import *
-from .regressions import *
-from .rendering import *
-from .templatetags import *
-from .util import *
-from .validators import TestFieldWithValidators
-from .widgets import *
 
 from .error_messages import (FormsErrorMessagesTestCase,
     ModelChoiceFieldErrorMessagesTestCase)
@@ -26,11 +11,15 @@ from .input_formats import (LocalizedTimeTests, CustomTimeInputFormatsTests,
     SimpleTimeFormatTests, LocalizedDateTests, CustomDateInputFormatsTests,
     SimpleDateFormatTests, LocalizedDateTimeTests,
     CustomDateTimeInputFormatsTests, SimpleDateTimeFormatTests)
+from .layouts import PLayoutTests, TableLayoutTests, UlLayoutTests
 from .media import FormsMediaTestCase, StaticFormsMediaTestCase
 from .models import (TestTicket12510, ModelFormCallableModelDefault,
     FormsModelTestCase, RelatedModelFormTests)
 from .regressions import FormsRegressionsTestCase
+from .rendering import FormConfigTests
+from .templatetags import (FormConfigNodeTests, FormTagTests, FormRowTagTests,
+    FormFieldTagTests)
 from .util import FormsUtilTestCase
 from .validators import TestFieldWithValidators
 from .widgets import (FormsWidgetTestCase, FormsI18NWidgetsTestCase,
-    WidgetTests, ClearableFileInputTests)
+    WidgetTests, ClearableFileInputTests, WidgetsAPITests)
