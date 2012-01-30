@@ -616,6 +616,10 @@ Django 1.4 also includes several smaller improvements worth noting:
   just like with regular formsets. However, initial values only apply to extra
   forms i.e. those which are not bound to an existing model instance.
 
+* The sitemaps framework can now handle HTTPS links using the new
+  :attr:`Sitemap.protocol <django.contrib.sitemaps.Sitemap.protocol>` class
+  attribute.
+
 Backwards incompatible changes in 1.4
 =====================================
 
@@ -1018,6 +1022,19 @@ digits, :tfilter:`urlize` assumes that the URL is already escaped, and doesn't
 apply URL escaping again. This is wrong for URLs whose unquoted form contains
 a ``%xx`` sequence, but such URLs are very unlikely to happen in the wild,
 since they would confuse browsers too.
+
+Database connections after running the test suite
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The default test runner now does not restore the database connections after the
+tests' execution any more. This prevents the production database from being
+exposed to potential threads that would still be running and attempting to
+create new connections.
+
+If your code relied on connections to the production database being created
+after the tests' execution, then you may restore the previous behavior by
+subclassing ``DjangoTestRunner`` and overriding its ``teardown_databases()``
+method.
 
 Features deprecated in 1.4
 ==========================
