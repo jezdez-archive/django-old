@@ -1,5 +1,9 @@
-from django.conf.urls.defaults import *
-from views import empty_view, absolute_kwargs_view
+from __future__ import absolute_import
+
+from django.conf.urls import patterns, url, include
+
+from .views import empty_view, absolute_kwargs_view
+
 
 other_patterns = patterns('',
     url(r'non_path_include/$', empty_view, name='non_path_include'),
@@ -18,6 +22,7 @@ urlpatterns = patterns('',
     url(r'^people/(?P<name>\w+)/$', empty_view, name="people"),
     url(r'^people/(?:name/)', empty_view, name="people2"),
     url(r'^people/(?:name/(\w+)/)?', empty_view, name="people2a"),
+    url(r'^people/(?P<name>\w+)-(?P=name)/$', empty_view, name="people_backref"),
     url(r'^optional/(?P<name>.*)/(?:.+/)?', empty_view, name="optional"),
     url(r'^hardcoded/$', empty_view, name="hardcoded"),
     url(r'^hardcoded/doc\.pdf$', empty_view, name="hardcoded2"),
@@ -61,7 +66,4 @@ urlpatterns = patterns('',
     (r'defaults_view2/(?P<arg1>\d+)/', 'defaults_view', {'arg2': 2}, 'defaults'),
 
     url('^includes/', include(other_patterns)),
-
 )
-
-

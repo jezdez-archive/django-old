@@ -1,10 +1,12 @@
+from __future__ import absolute_import
+
 from copy import deepcopy
 from datetime import datetime
 
-from django.test import TestCase
 from django.core.exceptions import MultipleObjectsReturned
+from django.test import TestCase
 
-from models import Article, Reporter
+from .models import Article, Reporter
 
 
 class ManyToOneTests(TestCase):
@@ -399,3 +401,13 @@ class ManyToOneTests(TestCase):
         self.assertEqual(repr(a3),
                          repr(Article.objects.get(reporter_id=self.r2.id,
                                              pub_date=datetime(2011, 5, 7))))
+
+    def test_manager_class_caching(self):
+        r1 = Reporter.objects.create(first_name='Mike')
+        r2 = Reporter.objects.create(first_name='John')
+
+        # Same twice
+        self.assertTrue(r1.article_set.__class__ is r1.article_set.__class__)
+
+        # Same as each other
+        self.assertTrue(r1.article_set.__class__ is r2.article_set.__class__)

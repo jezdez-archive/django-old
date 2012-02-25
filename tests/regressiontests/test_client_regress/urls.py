@@ -1,6 +1,10 @@
-from django.conf.urls.defaults import *
+from __future__ import absolute_import
+
+from django.conf.urls import patterns, url
 from django.views.generic import RedirectView
-import views
+
+from . import views
+
 
 urlpatterns = patterns('',
     (r'^no_template_view/$', views.no_template_view),
@@ -19,6 +23,7 @@ urlpatterns = patterns('',
     (r'^circular_redirect_1/$', RedirectView.as_view(url='/test_client_regress/circular_redirect_2/')),
     (r'^circular_redirect_2/$', RedirectView.as_view(url='/test_client_regress/circular_redirect_3/')),
     (r'^circular_redirect_3/$', RedirectView.as_view(url='/test_client_regress/circular_redirect_1/')),
+    (r'^redirect_other_host/$', RedirectView.as_view(url='https://otherserver:8443/test_client_regress/no_template_view/')),
     (r'^set_session/$', views.set_session_view),
     (r'^check_session/$', views.check_session_view),
     (r'^request_methods/$', views.request_methods_view),
@@ -26,7 +31,7 @@ urlpatterns = patterns('',
     (r'^parse_unicode_json/$', views.return_json_file),
     (r'^check_headers/$', views.check_headers),
     (r'^check_headers_redirect/$', RedirectView.as_view(url='/test_client_regress/check_headers/')),
-    (r'^raw_post_data/$', views.raw_post_data),
+    (r'^body/$', views.body),
     (r'^read_all/$', views.read_all),
     (r'^read_buffer/$', views.read_buffer),
     (r'^request_context_view/$', views.request_context_view),

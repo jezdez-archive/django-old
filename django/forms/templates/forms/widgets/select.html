@@ -2,5 +2,5 @@
 <optgroup label="{{ choice.label }}">{% for val, label in choice.choices %}
 <option value="{{ val }}"{% if multiple %}{% if val in value %} selected="selected"{% endif %}{% else %}{% if val == value %} selected="selected"{% endif %}{% endif %}>{{ label }}</option>{% endfor %}
 </optgroup>{% else %}
-<option value="{{ choice.0 }}"{% if multiple %}{% if choice.0 in value %} selected="selected"{% endif %}{% else %}{% if choice.0 == value %} selected="selected"{% endif %}{% endif %}>{{ choice.1 }}</option>{% endif %}{% endfor %}
+<option value="{{ choice.0 }}"{% if choice.2 %} selected="selected"{% endif %}>{{ choice.1 }}</option>{% endif %}{% endfor %}
 </select>

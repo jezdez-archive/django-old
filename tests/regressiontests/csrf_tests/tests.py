@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import with_statement
 
-from django.test import TestCase
+from django.conf import settings
+from django.core.context_processors import csrf
 from django.http import HttpRequest, HttpResponse
 from django.middleware.csrf import CsrfViewMiddleware
-from django.views.decorators.csrf import csrf_exempt, requires_csrf_token, ensure_csrf_cookie
-from django.core.context_processors import csrf
-from django.conf import settings
 from django.template import RequestContext, Template
+from django.test import TestCase
+from django.views.decorators.csrf import csrf_exempt, requires_csrf_token, ensure_csrf_cookie
+
 
 # Response/views used for CsrfResponseMiddleware and CsrfViewMiddleware tests
 def post_form_response():
@@ -42,7 +43,7 @@ class TestingHttpRequest(HttpRequest):
     more easily
     """
     def is_secure(self):
-        return getattr(self, '_is_secure', False)
+        return getattr(self, '_is_secure_override', False)
 
 class CsrfViewMiddlewareTest(TestCase):
     # The csrf token is potentially from an untrusted source, so could have
@@ -258,7 +259,7 @@ class CsrfViewMiddlewareTest(TestCase):
         Test that a POST HTTPS request with a bad referer is rejected
         """
         req = self._get_POST_request_with_token()
-        req._is_secure = True
+        req._is_secure_override = True
         req.META['HTTP_HOST'] = 'www.example.com'
         req.META['HTTP_REFERER'] = 'https://www.evil.org/somepage'
         req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
@@ -270,7 +271,7 @@ class CsrfViewMiddlewareTest(TestCase):
         Test that a POST HTTPS request with a good referer is accepted
         """
         req = self._get_POST_request_with_token()
-        req._is_secure = True
+        req._is_secure_override = True
         req.META['HTTP_HOST'] = 'www.example.com'
         req.META['HTTP_REFERER'] = 'https://www.example.com/somepage'
         req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})
@@ -283,7 +284,7 @@ class CsrfViewMiddlewareTest(TestCase):
         """
         # See ticket #15617
         req = self._get_POST_request_with_token()
-        req._is_secure = True
+        req._is_secure_override = True
         req.META['HTTP_HOST'] = 'www.example.com'
         req.META['HTTP_REFERER'] = 'https://www.example.com'
         req2 = CsrfViewMiddleware().process_view(req, post_form_view, (), {})

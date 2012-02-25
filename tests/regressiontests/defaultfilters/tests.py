@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import with_statement
+
 import datetime
+import decimal
+
+from django.template.defaultfilters import *
 from django.test import TestCase
 from django.utils import unittest, translation
 
-from django.template.defaultfilters import *
 
 class DefaultFiltersTests(TestCase):
 
@@ -24,6 +27,11 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(floatformat(11.0000, -2), u'11')
         self.assertEqual(floatformat(11.000001, -2), u'11.00')
         self.assertEqual(floatformat(8.2798, 3), u'8.280')
+        self.assertEqual(floatformat(5555.555, 2), u'5555.56')
+        self.assertEqual(floatformat(001.3000, 2), u'1.30')
+        self.assertEqual(floatformat(0.12345, 2), u'0.12')
+        self.assertEqual(floatformat(decimal.Decimal('555.555'), 2), u'555.56')
+        self.assertEqual(floatformat(decimal.Decimal('09.000')), u'9')
         self.assertEqual(floatformat(u'foo'), u'')
         self.assertEqual(floatformat(13.1031, u'bar'), u'13.1031')
         self.assertEqual(floatformat(18.125, 2), u'18.13')
@@ -55,6 +63,20 @@ class DefaultFiltersTests(TestCase):
 
         self.assertEqual(floatformat(FloatWrapper(11.000001), -2), u'11.00')
 
+        # Regression for #15789
+        decimal_ctx = decimal.getcontext()
+        old_prec, decimal_ctx.prec = decimal_ctx.prec, 2
+        try:
+            self.assertEqual(floatformat(1.2345, 2), u'1.23')
+            self.assertEqual(floatformat(15.2042, -3), u'15.204')
+            self.assertEqual(floatformat(1.2345, '2'), u'1.23')
+            self.assertEqual(floatformat(15.2042, '-3'), u'15.204')
+            self.assertEqual(floatformat(decimal.Decimal('1.2345'), 2), u'1.23')
+            self.assertEqual(floatformat(decimal.Decimal('15.2042'), -3), u'15.204')
+        finally:
+            decimal_ctx.prec = old_prec
+
+
     # This fails because of Python's float handling. Floats with many zeroes
     # after the decimal point should be passed in as another type such as
     # unicode or Decimal.
@@ -73,20 +95,20 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(capfirst(u'hello world'), u'Hello world')
 
     def test_escapejs(self):
-        self.assertEqual(escapejs(u'"double quotes" and \'single quotes\''),
+        self.assertEqual(escapejs_filter(u'"double quotes" and \'single quotes\''),
             u'\\u0022double quotes\\u0022 and \\u0027single quotes\\u0027')
-        self.assertEqual(escapejs(ur'\ : backslashes, too'),
+        self.assertEqual(escapejs_filter(ur'\ : backslashes, too'),
             u'\\u005C : backslashes, too')
-        self.assertEqual(escapejs(u'and lots of whitespace: \r\n\t\v\f\b'),
+        self.assertEqual(escapejs_filter(u'and lots of whitespace: \r\n\t\v\f\b'),
             u'and lots of whitespace: \\u000D\\u000A\\u0009\\u000B\\u000C\\u0008')
-        self.assertEqual(escapejs(ur'<script>and this</script>'),
+        self.assertEqual(escapejs_filter(ur'<script>and this</script>'),
             u'\\u003Cscript\\u003Eand this\\u003C/script\\u003E')
         self.assertEqual(
-            escapejs(u'paragraph separator:\u2029and line separator:\u2028'),
+            escapejs_filter(u'paragraph separator:\u2029and line separator:\u2028'),
             u'paragraph separator:\\u2029and line separator:\\u2028')
 
     def test_fix_ampersands(self):
-        self.assertEqual(fix_ampersands(u'Jack & Jill & Jeroboam'),
+        self.assertEqual(fix_ampersands_filter(u'Jack & Jill & Jeroboam'),
                           u'Jack &amp; Jill &amp; Jeroboam')
 
     def test_linenumbers(self):
@@ -217,6 +239,55 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(urlize('https://google.com'),
             u'<a href="https://google.com" rel="nofollow">https://google.com</a>')
 
+        # Check urlize doesn't overquote already quoted urls - see #9655
+        self.assertEqual(urlize('http://hi.baidu.com/%D6%D8%D0%C2%BF'),
+            u'<a href="http://hi.baidu.com/%D6%D8%D0%C2%BF" rel="nofollow">'
+            u'http://hi.baidu.com/%D6%D8%D0%C2%BF</a>')
+        self.assertEqual(urlize('www.mystore.com/30%OffCoupons!'),
+            u'<a href="http://www.mystore.com/30%25OffCoupons!" rel="nofollow">'
+            u'www.mystore.com/30%OffCoupons!</a>')
+        self.assertEqual(urlize('http://en.wikipedia.org/wiki/Caf%C3%A9'),
+            u'<a href="http://en.wikipedia.org/wiki/Caf%C3%A9" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Caf%C3%A9</a>')
+        self.assertEqual(urlize('http://en.wikipedia.org/wiki/Café'),
+            u'<a href="http://en.wikipedia.org/wiki/Caf%C3%A9" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Café</a>')
+
+        # Check urlize keeps balanced parentheses - see #11911
+        self.assertEqual(urlize('http://en.wikipedia.org/wiki/Django_(web_framework)'),
+            u'<a href="http://en.wikipedia.org/wiki/Django_(web_framework)" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Django_(web_framework)</a>')
+        self.assertEqual(urlize('(see http://en.wikipedia.org/wiki/Django_(web_framework))'),
+            u'(see <a href="http://en.wikipedia.org/wiki/Django_(web_framework)" rel="nofollow">'
+            u'http://en.wikipedia.org/wiki/Django_(web_framework)</a>)')
+
+        # Check urlize adds nofollow properly - see #12183
+        self.assertEqual(urlize('foo@bar.com or www.bar.com'),
+            u'<a href="mailto:foo@bar.com">foo@bar.com</a> or '
+            u'<a href="http://www.bar.com" rel="nofollow">www.bar.com</a>')
+
+        # Check urlize handles IDN correctly - see #13704
+        self.assertEqual(urlize('http://c✶.ws'),
+            u'<a href="http://xn--c-lgq.ws" rel="nofollow">http://c✶.ws</a>')
+        self.assertEqual(urlize('www.c✶.ws'),
+            u'<a href="http://www.xn--c-lgq.ws" rel="nofollow">www.c✶.ws</a>')
+        self.assertEqual(urlize('c✶.org'),
+            u'<a href="http://xn--c-lgq.org" rel="nofollow">c✶.org</a>')
+        self.assertEqual(urlize('info@c✶.org'),
+            u'<a href="mailto:info@xn--c-lgq.org">info@c✶.org</a>')
+
+        # Check urlize doesn't highlight malformed URIs - see #16395
+        self.assertEqual(urlize('http:///www.google.com'),
+           u'http:///www.google.com')
+        self.assertEqual(urlize('http://.google.com'),
+            u'http://.google.com')
+        self.assertEqual(urlize('http://@foo.com'),
+            u'http://@foo.com')
+
+        # Check urlize accepts more TLDs - see #16656
+        self.assertEqual(urlize('usa.gov'),
+            u'<a href="http://usa.gov" rel="nofollow">usa.gov</a>')
+
     def test_wordcount(self):
         self.assertEqual(wordcount(''), 0)
         self.assertEqual(wordcount(u'oneword'), 1)
@@ -263,12 +334,12 @@ class DefaultFiltersTests(TestCase):
             u' \u0110\xc5\u20ac\xa3')
 
     def test_linebreaks(self):
-        self.assertEqual(linebreaks(u'line 1'), u'<p>line 1</p>')
-        self.assertEqual(linebreaks(u'line 1\nline 2'),
+        self.assertEqual(linebreaks_filter(u'line 1'), u'<p>line 1</p>')
+        self.assertEqual(linebreaks_filter(u'line 1\nline 2'),
                           u'<p>line 1<br />line 2</p>')
-        self.assertEqual(linebreaks(u'line 1\rline 2'),
+        self.assertEqual(linebreaks_filter(u'line 1\rline 2'),
                           u'<p>line 1<br />line 2</p>')
-        self.assertEqual(linebreaks(u'line 1\r\nline 2'),
+        self.assertEqual(linebreaks_filter(u'line 1\r\nline 2'),
                           u'<p>line 1<br />line 2</p>')
 
     def test_linebreaksbr(self):
@@ -297,6 +368,13 @@ class DefaultFiltersTests(TestCase):
              [('age', 23), ('name', 'Barbara-Ann')],
              [('age', 63), ('name', 'Ra Ra Rasputin')]])
 
+        # If it gets passed a list of something else different from
+        # dictionaries it should fail silently
+        self.assertEqual(dictsort([1, 2, 3], 'age'), '')
+        self.assertEqual(dictsort('Hello!', 'age'), '')
+        self.assertEqual(dictsort({'a': 1}, 'age'), '')
+        self.assertEqual(dictsort(1, 'age'), '')
+
     def test_dictsortreversed(self):
         sorted_dicts = dictsortreversed([{'age': 23, 'name': 'Barbara-Ann'},
                                          {'age': 63, 'name': 'Ra Ra Rasputin'},
@@ -307,6 +385,13 @@ class DefaultFiltersTests(TestCase):
             [[('age', 63), ('name', 'Ra Ra Rasputin')],
              [('age', 23), ('name', 'Barbara-Ann')],
              [('age', 18), ('name', 'Jonny B Goode')]])
+
+        # If it gets passed a list of something else different from
+        # dictionaries it should fail silently
+        self.assertEqual(dictsortreversed([1, 2, 3], 'age'), '')
+        self.assertEqual(dictsortreversed('Hello!', 'age'), '')
+        self.assertEqual(dictsortreversed({'a': 1}, 'age'), '')
+        self.assertEqual(dictsortreversed(1, 'age'), '')
 
     def test_first(self):
         self.assertEqual(first([0,1,2]), 0)
@@ -325,12 +410,12 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(length_is(u'a', 10), False)
 
     def test_slice(self):
-        self.assertEqual(slice_(u'abcdefg', u'0'), u'')
-        self.assertEqual(slice_(u'abcdefg', u'1'), u'a')
-        self.assertEqual(slice_(u'abcdefg', u'-1'), u'abcdef')
-        self.assertEqual(slice_(u'abcdefg', u'1:2'), u'b')
-        self.assertEqual(slice_(u'abcdefg', u'1:3'), u'bc')
-        self.assertEqual(slice_(u'abcdefg', u'0::2'), u'aceg')
+        self.assertEqual(slice_filter(u'abcdefg', u'0'), u'')
+        self.assertEqual(slice_filter(u'abcdefg', u'1'), u'a')
+        self.assertEqual(slice_filter(u'abcdefg', u'-1'), u'abcdef')
+        self.assertEqual(slice_filter(u'abcdefg', u'1:2'), u'b')
+        self.assertEqual(slice_filter(u'abcdefg', u'1:3'), u'bc')
+        self.assertEqual(slice_filter(u'abcdefg', u'0::2'), u'aceg')
 
     def test_unordered_list(self):
         self.assertEqual(unordered_list([u'item 1', u'item 2']),
@@ -409,22 +494,23 @@ class DefaultFiltersTests(TestCase):
     def test_timesince(self):
         # real testing is done in timesince.py, where we can provide our own 'now'
         self.assertEqual(
-            timesince(datetime.datetime.now() - datetime.timedelta(1)),
+            timesince_filter(datetime.datetime.now() - datetime.timedelta(1)),
             u'1 day')
 
         self.assertEqual(
-            timesince(datetime.datetime(2005, 12, 29),
-                      datetime.datetime(2005, 12, 30)),
+            timesince_filter(datetime.datetime(2005, 12, 29),
+                             datetime.datetime(2005, 12, 30)),
             u'1 day')
 
     def test_timeuntil(self):
         self.assertEqual(
-            timeuntil(datetime.datetime.now() + datetime.timedelta(1)),
+            timeuntil_filter(datetime.datetime.now() + datetime.timedelta(1, 1)),
             u'1 day')
 
-        self.assertEqual(timeuntil(datetime.datetime(2005, 12, 30),
-                                    datetime.datetime(2005, 12, 29)),
-                          u'1 day')
+        self.assertEqual(
+            timeuntil_filter(datetime.datetime(2005, 12, 30),
+                             datetime.datetime(2005, 12, 29)),
+            u'1 day')
 
     def test_default(self):
         self.assertEqual(default(u"val", u"default"), u'val')
@@ -508,7 +594,7 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(pluralize(0,u'y,ies,error'), u'')
 
     def test_phone2numeric(self):
-        self.assertEqual(phone2numeric(u'0800 flowers'), u'0800 3569377')
+        self.assertEqual(phone2numeric_filter(u'0800 flowers'), u'0800 3569377')
 
     def test_non_string_input(self):
         # Filters shouldn't break if passed non-strings
@@ -531,7 +617,7 @@ class DefaultFiltersTests(TestCase):
         self.assertEqual(center('123', 6), u' 123  ')
         self.assertEqual(cut(123, '2'), u'13')
         self.assertEqual(escape(123), u'123')
-        self.assertEqual(linebreaks(123), u'<p>123</p>')
+        self.assertEqual(linebreaks_filter(123), u'<p>123</p>')
         self.assertEqual(linebreaksbr(123), u'123')
         self.assertEqual(removetags(123, 'a'), u'123')
         self.assertEqual(striptags(123), u'123')

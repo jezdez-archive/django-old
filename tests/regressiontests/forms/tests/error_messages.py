@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
-from django.utils.safestring import mark_safe
 from django.test import TestCase
-from regressiontests.forms.tests.fields import verify_exists_urls
+from django.utils import unittest
+from django.utils.safestring import mark_safe
+
+from .fields import verify_exists_urls
+
 
 class AssertFormErrorsMixin(object):
     def assertFormErrors(self, expected, the_callable, *args, **kwargs):

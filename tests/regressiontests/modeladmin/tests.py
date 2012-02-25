@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from datetime import date
 
 from django import forms
@@ -15,13 +17,18 @@ from django.forms.widgets import Select
 from django.test import TestCase
 from django.utils import unittest
 
-from models import (Band, Concert, ValidationTestModel,
-    ValidationTestInlineModel)
+from .models import Band, Concert, ValidationTestModel, ValidationTestInlineModel
 
 
-# None of the following tests really depend on the content of the request,
-# so we'll just pass in None.
-request = None
+class MockRequest(object):
+    pass
+
+class MockSuperUser(object):
+    def has_perm(self, perm):
+        return True
+
+request = MockRequest()
+request.user = MockSuperUser()
 
 
 class ModelAdminTests(TestCase):
@@ -357,9 +364,10 @@ class ModelAdminTests(TestCase):
 
         concert = Concert.objects.create(main_band=self.band, opening_band=self.band, day=1)
         ma = BandAdmin(Band, self.site)
-        fieldsets = list(ma.inline_instances[0].get_fieldsets(request))
+        inline_instances = ma.get_inline_instances(request)
+        fieldsets = list(inline_instances[0].get_fieldsets(request))
         self.assertEqual(fieldsets[0][1]['fields'], ['main_band', 'opening_band', 'day', 'transport'])
-        fieldsets = list(ma.inline_instances[0].get_fieldsets(request, ma.inline_instances[0].model))
+        fieldsets = list(inline_instances[0].get_fieldsets(request, inline_instances[0].model))
         self.assertEqual(fieldsets[0][1]['fields'], ['day'])
 
     # radio_fields behavior ###########################################

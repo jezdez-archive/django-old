@@ -2,16 +2,20 @@
 Form classes
 """
 
+from __future__ import absolute_import
+
 import copy
+from inspect import getargspec
+
 from django.core.exceptions import ValidationError
+from django.forms.fields import Field, FileField
+from django.forms.util import flatatt, ErrorDict, ErrorList
+from django.forms.widgets import Media, media_property, TextInput, Textarea
 from django.utils.datastructures import SortedDict
 from django.utils.html import conditional_escape
 from django.utils.encoding import StrAndUnicode, smart_unicode, force_unicode
 from django.utils.safestring import mark_safe
 
-from fields import Field, FileField
-from widgets import Media, media_property, TextInput, Textarea
-from util import flatatt, ErrorDict, ErrorList
 
 __all__ = ('BaseForm', 'Form')
 
@@ -95,8 +99,8 @@ class BaseForm(StrAndUnicode):
         return self.as_table()
 
     def __iter__(self):
-        for name, field in self.fields.items():
-            yield BoundField(self, field, name)
+        for name in self.fields:
+            yield self[name]
 
     def __getitem__(self, name):
         "Returns a BoundField with the given name."
@@ -142,7 +146,7 @@ class BaseForm(StrAndUnicode):
 
         for name, field in self.fields.items():
             html_class_attr = ''
-            bf = BoundField(self, field, name)
+            bf = self[name]
             bf_errors = self.error_class([conditional_escape(error) for error in bf.errors]) # Escape and cache in local variable.
             if bf.is_hidden:
                 if bf_errors:
@@ -361,7 +365,7 @@ class BaseForm(StrAndUnicode):
 
     def is_multipart(self):
         """
-        Returns True if the form needs to be multipart-encrypted, i.e. it has
+        Returns True if the form needs to be multipart-encoded, i.e. it has
         FileInput. Otherwise, False.
         """
         for field in self.fields.values():
@@ -413,6 +417,22 @@ class BoundField(StrAndUnicode):
             return self.as_widget() + self.as_hidden(only_initial=True)
         return self.as_widget()
 
+    def __iter__(self):
+        """
+        Yields rendered strings that comprise all widgets in this BoundField.
+
+        This really is only useful for RadioSelect widgets, so that you can
+        iterate over individual radio buttons in a template.
+        """
+        for subwidget in self.field.widget.subwidgets(self.html_name, self.value()):
+            yield subwidget
+
+    def __len__(self):
+        return len(list(self.__iter__()))
+
+    def __getitem__(self, idx):
+        return list(self.__iter__())[idx]
+
     def _errors(self):
         """
         Returns an ErrorList for this field. Returns an empty ErrorList
@@ -442,9 +462,16 @@ class BoundField(StrAndUnicode):
             name = self.html_name
         else:
             name = self.html_initial_name
-        return widget.render(name, self.value(), attrs=attrs,
-            template_name=template_name, extra_context=extra_context,
-            context_instance=context_instance)
+        args, varargs, varkw, defaults = getargspec(widget.render)
+        kwargs = {
+            'attrs': attrs,
+            'template_name': template_name,
+            'extra_context': extra_context,
+            'context_instance': context_instance,
+        }
+        for unsupported_arg in set(kwargs) - set(args):
+            del kwargs[unsupported_arg]
+        return widget.render(name, self.value(), **kwargs)
 
     def as_text(self, attrs=None, **kwargs):
         """

@@ -1,6 +1,9 @@
-from django.conf.urls.defaults import *
+from __future__ import absolute_import
 
-import feeds
+from django.conf.urls import patterns
+
+from . import feeds
+
 
 urlpatterns = patterns('django.contrib.syndication.views',
     (r'^syndication/complex/(?P<foo>.*)/$', feeds.ComplexFeed()),

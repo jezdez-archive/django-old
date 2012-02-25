@@ -6,6 +6,7 @@ import threading
 
 from django.db import models
 
+
 class DumbCategory(models.Model):
     pass
 
@@ -207,6 +208,9 @@ class Related(models.Model):
 class Celebrity(models.Model):
     name = models.CharField("Name", max_length=20)
     greatest_fan = models.ForeignKey("Fan", null=True, unique=True)
+
+    def __unicode__(self):
+        return self.name
 
 class TvChef(Celebrity):
     pass

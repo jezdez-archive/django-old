@@ -182,13 +182,14 @@ class GEOSTest(unittest.TestCase, TestDataMixin):
 
     def test01h_ewkt(self):
         "Testing EWKT."
-        srid = 32140
-        for p in self.geometries.polygons:
-            ewkt = 'SRID=%d;%s' % (srid, p.wkt)
-            poly = fromstr(ewkt)
-            self.assertEqual(srid, poly.srid)
-            self.assertEqual(srid, poly.shell.srid)
-            self.assertEqual(srid, fromstr(poly.ewkt).srid) # Checking export
+        srids = (-1, 32140)
+        for srid in srids:
+            for p in self.geometries.polygons:
+                ewkt = 'SRID=%d;%s' % (srid, p.wkt)
+                poly = fromstr(ewkt)
+                self.assertEqual(srid, poly.srid)
+                self.assertEqual(srid, poly.shell.srid)
+                self.assertEqual(srid, fromstr(poly.ewkt).srid) # Checking export
 
     def test01i_json(self):
         "Testing GeoJSON input/output (via GDAL)."
@@ -891,11 +892,11 @@ class GEOSTest(unittest.TestCase, TestDataMixin):
 
     def test23_transform_nosrid(self):
         """ Testing `transform` method (no SRID) """
-        # raise a warning if SRID <0/None
+        # Raise a warning if SRID <0/None.
         import warnings
         print "\nBEGIN - expecting Warnings; safe to ignore.\n"
 
-        # test for do-nothing behaviour.
+        # Test for do-nothing behavior.
         try:
             # Keeping line-noise down by only printing the relevant
             # warnings once.

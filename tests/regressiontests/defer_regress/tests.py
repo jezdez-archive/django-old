@@ -1,3 +1,5 @@
+from __future__ import with_statement, absolute_import
+
 from operator import attrgetter
 
 from django.contrib.contenttypes.models import ContentType
@@ -6,8 +8,8 @@ from django.db.models import Count
 from django.db.models.loading import cache
 from django.test import TestCase
 
-from models import (ResolveThis, Item, RelatedItem, Child, Leaf, Proxy,
-        SimpleItem, Feature)
+from .models import (ResolveThis, Item, RelatedItem, Child, Leaf, Proxy,
+    SimpleItem, Feature)
 
 
 class DeferRegressionTest(TestCase):
@@ -19,22 +21,18 @@ class DeferRegressionTest(TestCase):
         obj = Item.objects.only("name", "other_value").get(name="first")
         # Accessing "name" doesn't trigger a new database query. Accessing
         # "value" or "text" should.
-        def test():
+        with self.assertNumQueries(0):
             self.assertEqual(obj.name, "first")
             self.assertEqual(obj.other_value, 0)
-        self.assertNumQueries(0, test)
 
-        def test():
+        with self.assertNumQueries(1):
             self.assertEqual(obj.value, 42)
-        self.assertNumQueries(1, test)
 
-        def test():
+        with self.assertNumQueries(1):
             self.assertEqual(obj.text, "xyzzy")
-        self.assertNumQueries(1, test)
 
-        def test():
+        with self.assertNumQueries(0):
             self.assertEqual(obj.text, "xyzzy")
-        self.assertNumQueries(0, test)
 
         # Regression test for #10695. Make sure different instances don't
         # inadvertently share data in the deferred descriptor objects.
@@ -49,7 +47,7 @@ class DeferRegressionTest(TestCase):
         self.assertEqual(r.item, i)
 
         # Some further checks for select_related() and inherited model
-        # behaviour (regression for #10710).
+        # behavior (regression for #10710).
         c1 = Child.objects.create(name="c1", value=42)
         c2 = Child.objects.create(name="c2", value=37)
         Leaf.objects.create(name="l1", child=c1, second_child=c2)

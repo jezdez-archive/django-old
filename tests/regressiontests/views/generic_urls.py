@@ -1,9 +1,10 @@
 # -*- coding:utf-8 -*-
-from django.conf.urls.defaults import patterns, url
+from __future__ import absolute_import
 
-from models import *
+from django.conf.urls import patterns, url
 
-import views
+from . import views
+from .models import Article, DateArticle, UrlArticle
 
 
 date_based_info_dict = {
@@ -114,4 +115,5 @@ urlpatterns += patterns('django.views.generic.simple',
     (r'^simple/redirect_to_none/$', 'redirect_to', dict(url=None)),
     (r'^simple/redirect_to_arg/(?P<id>\d+)/$', 'redirect_to', dict(url='/simple/target_arg/%(id)s/')),
     (r'^simple/redirect_to_query/$', 'redirect_to', dict(url='/simple/target/', query_string=True)),
+    (r'^simple/redirect_to_arg_and_query/(?P<id>\d+)/$', 'redirect_to', dict(url='/simple/target_arg/%(id)s/', query_string=True)),
 )

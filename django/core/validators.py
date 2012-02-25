@@ -1,5 +1,6 @@
 import platform
 import re
+import urllib
 import urllib2
 import urlparse
 
@@ -51,7 +52,7 @@ class URLValidator(RegexValidator):
         r'(?::\d+)?' # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
-    def __init__(self, verify_exists=False, 
+    def __init__(self, verify_exists=False,
                  validator_user_agent=URL_VALIDATOR_USER_AGENT):
         super(URLValidator, self).__init__()
         self.verify_exists = verify_exists
@@ -92,6 +93,8 @@ class URLValidator(RegexValidator):
                 "User-Agent": self.user_agent,
             }
             url = url.encode('utf-8')
+            # Quote characters from the unreserved set, refs #16812
+            url = urllib.quote(url, "!*'();:@&=+$,/?#[]")
             broken_error = ValidationError(
                 _(u'This URL appears to be a broken link.'), code='invalid_link')
             try:
@@ -99,7 +102,7 @@ class URLValidator(RegexValidator):
                 req.get_method = lambda: 'HEAD'
                 #Create an opener that does not support local file access
                 opener = urllib2.OpenerDirector()
-                
+
                 #Don't follow redirects, but don't treat them as errors either
                 error_nop = lambda *args, **kwargs: True
                 http_error_processor = urllib2.HTTPErrorProcessor()
@@ -114,12 +117,12 @@ class URLValidator(RegexValidator):
                             http_error_processor]
                 try:
                     import ssl
-                    handlers.append(urllib2.HTTPSHandler())
-                except:
-                    #Python isn't compiled with SSL support
+                except ImportError:
+                    # Python isn't compiled with SSL support
                     pass
+                else:
+                    handlers.append(urllib2.HTTPSHandler())
                 map(opener.add_handler, handlers)
-                opener.http_error_301 = lambda: True
                 if platform.python_version_tuple() >= (2, 6):
                     opener.open(req, timeout=10)
                 else:
@@ -133,7 +136,7 @@ class URLValidator(RegexValidator):
 def validate_integer(value):
     try:
         int(value)
-    except (ValueError, TypeError), e:
+    except (ValueError, TypeError):
         raise ValidationError('')
 
 class EmailValidator(RegexValidator):
@@ -145,7 +148,6 @@ class EmailValidator(RegexValidator):
             # Trivial case failed. Try for possible IDN domain-part
             if value and u'@' in value:
                 parts = value.split(u'@')
-                domain_part = parts[-1]
                 try:
                     parts[-1] = parts[-1].encode('idna')
                 except UnicodeError:
@@ -156,7 +158,8 @@ class EmailValidator(RegexValidator):
 
 email_re = re.compile(
     r"(^[-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*"  # dot-atom
-    r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-011\013\014\016-\177])*"' # quoted-string
+    # quoted-string, see also http://tools.ietf.org/html/rfc2822#section-3.2.5
+    r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"'
     r')@((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?$)'  # domain
     r'|\[(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\]$', re.IGNORECASE)  # literal form, ipv4 address (SMTP 4.1.3)
 validate_email = EmailValidator(email_re, _(u'Enter a valid e-mail address.'), 'invalid')

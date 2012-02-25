@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
 from django.http import QueryDict
@@ -496,27 +497,21 @@ class FormsTestCase(TestCase):
         # When RadioSelect is used with auto_id, and the whole form is printed using
         # either as_table() or as_ul(), the label for the RadioSelect will point to the
         # ID of the *first* radio button.
-        self.assertHTMLEqual(f.as_table(), """
-            <tr><th><label for="id_name">Name:</label></th><td><input type="text" name="name" id="id_name" /></td></tr>
-            <tr><th><label for="id_language_0">Language:</label></th><td><ul>
-                <li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
-                <li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
-            </ul></td></tr>
-        """)
-        self.assertHTMLEqual(f.as_ul(), """
-            <li><label for="id_name">Name:</label> <input type="text" name="name" id="id_name" /></li>
-            <li><label for="id_language_0">Language:</label> <ul>
-                <li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
-                <li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
-            </ul></li>
-        """)
-        self.assertHTMLEqual(f.as_p(), """
-            <p><label for="id_name">Name:</label> <input type="text" name="name" id="id_name" /></p>
-            <p><label for="id_language_0">Language:</label> <ul>
-                <li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
-                <li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
-            </ul></p>
-        """)
+        self.assertHTMLEqual(f.as_table(), """<tr><th><label for="id_name">Name:</label></th><td><input type="text" name="name" id="id_name" /></td></tr>
+<tr><th><label for="id_language_0">Language:</label></th><td><ul>
+<li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
+<li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
+</ul></td></tr>""")
+        self.assertHTMLEqual(f.as_ul(), """<li><label for="id_name">Name:</label> <input type="text" name="name" id="id_name" /></li>
+<li><label for="id_language_0">Language:</label> <ul>
+<li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
+<li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
+</ul></li>""")
+        self.assertHTMLEqual(f.as_p(), """<p><label for="id_name">Name:</label> <input type="text" name="name" id="id_name" /></p>
+<p><label for="id_language_0">Language:</label> <ul>
+<li><label for="id_language_0"><input type="radio" id="id_language_0" value="P" name="language" /> Python</label></li>
+<li><label for="id_language_1"><input type="radio" id="id_language_1" value="J" name="language" /> Java</label></li>
+</ul></p>""")
 
     def test_forms_with_multiple_choice(self):
         # MultipleChoiceField is a special case, as its data is required to be a list:
@@ -930,6 +925,19 @@ class FormsTestCase(TestCase):
         self.assertEqual(f['gender'].field.choices, [('f', 'Female'), ('m', 'Male'), ('u', 'Unspecified')])
         f = Person()
         self.assertEqual(f['gender'].field.choices, [('f', 'Female'), ('m', 'Male')])
+
+    def test_validators_independence(self):
+        """ Test that we are able to modify a form field validators list without polluting
+            other forms """
+        from django.core.validators import MaxValueValidator
+        class MyForm(Form):
+            myfield = CharField(max_length=25)
+
+        f1 = MyForm()
+        f2 = MyForm()
+
+        f1.fields['myfield'].validators[0] = MaxValueValidator(12)
+        self.assertFalse(f1.fields['myfield'].validators[0] == f2.fields['myfield'].validators[0])
 
     def test_hidden_widget(self):
         # HiddenInput widgets are displayed differently in the as_table(), as_ul())

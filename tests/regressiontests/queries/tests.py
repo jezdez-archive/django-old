@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import datetime
 import pickle
 import sys
@@ -11,11 +13,12 @@ from django.test import TestCase, skipUnlessDBFeature
 from django.utils import unittest
 from django.utils.datastructures import SortedDict
 
-from models import (Annotation, Article, Author, Celebrity, Child, Cover, Detail,
-    DumbCategory, ExtraInfo, Fan, Item, LeafA, LoopX, LoopZ, ManagedModel,
-    Member, NamedCategory, Note, Number, Plaything, PointerA, Ranking, Related,
-    Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten, Node, ObjectA, ObjectB,
-    ObjectC, CategoryItem, SimpleCategory, SpecialCategory, OneToOneCategory)
+from .models import (Annotation, Article, Author, Celebrity, Child, Cover,
+    Detail, DumbCategory, ExtraInfo, Fan, Item, LeafA, LoopX, LoopZ,
+    ManagedModel, Member, NamedCategory, Note, Number, Plaything, PointerA,
+    Ranking, Related, Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten,
+    Node, ObjectA, ObjectB, ObjectC, CategoryItem, SimpleCategory,
+    SpecialCategory, OneToOneCategory)
 
 
 class BaseQuerysetTest(TestCase):
@@ -231,17 +234,21 @@ class Queries1Tests(BaseQuerysetTest):
             ['<Item: four>', '<Item: one>']
         )
 
-    # FIXME: This is difficult to fix and very much an edge case, so punt for
-    # now.  This is related to the order_by() tests for ticket #2253, but the
-    # old bug exhibited itself here (q2 was pulling too many tables into the
-    # combined query with the new ordering, but only because we have evaluated
-    # q2 already).
-    @unittest.expectedFailure
     def test_order_by_tables(self):
         q1 = Item.objects.order_by('name')
         q2 = Item.objects.filter(id=self.i1.id)
         list(q2)
         self.assertEqual(len((q1 & q2).order_by('name').query.tables), 1)
+
+    def test_order_by_join_unref(self):
+        """
+        This test is related to the above one, testing that there aren't
+        old JOINs in the query.
+        """
+        qs = Celebrity.objects.order_by('greatest_fan__fan_of')
+        self.assertIn('OUTER JOIN', str(qs.query))
+        qs = qs.order_by('id')
+        self.assertNotIn('OUTER JOIN', str(qs.query))
 
     def test_tickets_4088_4306(self):
         self.assertQuerysetEqual(
@@ -823,6 +830,17 @@ class Queries1Tests(BaseQuerysetTest):
             1
         )
 
+    def test_ticket17429(self):
+        """
+        Ensure that Meta.ordering=None works the same as Meta.ordering=[]
+        """
+        original_ordering = Tag._meta.ordering
+        Tag._meta.ordering = None
+        self.assertQuerysetEqual(
+            Tag.objects.all(),
+            ['<Tag: t1>', '<Tag: t2>', '<Tag: t3>', '<Tag: t4>', '<Tag: t5>'],
+        )
+        Tag._meta.ordering = original_ordering
 
 class Queries2Tests(TestCase):
     def setUp(self):
@@ -1070,10 +1088,6 @@ class Queries4Tests(BaseQuerysetTest):
         ci3 = CategoryItem.objects.create(category=c3)
 
         qs = CategoryItem.objects.exclude(category__specialcategory__isnull=False)
-        # Under MySQL, this query gives incorrect values on the first attempt.
-        # If you run exactly the same query twice, it yields the right answer
-        # the second attempt. Oh, how we do love MySQL.
-        qs.count()
         self.assertEqual(qs.count(), 1)
         self.assertQuerysetEqual(qs, [ci1.pk], lambda x: x.pk)
 
@@ -1136,10 +1150,6 @@ class Queries4Tests(BaseQuerysetTest):
         ci3 = CategoryItem.objects.create(category=c1)
 
         qs = CategoryItem.objects.exclude(category__onetoonecategory__isnull=False)
-        # Under MySQL, this query gives incorrect values on the first attempt.
-        # If you run exactly the same query twice, it yields the right answer
-        # the second attempt. Oh, how we do love MySQL.
-        qs.count()
         self.assertEqual(qs.count(), 1)
         self.assertQuerysetEqual(qs, [ci1.pk], lambda x: x.pk)
 
@@ -1359,7 +1369,7 @@ class Queries6Tests(TestCase):
         ann1.notes.add(n1)
         ann2 = Annotation.objects.create(name='a2', tag=t4)
 
-    # This next test used to cause really weird PostgreSQL behaviour, but it was
+    # This next test used to cause really weird PostgreSQL behavior, but it was
     # only apparent much later when the full test suite ran.
     #@unittest.expectedFailure
     def test_slicing_and_cache_interaction(self):
@@ -1421,11 +1431,6 @@ class Queries6Tests(TestCase):
             []
         )
 
-        # This next makes exactly *zero* sense, but it works. It's needed
-        # because MySQL fails to give the right results the first time this
-        # query is executed. If you run the same query a second time, it
-        # works fine. It's a hack, but it works...
-        list(Tag.objects.exclude(children=None))
         self.assertQuerysetEqual(
             Tag.objects.exclude(children=None),
             ['<Tag: t1>', '<Tag: t3>']
@@ -1440,7 +1445,7 @@ class Queries6Tests(TestCase):
 
         # The annotation->tag link is single values and tag->children links is
         # multi-valued. So we have to split the exclude filter in the middle
-        # and then optimise the inner query without losing results.
+        # and then optimize the inner query without losing results.
         self.assertQuerysetEqual(
             Annotation.objects.exclude(tag__children__name="t2"),
             ['<Annotation: a2>']
@@ -1738,7 +1743,7 @@ class ToFieldTests(TestCase):
 
 
 class ConditionalTests(BaseQuerysetTest):
-    """Tests whose execution depend on dfferent environment conditions like
+    """Tests whose execution depend on different environment conditions like
     Python version or DB backend features"""
 
     def setUp(self):
@@ -1748,6 +1753,7 @@ class ConditionalTests(BaseQuerysetTest):
         t3 = Tag.objects.create(name='t3', parent=t1)
         t4 = Tag.objects.create(name='t4', parent=t3)
         t5 = Tag.objects.create(name='t5', parent=t3)
+
 
     # In Python 2.6 beta releases, exceptions raised in __len__ are swallowed
     # (Python issue 1242657), so these cases return an empty list, rather than
@@ -1820,6 +1826,7 @@ class ConditionalTests(BaseQuerysetTest):
             2500
         )
 
+
 class UnionTests(unittest.TestCase):
     """
     Tests for the union of two querysets. Bug #12252.
@@ -1878,3 +1885,12 @@ class UnionTests(unittest.TestCase):
         Q1 = Q(objecta__name='one', objectc__objecta__name='two')
         Q2 = Q(objecta__objectc__name='ein', objectc__objecta__name='three', objecta__objectb__name='trois')
         self.check_union(ObjectB, Q1, Q2)
+
+
+class DefaultValuesInsertTest(TestCase):
+    def test_no_extra_params(self):
+        # Ticket #17056 -- affects Oracle
+        try:
+            DumbCategory.objects.create()
+        except TypeError:
+            self.fail("Creation of an instance of a model with only the PK field shouldn't error out after bulk insert refactoring (#17056)")

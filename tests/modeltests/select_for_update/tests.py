@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+
 import sys
 import time
-import unittest
+
 from django.conf import settings
 from django.db import transaction, connection
 from django.db.utils import ConnectionHandler, DEFAULT_DB_ALIAS, DatabaseError
@@ -8,7 +10,7 @@ from django.test import (TransactionTestCase, skipIfDBFeature,
     skipUnlessDBFeature)
 from django.utils import unittest
 
-from models import Person
+from .models import Person
 
 # Some tests require threading, which might not be available. So create a
 # skip-test decorator for those test functions.
@@ -17,6 +19,7 @@ try:
 except ImportError:
     threading = None
 requires_threading = unittest.skipUnless(threading, 'requires threading')
+
 
 class SelectForUpdateTests(TransactionTestCase):
 
@@ -101,10 +104,11 @@ class SelectForUpdateTests(TransactionTestCase):
     # are swallowed (Python issue 1242657), so these cases return an empty
     # list, rather than raising an exception. Not a lot we can do about that,
     # unfortunately, due to the way Python handles list() calls internally.
-    # Thus, we skip this test for Python 2.6.
+    # Python 2.6.1 is the "in the wild" version affected by this, so we skip
+    # the test for that version.
     @requires_threading
     @skipUnlessDBFeature('has_select_for_update_nowait')
-    @unittest.skipIf(sys.version_info[:2] == (2, 6), "Python version is 2.6")
+    @unittest.skipIf(sys.version_info[:3] == (2, 6, 1), "Python version is 2.6.1")
     def test_nowait_raises_error_on_block(self):
         """
         If nowait is specified, we expect an error to be raised rather
@@ -124,8 +128,15 @@ class SelectForUpdateTests(TransactionTestCase):
         self.end_blocking_transaction()
         self.check_exc(status[-1])
 
+    # In Python 2.6 beta and some final releases, exceptions raised in __len__
+    # are swallowed (Python issue 1242657), so these cases return an empty
+    # list, rather than raising an exception. Not a lot we can do about that,
+    # unfortunately, due to the way Python handles list() calls internally.
+    # Python 2.6.1 is the "in the wild" version affected by this, so we skip
+    # the test for that version.
     @skipIfDBFeature('has_select_for_update_nowait')
     @skipUnlessDBFeature('has_select_for_update')
+    @unittest.skipIf(sys.version_info[:3] == (2, 6, 1), "Python version is 2.6.1")
     def test_unsupported_nowait_raises_error(self):
         """
         If a SELECT...FOR UPDATE NOWAIT is run on a database backend
@@ -144,7 +155,7 @@ class SelectForUpdateTests(TransactionTestCase):
         Person instances. After the select_for_update, it attempts
         to update the name of the only record, save, and commit.
 
-        In general, this will be run in a separate thread.
+        This function expects to run in a separate thread.
         """
         status.append('started')
         try:
@@ -162,6 +173,10 @@ class SelectForUpdateTests(TransactionTestCase):
             status.append(e)
         except Exception, e:
             raise
+        finally:
+            # This method is run in a separate thread. It uses its own
+            # database connection. Close it without waiting for the GC.
+            connection.close()
 
     @requires_threading
     @skipUnlessDBFeature('has_select_for_update')
@@ -205,6 +220,11 @@ class SelectForUpdateTests(TransactionTestCase):
         # Check the thread has finished. Assuming it has, we should
         # find that it has updated the person's name.
         self.failIf(thread.isAlive())
+
+        # We must commit the transaction to ensure that MySQL gets a fresh read,
+        # since by default it runs in REPEATABLE READ mode
+        transaction.commit()
+
         p = Person.objects.get(pk=self.person.pk)
         self.assertEqual('Fred', p.name)
 
@@ -228,6 +248,11 @@ class SelectForUpdateTests(TransactionTestCase):
                 )
             except DatabaseError, e:
                 status.append(e)
+            finally:
+                # This method is run in a separate thread. It uses its own
+                # database connection. Close it without waiting for the GC.
+                connection.close()
+
         status = []
         thread = threading.Thread(target=raw, kwargs={'status': status})
         thread.start()

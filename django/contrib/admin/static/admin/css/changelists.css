@@ -51,6 +51,7 @@
 /* CHANGELIST TABLES */
 
 #changelist table thead th {
+    padding: 0;
     white-space: nowrap;
     vertical-align: middle;
 }
@@ -165,11 +166,10 @@
 }
 
 .change-list ul.toplinks li {
-    float: left;
-    width: 9em;
     padding: 3px 6px;
     font-weight: bold;
     list-style-type: none;
+    display: inline-block;
 }
 
 .change-list ul.toplinks .date-back a {

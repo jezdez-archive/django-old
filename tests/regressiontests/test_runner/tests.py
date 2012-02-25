@@ -1,6 +1,8 @@
 """
 Tests for django test runner
 """
+from __future__ import absolute_import
+
 import StringIO
 from optparse import make_option
 import warnings
@@ -8,12 +10,12 @@ import warnings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.test import simple
-from django.test.simple import get_tests
+from django.test.simple import DjangoTestSuiteRunner, get_tests
 from django.test.utils import get_warnings_state, restore_warnings_state
 from django.utils import unittest
 from django.utils.importlib import import_module
 
-from regressiontests.admin_scripts.tests import AdminScriptTestCase
+from ..admin_scripts.tests import AdminScriptTestCase
 
 
 TEST_APP_OK = 'regressiontests.test_runner.valid_app.models'
@@ -188,28 +190,65 @@ class CustomTestRunnerOptionsTests(AdminScriptTestCase):
         self.remove_settings('settings.py')
 
     def test_default_options(self):
-        args = ['test', '--settings=settings']
+        args = ['test', '--settings=regressiontests.settings']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, '1:2:3')
 
     def test_default_and_given_options(self):
-        args = ['test', '--settings=settings', '--option_b=foo']
+        args = ['test', '--settings=regressiontests.settings', '--option_b=foo']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, '1:foo:3')
 
     def test_option_name_and_value_separated(self):
-        args = ['test', '--settings=settings', '--option_b', 'foo']
+        args = ['test', '--settings=regressiontests.settings', '--option_b', 'foo']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, '1:foo:3')
 
     def test_all_options_given(self):
-        args = ['test', '--settings=settings', '--option_a=bar', '--option_b=foo', '--option_c=31337']
+        args = ['test', '--settings=regressiontests.settings', '--option_a=bar', '--option_b=foo', '--option_c=31337']
         out, err = self.run_django_admin(args)
         self.assertNoOutput(err)
         self.assertOutput(out, 'bar:foo:31337')
+
+
+class Ticket16885RegressionTests(unittest.TestCase):
+    def test_ticket_16885(self):
+        """Features are also confirmed on mirrored databases."""
+        from django import db
+        old_db_connections = db.connections
+        try:
+            db.connections = db.ConnectionHandler({
+                'default': {
+                    'ENGINE': 'django.db.backends.sqlite3',
+                },
+                'slave': {
+                    'ENGINE': 'django.db.backends.sqlite3',
+                    'TEST_MIRROR': 'default',
+                },
+            })
+            slave = db.connections['slave']
+            self.assertEqual(slave.features.supports_transactions, None)
+            DjangoTestSuiteRunner(verbosity=0).setup_databases()
+            self.assertNotEqual(slave.features.supports_transactions, None)
+        finally:
+            db.connections = old_db_connections
+
+
+class Ticket17477RegressionTests(AdminScriptTestCase):
+    def setUp(self):
+        self.write_settings('settings.py')
+
+    def tearDown(self):
+        self.remove_settings('settings.py')
+
+    def test_ticket_17477(self):
+        """'manage.py help test' works after r16352."""
+        args = ['help', 'test']
+        out, err = self.run_manage(args)
+        self.assertNoOutput(err)
 
 
 class ModulesTestsPackages(unittest.TestCase):

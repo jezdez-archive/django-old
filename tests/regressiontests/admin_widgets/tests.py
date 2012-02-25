@@ -1,5 +1,5 @@
 # encoding: utf-8
-from __future__ import with_statement
+from __future__ import with_statement, absolute_import
 
 from datetime import datetime
 
@@ -7,6 +7,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin import widgets
+from django.contrib.admin.tests import AdminSeleniumWebDriverTestCase
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import DateField
@@ -15,8 +16,9 @@ from django.utils import translation
 from django.utils.html import conditional_escape
 from django.utils.unittest import TestCase
 
-import models
-from widgetadmin import site as widget_admin_site
+from . import models
+from .widgetadmin import site as widget_admin_site
+
 
 admin_media_prefix = lambda: {
     'ADMIN_MEDIA_PREFIX': "%sadmin/" % settings.STATIC_URL,
@@ -205,6 +207,41 @@ class FilteredSelectMultipleWidgetTest(DjangoTestCase):
             '<select multiple="multiple" name="test" class="selectfilterstacked">\n</select><script type="text/javascript">addEvent(window, "load", function(e) {SelectFilter.init("id_test", "test", 1, "%(ADMIN_MEDIA_PREFIX)s"); });</script>\n' % admin_media_prefix()
         )
 
+class AdminDateWidgetTest(DjangoTestCase):
+    def test_attrs(self):
+        """
+        Ensure that user-supplied attrs are used.
+        Refs #12073.
+        """
+        w = widgets.AdminDateWidget()
+        self.assertHTMLEqual(
+            conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
+            '<input value="2007-12-01" type="text" class="vDateField" name="test" size="10" />',
+        )
+        # pass attrs to widget
+        w = widgets.AdminDateWidget(attrs={'size': 20, 'class': 'myDateField'})
+        self.assertHTMLEqual(
+            conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
+            '<input value="2007-12-01" type="text" class="myDateField" name="test" size="20" />',
+        )
+
+class AdminTimeWidgetTest(DjangoTestCase):
+    def test_attrs(self):
+        """
+        Ensure that user-supplied attrs are used.
+        Refs #12073.
+        """
+        w = widgets.AdminTimeWidget()
+        self.assertHTMLEqual(
+            conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
+            '<input value="09:30:00" type="text" class="vTimeField" name="test" size="8" />',
+        )
+        # pass attrs to widget
+        w = widgets.AdminTimeWidget(attrs={'size': 20, 'class': 'myTimeField'})
+        self.assertHTMLEqual(
+            conditional_escape(w.render('test', datetime(2007, 12, 1, 9, 30))),
+            '<input value="09:30:00" type="text" class="myTimeField" name="test" size="20" />',
+        )
 
 class AdminSplitDateTimeWidgetTest(DjangoTestCase):
     def test_render(self):
@@ -381,3 +418,52 @@ class AdminRadioSelectTests(DjangoTestCase):
         rendered = w.render('foo', 1, attrs={'class': 'RadioSelect'},
                             choices=(('1', 'one'), ('2', 'two')))
         self.assertTrue('<ul class="RadioSelect">' in rendered, rendered)
+
+
+class SeleniumFirefoxTests(AdminSeleniumWebDriverTestCase):
+    webdriver_class = 'selenium.webdriver.firefox.webdriver.WebDriver'
+    fixtures = ['admin-widgets-users.xml']
+    urls = "regressiontests.admin_widgets.urls"
+
+    def test_show_hide_date_time_picker_widgets(self):
+        """
+        Ensure that pressing the ESC key closes the date and time picker
+        widgets.
+        Refs #17064.
+        """
+        from selenium.webdriver.common.keys import Keys
+
+        self.admin_login(username='super', password='secret', login_url='/')
+        # Open a page that has a date and time picker widgets
+        self.selenium.get('%s%s' % (self.live_server_url,
+            '/admin_widgets/member/add/'))
+
+        # First, with the date picker widget ---------------------------------
+        # Check that the date picker is hidden
+        self.assertEqual(
+            self.get_css_value('#calendarbox0', 'display'), 'none')
+        # Click the calendar icon
+        self.selenium.find_element_by_id('calendarlink0').click()
+        # Check that the date picker is visible
+        self.assertEqual(
+            self.get_css_value('#calendarbox0', 'display'), 'block')
+        # Press the ESC key
+        self.selenium.find_element_by_tag_name('html').send_keys([Keys.ESCAPE])
+        # Check that the date picker is hidden again
+        self.assertEqual(
+            self.get_css_value('#calendarbox0', 'display'), 'none')
+
+        # Then, with the time picker widget ----------------------------------
+        # Check that the time picker is hidden
+        self.assertEqual(
+            self.get_css_value('#clockbox0', 'display'), 'none')
+        # Click the time icon
+        self.selenium.find_element_by_id('clocklink0').click()
+        # Check that the time picker is visible
+        self.assertEqual(
+            self.get_css_value('#clockbox0', 'display'), 'block')
+        # Press the ESC key
+        self.selenium.find_element_by_tag_name('html').send_keys([Keys.ESCAPE])
+        # Check that the time picker is hidden again
+        self.assertEqual(
+            self.get_css_value('#clockbox0', 'display'), 'none')

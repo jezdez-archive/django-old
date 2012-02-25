@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
 import errno
+import os
 import shutil
 import sys
 import tempfile
@@ -95,6 +95,14 @@ class FileStorageTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.temp_dir)
         shutil.rmtree(self.temp_dir2)
+
+    def test_emtpy_location(self):
+        """
+        Makes sure an exception is raised if the location is empty
+        """
+        storage = self.storage_class(location='')
+        self.assertEqual(storage.base_location, '')
+        self.assertEqual(storage.location, os.getcwd())
 
     def test_file_access_options(self):
         """
@@ -221,8 +229,8 @@ class FileStorageTests(unittest.TestCase):
 
         # should encode special chars except ~!*()'
         # like encodeURIComponent() JavaScript function do
-        self.assertEqual(self.storage.url(r"""~!*()'@#$%^&*abc`+=.file"""),
-            """/test_media_url/~!*()'%40%23%24%25%5E%26*abc%60%2B%3D.file""")
+        self.assertEqual(self.storage.url(r"""~!*()'@#$%^&*abc`+ =.file"""),
+            """/test_media_url/~!*()'%40%23%24%25%5E%26*abc%60%2B%20%3D.file""")
 
         # should stanslate os path separator(s) to the url path separator
         self.assertEqual(self.storage.url("""a/b\\c.file"""),
@@ -230,26 +238,6 @@ class FileStorageTests(unittest.TestCase):
 
         self.storage.base_url = None
         self.assertRaises(ValueError, self.storage.url, 'test.file')
-
-    def test_file_with_mixin(self):
-        """
-        File storage can get a mixin to extend the functionality of the
-        returned file.
-        """
-        self.assertFalse(self.storage.exists('test.file'))
-
-        class TestFileMixin(object):
-            mixed_in = True
-
-        f = ContentFile('custom contents')
-        f_name = self.storage.save('test.file', f)
-
-        self.assertTrue(isinstance(
-            self.storage.open('test.file', mixin=TestFileMixin),
-            TestFileMixin
-        ))
-
-        self.storage.delete('test.file')
 
     def test_listdir(self):
         """
@@ -554,3 +542,14 @@ class InconsistentGetImageDimensionsBug(unittest.TestCase):
         size_1, size_2 = get_image_dimensions(image), get_image_dimensions(image)
         self.assertEqual(image_pil.size, size_1)
         self.assertEqual(size_1, size_2)
+
+class ContentFileTestCase(unittest.TestCase):
+    """
+    Test that the constructor of ContentFile accepts 'name' (#16590).
+    """
+    def test_content_file_default_name(self):
+        self.assertEqual(ContentFile("content").name, None)
+
+    def test_content_file_custome_name(self):
+        name = "I can have a name too!"
+        self.assertEqual(ContentFile("content", name=name).name, name)

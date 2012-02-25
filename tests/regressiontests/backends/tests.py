@@ -1,17 +1,24 @@
 # -*- coding: utf-8 -*-
 # Unit and doctests for specific database backends.
-from __future__ import with_statement
+from __future__ import with_statement, absolute_import
+
 import datetime
+import threading
 
 from django.conf import settings
 from django.core.management.color import no_style
-from django.db import backend, connection, connections, DEFAULT_DB_ALIAS, IntegrityError, transaction
+from django.core.exceptions import ImproperlyConfigured
+from django.db import (backend, connection, connections, DEFAULT_DB_ALIAS,
+    IntegrityError, transaction)
 from django.db.backends.signals import connection_created
 from django.db.backends.postgresql_psycopg2 import version as pg_version
+from django.db.utils import ConnectionHandler, DatabaseError, load_backend
 from django.test import TestCase, skipUnlessDBFeature, TransactionTestCase
+from django.test.utils import override_settings
 from django.utils import unittest
 
-from regressiontests.backends import models
+from . import models
+
 
 class OracleChecks(unittest.TestCase):
 
@@ -226,6 +233,46 @@ class PostgresVersionTest(TestCase):
         conn = OlderConnectionMock()
         self.assertEqual(pg_version.get_version(conn), 80300)
 
+class PostgresNewConnectionTest(TestCase):
+    """
+    #17062: PostgreSQL shouldn't roll back SET TIME ZONE, even if the first
+    transaction is rolled back.
+    """
+    @unittest.skipUnless(
+        connection.vendor == 'postgresql' and connection.isolation_level > 0,
+        "This test applies only to PostgreSQL without autocommit")
+    def test_connect_and_rollback(self):
+        new_connections = ConnectionHandler(settings.DATABASES)
+        new_connection = new_connections[DEFAULT_DB_ALIAS]
+        try:
+            # Ensure the database default time zone is different than
+            # the time zone in new_connection.settings_dict. We can
+            # get the default time zone by reset & show.
+            cursor = new_connection.cursor()
+            cursor.execute("RESET TIMEZONE")
+            cursor.execute("SHOW TIMEZONE")
+            db_default_tz = cursor.fetchone()[0]
+            new_tz = 'Europe/Paris' if db_default_tz == 'UTC' else 'UTC'
+            new_connection.close()
+
+            # Fetch a new connection with the new_tz as default
+            # time zone, run a query and rollback.
+            new_connection.settings_dict['TIME_ZONE'] = new_tz
+            new_connection.enter_transaction_management()
+            cursor = new_connection.cursor()
+            new_connection.rollback()
+
+            # Now let's see if the rollback rolled back the SET TIME ZONE.
+            cursor.execute("SHOW TIMEZONE")
+            tz = cursor.fetchone()[0]
+            self.assertEqual(new_tz, tz)
+        finally:
+            try:
+                new_connection.close()
+            except DatabaseError:
+                pass
+
+
 # Unfortunately with sqlite3 the in-memory test database cannot be
 # closed, and so it cannot be re-opened during testing, and so we
 # sadly disable this test for now.
@@ -239,7 +286,7 @@ class ConnectionCreatedSignalTest(TestCase):
         connection_created.connect(receiver)
         connection.close()
         cursor = connection.cursor()
-        self.assertTrue(data["connection"] is connection)
+        self.assertTrue(data["connection"].connection is connection.connection)
 
         connection_created.disconnect(receiver)
         data.clear()
@@ -262,23 +309,43 @@ class EscapingChecks(TestCase):
 
 
 class BackendTestCase(TestCase):
+
+    def create_squares_with_executemany(self, args):
+        cursor = connection.cursor()
+        opts = models.Square._meta
+        tbl = connection.introspection.table_name_converter(opts.db_table)
+        f1 = connection.ops.quote_name(opts.get_field('root').column)
+        f2 = connection.ops.quote_name(opts.get_field('square').column)
+        query = 'INSERT INTO %s (%s, %s) VALUES (%%s, %%s)' % (tbl, f1, f2)
+        cursor.executemany(query, args)
+
     def test_cursor_executemany(self):
         #4896: Test cursor.executemany
-        cursor = connection.cursor()
-        qn = connection.ops.quote_name
-        opts = models.Square._meta
-        f1, f2 = opts.get_field('root'), opts.get_field('square')
-        query = ('INSERT INTO %s (%s, %s) VALUES (%%s, %%s)'
-                 % (connection.introspection.table_name_converter(opts.db_table), qn(f1.column), qn(f2.column)))
-        cursor.executemany(query, [(i, i**2) for i in range(-5, 6)])
+        args = [(i, i**2) for i in range(-5, 6)]
+        self.create_squares_with_executemany(args)
         self.assertEqual(models.Square.objects.count(), 11)
         for i in range(-5, 6):
             square = models.Square.objects.get(root=i)
             self.assertEqual(square.square, i**2)
 
+    def test_cursor_executemany_with_empty_params_list(self):
         #4765: executemany with params=[] does nothing
-        cursor.executemany(query, [])
-        self.assertEqual(models.Square.objects.count(), 11)
+        args = []
+        self.create_squares_with_executemany(args)
+        self.assertEqual(models.Square.objects.count(), 0)
+
+    def test_cursor_executemany_with_iterator(self):
+        #10320: executemany accepts iterators
+        args = iter((i, i**2) for i in range(-3, 2))
+        self.create_squares_with_executemany(args)
+        self.assertEqual(models.Square.objects.count(), 5)
+
+        args = iter((i, i**2) for i in range(3, 7))
+        with override_settings(DEBUG=True):
+            # same test for DebugCursorWrapper
+            self.create_squares_with_executemany(args)
+        self.assertEqual(models.Square.objects.count(), 9)
+
 
     def test_unicode_fetches(self):
         #6254: fetchone, fetchmany, fetchall return strings as unicode objects
@@ -305,6 +372,12 @@ class BackendTestCase(TestCase):
         self.assertTrue(hasattr(connection.ops, 'connection'))
         self.assertEqual(connection, connection.ops.connection)
 
+    def test_duplicate_table_error(self):
+        """ Test that creating an existing table returns a DatabaseError """
+        cursor = connection.cursor()
+        query = 'CREATE TABLE %s (id INTEGER);' % models.Article._meta.db_table
+        with self.assertRaises(DatabaseError):
+            cursor.execute(query)
 
 # We don't make these tests conditional because that means we would need to
 # check and differentiate between:
@@ -402,3 +475,146 @@ class FkConstraintsTests(TransactionTestCase):
                         connection.check_constraints()
             finally:
                 transaction.rollback()
+
+
+class ThreadTests(TestCase):
+
+    def test_default_connection_thread_local(self):
+        """
+        Ensure that the default connection (i.e. django.db.connection) is
+        different for each thread.
+        Refs #17258.
+        """
+        connections_set = set()
+        connection.cursor()
+        connections_set.add(connection.connection)
+        def runner():
+            from django.db import connection
+            connection.cursor()
+            connections_set.add(connection.connection)
+        for x in xrange(2):
+            t = threading.Thread(target=runner)
+            t.start()
+            t.join()
+        self.assertEquals(len(connections_set), 3)
+        # Finish by closing the connections opened by the other threads (the
+        # connection opened in the main thread will automatically be closed on
+        # teardown).
+        for conn in connections_set:
+            if conn != connection.connection:
+                conn.close()
+
+    def test_connections_thread_local(self):
+        """
+        Ensure that the connections are different for each thread.
+        Refs #17258.
+        """
+        connections_set = set()
+        for conn in connections.all():
+            connections_set.add(conn)
+        def runner():
+            from django.db import connections
+            for conn in connections.all():
+                # Allow thread sharing so the connection can be closed by the
+                # main thread.
+                conn.allow_thread_sharing = True
+                connections_set.add(conn)
+        for x in xrange(2):
+            t = threading.Thread(target=runner)
+            t.start()
+            t.join()
+        self.assertEquals(len(connections_set), 6)
+        # Finish by closing the connections opened by the other threads (the
+        # connection opened in the main thread will automatically be closed on
+        # teardown).
+        for conn in connections_set:
+            if conn != connection:
+                conn.close()
+
+    def test_pass_connection_between_threads(self):
+        """
+        Ensure that a connection can be passed from one thread to the other.
+        Refs #17258.
+        """
+        models.Person.objects.create(first_name="John", last_name="Doe")
+
+        def do_thread():
+            def runner(main_thread_connection):
+                from django.db import connections
+                connections['default'] = main_thread_connection
+                try:
+                    models.Person.objects.get(first_name="John", last_name="Doe")
+                except DatabaseError, e:
+                    exceptions.append(e)
+            t = threading.Thread(target=runner, args=[connections['default']])
+            t.start()
+            t.join()
+
+        # Without touching allow_thread_sharing, which should be False by default.
+        exceptions = []
+        do_thread()
+        # Forbidden!
+        self.assertTrue(isinstance(exceptions[0], DatabaseError))
+
+        # If explicitly setting allow_thread_sharing to False
+        connections['default'].allow_thread_sharing = False
+        exceptions = []
+        do_thread()
+        # Forbidden!
+        self.assertTrue(isinstance(exceptions[0], DatabaseError))
+
+        # If explicitly setting allow_thread_sharing to True
+        connections['default'].allow_thread_sharing = True
+        exceptions = []
+        do_thread()
+        # All good
+        self.assertEqual(len(exceptions), 0)
+
+    def test_closing_non_shared_connections(self):
+        """
+        Ensure that a connection that is not explicitly shareable cannot be
+        closed by another thread.
+        Refs #17258.
+        """
+        # First, without explicitly enabling the connection for sharing.
+        exceptions = set()
+        def runner1():
+            def runner2(other_thread_connection):
+                try:
+                    other_thread_connection.close()
+                except DatabaseError, e:
+                    exceptions.add(e)
+            t2 = threading.Thread(target=runner2, args=[connections['default']])
+            t2.start()
+            t2.join()
+        t1 = threading.Thread(target=runner1)
+        t1.start()
+        t1.join()
+        # The exception was raised
+        self.assertEqual(len(exceptions), 1)
+
+        # Then, with explicitly enabling the connection for sharing.
+        exceptions = set()
+        def runner1():
+            def runner2(other_thread_connection):
+                try:
+                    other_thread_connection.close()
+                except DatabaseError, e:
+                    exceptions.add(e)
+            # Enable thread sharing
+            connections['default'].allow_thread_sharing = True
+            t2 = threading.Thread(target=runner2, args=[connections['default']])
+            t2.start()
+            t2.join()
+        t1 = threading.Thread(target=runner1)
+        t1.start()
+        t1.join()
+        # No exception was raised
+        self.assertEqual(len(exceptions), 0)
+
+
+class BackendLoadingTests(TestCase):
+    def test_old_style_backends_raise_useful_exception(self):
+        self.assertRaisesRegexp(ImproperlyConfigured,
+            "Try using django.db.backends.sqlite3 instead",
+            load_backend, 'sqlite3')

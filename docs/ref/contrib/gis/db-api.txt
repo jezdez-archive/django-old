@@ -119,7 +119,7 @@ A complete reference can be found in the :ref:`spatial lookup reference
 .. note::
 
     GeoDjango constructs spatial SQL with the :class:`GeoQuerySet`, a
-    subclass of :class:`~django.db.models.QuerySet`.  The
+    subclass of :class:`~django.db.models.query.QuerySet`.  The
     :class:`GeoManager` instance attached to your model is what
     enables use of :class:`GeoQuerySet`.
 
@@ -287,9 +287,9 @@ Method                                PostGIS  Oracle  SpatiaLite
 :meth:`GeoQuerySet.force_rhr`         X
 :meth:`GeoQuerySet.geohash`           X
 :meth:`GeoQuerySet.geojson`           X
-:meth:`GeoQuerySet.gml`               X        X
+:meth:`GeoQuerySet.gml`               X        X       X
 :meth:`GeoQuerySet.intersection`      X        X       X
-:meth:`GeoQuerySet.kml`               X
+:meth:`GeoQuerySet.kml`               X                X
 :meth:`GeoQuerySet.length`            X        X       X
 :meth:`GeoQuerySet.make_line`         X
 :meth:`GeoQuerySet.mem_size`          X

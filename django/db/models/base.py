@@ -474,7 +474,6 @@ class Model(object):
         ('raw', 'cls', and 'origin').
         """
         using = using or router.db_for_write(self.__class__, instance=self)
-        connection = connections[using]
         assert not (force_insert and force_update)
         if cls is None:
             cls = self.__class__
@@ -527,9 +526,10 @@ class Model(object):
                     # It does already exist, so do an UPDATE.
                     if force_update or non_pks:
                         values = [(f, None, (raw and getattr(self, f.attname) or f.pre_save(self, False))) for f in non_pks]
-                        rows = manager.using(using).filter(pk=pk_val)._update(values)
-                        if force_update and not rows:
-                            raise DatabaseError("Forced update did not affect any rows.")
+                        if values:
+                            rows = manager.using(using).filter(pk=pk_val)._update(values)
+                            if force_update and not rows:
+                                raise DatabaseError("Forced update did not affect any rows.")
                 else:
                     record_exists = False
             if not pk_set or not record_exists:
